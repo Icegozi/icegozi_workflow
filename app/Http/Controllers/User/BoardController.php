@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\BoardRequest;
 use App\Models\Board;
 use App\Models\Column;
+use App\Models\User;
 use Auth;
 use Illuminate\Http\Request;
 
@@ -29,6 +30,7 @@ class BoardController extends Controller
         $validated = $request->validated();
         $column = new Column();
         $boards = new Board();
+        $users = new User(); 
 
         $data = [
             'user_id' => Auth::id(),
@@ -37,14 +39,15 @@ class BoardController extends Controller
         ];
         $board = $boards->createBoard($data);
         $column->createDefaultColumns($board->id);
-
+        $currentUserRole = $users->getRoleForBoard($board);
         return response()->json([
             'success' => true,
             'message' => 'Bảng đã được tạo thành công!',
             'board' => [
                 'id' => $board->id,
                 'name' => $board->name,
-                'created_at_formatted' => $board->created_at->format('d/m/Y H:i:s'),
+                'currentUserRole' => $currentUserRole,
+                'created_at_formatted' => $board->created_at->format('d/m/Y'),
                 'url_show' => route('boards.show', $board->id),
                 'url_update' => route('boards.update', $board->id),
                 'url_destroy' => route('boards.destroy', $board->id),

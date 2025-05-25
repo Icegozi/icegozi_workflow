@@ -143,7 +143,7 @@ class User extends Authenticatable
     public function hasBoardPermission(Board $board, string $permissionName): bool
     {
         if ($board->user_id === $this->id) {
-            return true; 
+            return true;
         }
         $permission = Permission::where('name', $permissionName)->first();
         if (!$permission) {
@@ -165,7 +165,7 @@ class User extends Authenticatable
         if ($hasBoardPermission) {
             return true;
         }
-        
+
         return false;
     }
 
@@ -196,7 +196,10 @@ class User extends Authenticatable
 
         $memberOf = Board::whereIn('id', $boardIdsWithPermissions)->get();
 
-        return $owned->merge($memberOf)->unique('id');
+        return $owned->merge($memberOf)
+            ->unique('id')
+            ->sortByDesc('created_at')
+            ->unique('id');
     }
 
     public static function addUser(array $data): ?User
@@ -220,7 +223,7 @@ class User extends Authenticatable
         if (!empty($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         } else {
-            unset($data['password']); 
+            unset($data['password']);
         }
 
         return $user->update($data);
@@ -229,8 +232,8 @@ class User extends Authenticatable
 
     public static function deleteUserById(int $id): bool
     {
-         if (auth()->id() === $id) {
-            return false; 
+        if (auth()->id() === $id) {
+            return false;
         }
         $user = self::find($id);
         if (!$user) {
@@ -246,5 +249,4 @@ class User extends Authenticatable
             ->orWhere('email', 'like', "%{$keyword}%")
             ->get();
     }
-
 }

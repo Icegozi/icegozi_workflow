@@ -160,36 +160,28 @@ body {
     z-index: 1000;
 }
 
-
-/* bảng */
 .text-truncate {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
-/* Hiệu ứng Hover cho Card */
 .card-hover {
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
 .card-hover:hover {
     transform: translateY(-4px);
-    /* Sử dụng bóng lớn hơn một chút từ Bootstrap hoặc tùy chỉnh */
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Tùy chỉnh Dropdown Toggle - Ẩn mũi tên mặc định */
 .dropdown-toggle-no-caret::after {
     display: none;
 }
 
-/* Tăng vùng click cho icon dropdown và thêm hiệu ứng nhẹ */
 .dropdown-toggle-no-caret {
     padding: 0.25rem 0.5rem;
-    /* Thêm padding để dễ click hơn */
     margin: -0.25rem -0.5rem;
-    /* Bù lại padding để không ảnh hưởng layout */
     border-radius: 0.25rem;
     transition: background-color 0.15s ease-in-out;
 }
@@ -197,39 +189,25 @@ body {
 .dropdown-toggle-no-caret:hover,
 .dropdown-toggle-no-caret:focus {
     background-color: rgba(0, 0, 0, 0.05);
-    /* Màu nền nhẹ khi hover/focus */
     text-decoration: none;
-    /* Bỏ gạch chân nếu có */
 }
 
-/* Căn chỉnh và thêm icon cho dropdown items */
 .dropdown-item .fa-fw {
-    /* Giữ icon căn lề đẹp mắt */
     text-align: center;
 }
 
-/* Cải thiện giao diện dropdown item xóa */
 .dropdown-item.text-danger:hover,
 .dropdown-item.text-danger:focus {
     background-color: #f8d7da;
-    /* Màu nền đỏ nhạt khi hover */
     color: #721c24;
-    /* Màu chữ đỏ đậm hơn */
 }
 
-/* Đảm bảo text-truncate hoạt động tốt trong flex */
 .text-truncate {
     min-width: 0;
-    /* Cần thiết cho text-truncate trong flex item */
 }
 
-/* Có thể tăng nhẹ font chữ cho toàn bộ card nếu muốn */
-/* body {
-    font-size: 0.95rem;
-} */
 
-
-/* overlay card*/
+/* overlay card */
 
 .overlay-content {
     background-color: #ffffff;

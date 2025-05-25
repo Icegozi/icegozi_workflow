@@ -1,41 +1,61 @@
-// --- Helper function defined globally within this script tag ---
 function createBoardCardHtml(board) {
-    // Note: Using template literals for easier HTML construction
+    let roleLabel = '';
+    switch (board.currentUserRole) {
+        case 'board_member_manager':
+            roleLabel = 'người quản lý';
+            break;
+        case 'board_editor':
+            roleLabel = 'người chỉnh sửa';
+            break;
+        case 'board_viewer':
+            roleLabel = 'người xem';
+            break;
+        default:
+            roleLabel = 'người sở hữu';
+    }
+
     return `
-            <div class="col-md-4 col-lg-3 mb-4 card-drop-target board-card" id="board-card-${board.id}">
-                <div class="card shadow-sm h-100 card-hover">
-                    <div class="card-body p-3 d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-                            <h6 class="mb-0 text-truncate font-weight-bold board-name">${board.name}</h6>
-                            <div class="dropdown">
-                                <a href="#" class="text-muted dropdown-toggle-no-caret"
-                                    id="itemMenu${board.id}" data-toggle="dropdown" aria-haspopup="true"
-                                    aria-expanded="false" aria-label="Tùy chọn bảng">
-                                    <i class="fas fa-ellipsis-v"></i>
+        <div class="col-md-4 col-lg-3 mt-2 mb-2 card-drop-target board-card" id="board-card-${board.id}"
+            style="position: relative; overflow: visible; z-index: 1; height:120px">
+            <div class="card shadow-sm h-80 card-hover">
+                <div class="card-body p-3 d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                        <h6 class="mb-0 text-truncate font-weight-bold board-name">${board.name}</h6>
+                        <div class="dropdown">
+                            <a href="#" class="text-muted dropdown-toggle-no-caret"
+                                id="itemMenu${board.id}" data-toggle="dropdown" aria-haspopup="true"
+                                aria-expanded="false" aria-label="Tùy chọn bảng">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right"
+                                style="z-index: 9999 !important; position: absolute !important; overflow: visible !important;  height: 100px !important; font-size: 10px !important"
+                                aria-labelledby="itemMenu${board.id}">
+                                <a class="dropdown-item open-board-link" href="${board.url_show}">
+                                    <i class="fas fa-folder-open fa-fw mr-2 text-muted"></i>Mở
                                 </a>
-                                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="itemMenu${board.id}">
-                                    <a class="dropdown-item open-board-link" href="${board.url_show}">
-                                        <i class="fas fa-folder-open fa-fw mr-2 text-muted"></i>Mở
-                                    </a>
-                                    <a class="dropdown-item rename-board-link" href="#" data-id="${board.id}" data-name="${board.name}" data-update-url="${board.url_update}">
-                                        <i class="fas fa-pencil-alt fa-fw mr-2 text-muted"></i>Sửa tên
-                                    </a>
-                                    <div class="dropdown-divider"></div>
-                                    <a class="dropdown-item delete-board-link text-danger" href="#" data-id="${board.id}" data-name="${board.name}" data-destroy-url="${board.url_destroy}">
-                                        <i class="fas fa-trash-alt fa-fw mr-2"></i> Xoá
-                                    </a>
-                                </div>
+                                <a class="dropdown-item rename-board-link" href="#" data-id="${board.id}" data-name="${board.name}" data-update-url="${board.url_update}">
+                                    <i class="fas fa-pencil-alt fa-fw mr-2 text-muted"></i>Sửa tên
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item delete-board-link text-danger" href="#" data-id="${board.id}" data-name="${board.name}" data-destroy-url="${board.url_destroy}">
+                                    <i class="fas fa-trash-alt fa-fw mr-2"></i> Xoá
+                                </a>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center text-muted small mt-auto board-timestamp">
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center text-muted small board-timestamp mt-auto">
+                        <div class="d-flex align-items-center">
                             <i class="far fa-clock fa-fw mr-2"></i>
                             <span>${board.updated_at_formatted || board.created_at_formatted}</span>
                         </div>
+                        <b class="ml-2">${roleLabel}</b>
                     </div>
                 </div>
             </div>
-        `;
+        </div>
+    `;
 }
+
 
 $(document).ready(function () {
 
@@ -59,15 +79,10 @@ $(document).ready(function () {
                 },
                 dataType: 'json',
                 success: function (response) {
-                    console.log("Create Success Response:", response); 
                     if (response.success && response.board) {
                         const newBoardHtml = createBoardCardHtml(response.board);
-
                         $('#no-boards-message').remove();
                         $('#board-list-container').prepend(newBoardHtml);
-                        // Re-enable dropdowns for the new card if needed (usually automatic with Bootstrap)
-                        // $('.dropdown-toggle').dropdown(); // Might not be necessary
-
                         alert(response.message);
                     } else {
                         alert(response.message || 'Không thể tạo bảng. Phản hồi không hợp lệ.');
