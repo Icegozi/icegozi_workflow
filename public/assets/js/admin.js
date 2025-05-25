@@ -4,10 +4,13 @@ $(document).ready(function () {
         method: 'GET',
         success: function (response) {
             console.log(response);
-
-            if (response.success && response.users.data.length > 0) {
-                const users = response.users.data;
+                if (response.success && response.users.length > 0) {
+                const users = response.users;
                 const dropdownMenu = $('[aria-labelledby="userManagementDropdownSidebar"]');
+                dropdownMenu.css({
+                    'max-height': '400px',
+                    'overflow-y': 'auto'
+                });
 
                 users.forEach(user => {
                     const userLink = window.routeUrls.userShowBase.replace(':userIdPlaceholder', user.id);
@@ -20,6 +23,7 @@ $(document).ready(function () {
                     dropdownMenu.append(linkElement);
                 });
             }
+
         },
         error: function () {
             console.error('Lỗi khi lấy danh sách người dùng');

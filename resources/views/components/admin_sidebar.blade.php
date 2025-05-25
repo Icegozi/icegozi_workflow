@@ -38,10 +38,12 @@
     .nav-link.dropdown-toggle:focus,
     .nav-link.dropdown-toggle:active,
     .nav-link.dropdown-toggle.show {
-        background-color: black !important;
-        color: white !important;
+        background-color: inherit !important;
+        color: inherit !important;
         box-shadow: none !important;
+        outline: none !important;
     }
+
 
     .nav-link:focus,
     .dropdown-item:focus {

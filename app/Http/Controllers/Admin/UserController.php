@@ -78,8 +78,7 @@ class UserController extends Controller
 
     public function getUserList()
     {
-        $users = User::paginate(10);
-
+        $users = User::select('id', 'name')->get();
         return response()->json([
             'success' => true,
             'users' => $users,
