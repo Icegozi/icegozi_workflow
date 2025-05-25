@@ -14,6 +14,8 @@ use App\Http\Controllers\User\AttachmentController;
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
 use App\Http\Controllers\User\BoardController;
 use App\Http\Controllers\User\CommentController;
+use App\Http\Controllers\User\OverviewTask;
+use App\Http\Controllers\User\OverviewTaskController;
 
 // Trang chủ
 Route::get('/', function () {
@@ -103,6 +105,9 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/tasks/{task}/assignees/{user}', [AssigneeController::class, 'update'])->name('tasks.assignee.update');
     Route::delete('/tasks/{task}/assignees/{user}', [AssigneeController::class, 'destroy'])->name('tasks.assignees.destroy');
     Route::get('/boards/{board}/assigned-users', [AssigneeController::class, 'assignedUsers'])->name('boards.assignedUsers');
+
+    //overview
+    Route::get('/board/overview/{board_id}', [OverviewTaskController::class, 'getTaskOverlayData'])->name('board.overview.index');
 
     Route::middleware('is_admin')->group(function () {
         Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');

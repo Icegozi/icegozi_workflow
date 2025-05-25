@@ -5,7 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\Task;
-use App\Models\Attachment; // Đảm bảo import đúng Model
+use App\Models\Attachment; 
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
