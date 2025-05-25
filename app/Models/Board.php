@@ -137,4 +137,25 @@ class Board extends Model
         return User::whereIn('id', $userIds)->get();
     }
 
+    public function getAssignedUsersByBoardId($boardId)
+    {
+        $permissionUserIds = DB::table('permission_users')
+            ->join('board_permissions', 'permission_users.id', '=', 'board_permissions.permission_user_id')
+            ->where('board_permissions.board_id', $boardId)
+            ->pluck('permission_users.user_id')
+            ->toArray();
+
+        $boardOwnerId = DB::table('boards')->where('id', $boardId)->value('user_id');
+
+        $userIds = array_unique(array_merge($permissionUserIds, [$boardOwnerId]));
+
+        return User::whereIn('id', $userIds)
+            ->get()
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u=' . urlencode($user->email),
+            ]);
+    }
 }

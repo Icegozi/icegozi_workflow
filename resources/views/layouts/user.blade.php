@@ -79,6 +79,7 @@
             boardsMembersUpdateRole: @json(route('boards.members.updateRole', ['board' => ':boardIdPlaceholder', 'member' => ':memberIdPlaceholder'])),
             boardsMembersRemove: @json(route('boards.members.remove', ['board' => ':boardIdPlaceholder', 'member' => ':memberIdPlaceholder'])),
             boardsInvitationsCancel: @json(route('boards.invitations.cancel', ['board' => ':boardIdPlaceholder', 'invitation' => ':invitationIdPlaceholder'])),
+            boardOverview: @json(route('board.overview.index', ['board_id' => ':boardIdPlaceholder'])),
             invitationsAccept: @json(route('invitations.accept', ['token' => ':tokenPlaceholder'])),
         };
         window.boardId = @json(isset($board) ? $board->id : null);

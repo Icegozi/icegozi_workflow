@@ -226,9 +226,9 @@ $(document).ready(function () {
     // ===========================================
     let isDragging = false;
     let offsetX = 0, offsetY = 0;
-    let ovlTop = '40%';
+    let ovlTop = '20%';
     let ovlLeft = '40%';
-    let $sheepWrapper = $(".sheep-wrapper"); // Make sure '.sheep-wrapper' exists in your HTML
+    let $sheepWrapper = $(".sheep-wrapper"); 
 
     if ($sheepWrapper.length) { // Only run sheep logic if the element exists
         let originalPosition = {
@@ -236,34 +236,27 @@ $(document).ready(function () {
             left: $sheepWrapper.css("left")
         };
 
-        // Ensure jQuery UI is loaded before calling draggable
         if (typeof $.fn.draggable === 'function') {
             $sheepWrapper.draggable({
                 containment: "window",
-                cursor: "grabbing", // Change cursor while dragging
+                cursor: "grabbing", 
                 start: function (event, ui) {
                     isDragging = true;
-                    // Offset calculation might not be needed depending on use case
-                    // offsetX = event.pageX - ui.position.left;
-                    // offsetY = event.pageY - ui.position.top;
                 },
                 stop: function (event, ui) {
                     isDragging = false;
-                    $sheepWrapper.css("cursor", "grab"); // Reset cursor
-
-                    // Use ui.helper which refers to the element being dragged
+                    $sheepWrapper.css("cursor", "grab"); 
+                    
                     let sheepOffset = ui.helper.offset();
                     let sheepWidth = ui.helper.outerWidth();
                     let sheepHeight = ui.helper.outerHeight();
 
-                    // Check collision with dynamically added cards too
                     $("#board-list-container .card-drop-target").each(function () {
                         let $card = $(this);
                         let cardOffset = $card.offset();
                         let cardWidth = $card.outerWidth();
                         let cardHeight = $card.outerHeight();
 
-                        // Basic AABB collision detection
                         let collision = !(
                             sheepOffset.left + sheepWidth < cardOffset.left ||
                             sheepOffset.left > cardOffset.left + cardWidth ||
@@ -272,9 +265,9 @@ $(document).ready(function () {
                         );
 
                         if (collision) {
-                            console.log("Sheep collided with card:", $card.find('.board-name').text());
-                            showOverlayAndHideSheep();
-                            return false; // Exit .each loop once collision is found
+                            let boardId = $card.attr("id").replace("board-card-", "");
+                            showOverlayAndHideSheep(boardId);
+                            return false; 
                         }
                     });
                 }
@@ -283,36 +276,91 @@ $(document).ready(function () {
             console.warn("jQuery UI Draggable not loaded. Sheep cannot be dragged.");
         }
 
-
-        function showOverlayAndHideSheep() {
+        function showOverlayAndHideSheep(boardId) {
             $sheepWrapper.hide();
-            // Ensure #cardOverlay exists and has content before fading in
+
             if ($("#cardOverlay").length === 0) {
-                // Create overlay if it doesn't exist
-                $('body').append('<div id="cardOverlay" style="display: none;"></div>'); // Add basic overlay div
-                $("#cardOverlay").html(`
-                        <div class="overlay-content" id="ovl_content">
-                            <p>🎉 Cừu đã chui vào thẻ thành công!</p>
-                        </div>
-                    `);
-            } else if ($("#cardOverlay .overlay-content").length === 0) {
-                // Add content if overlay exists but is empty
-                $("#cardOverlay").html(`
-                        <div class="overlay-content" id="ovl_content">
-                            <p>🎉 Cừu đã chui vào thẻ thành công!</p>
-                        </div>
-                    `);
+                $('body').append('<div id="cardOverlay" style="display: none;"></div>');
             }
-            $("#ovl_content").css({
-                position: "absolute", // thêm dòng này
-                top: ovlTop,
-                left: ovlLeft
+
+            // Gọi API để lấy dữ liệu tổng quan của board
+            $.ajax({
+                url: window.routeUrls.boardOverview.replace(':boardIdPlaceholder', boardId),
+                method: 'GET',
+                success: function (response) {
+                    if (response.success) {
+                        const assignees = response.assignees;
+                        const totalColumns = response.total_columns;
+                        const totalTasks = response.total_tasks;
+
+                        const assigneeRows = assignees.map(user => `
+                            <tr>
+                                <td><img src="${user.avatar_url}" alt="${user.name}" class="rounded-circle" width="30" height="30"></td>
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                            </tr>
+                        `).join('');
+
+                        const overlayHtml = `
+                            <div class="overlay-content p-3 bg-white shadow rounded" id="ovl_content" style="
+                                min-width: 400px;
+                                max-height: 90vh;
+                                overflow-y: auto;
+                            ">
+                            <h6 class="text-left">Số lượng:</h6>
+                                <table class="table table-bordered table-sm">
+                                    <tbody>
+                                        <tr>
+                                            <th scope="row" class="text-left">Tổng số cột</th>
+                                            <td>${totalColumns}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row" class="text-left">Tổng số thẻ công việc</th>
+                                            <td>${totalTasks}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <h6 class="mt-3 text-left">Thành viên tham gia:</h6>
+                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-striped table-sm mb-0">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Avatar</th>
+                                                <th>Tên</th>
+                                                <th>Email</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${assigneeRows}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+
+
+                        $("#cardOverlay").html(overlayHtml);
+
+                        // Positioning (you must define ovlTop, ovlLeft before this)
+                        $("#ovl_content").css({
+                            position: "absolute",
+                            top: ovlTop,
+                            left: ovlLeft
+                        });
+
+                        $("#cardOverlay").fadeIn();
+                    } else {
+                        alert("Không lấy được dữ liệu tổng quan.");
+                    }
+                },
+                error: function () {
+                    alert("Có lỗi xảy ra khi gọi API.");
+                }
             });
-            
-            $("#cardOverlay").fadeIn();
         }
 
-        // Use event delegation for the close button in case overlay is created dynamically
+
         $(document).on("click", "#cardOverlay", function () {
             $("#cardOverlay").fadeOut(function () {
                 $sheepWrapper.css({
