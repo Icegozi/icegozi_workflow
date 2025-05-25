@@ -25,6 +25,8 @@ class OverviewTaskController extends Controller
 
         $assignees = $this->board->getAssignedUsersByBoardId($board_id);
 
+        $board_name = $this->board->getBoardNameById($board_id);
+
         $totalColumns = Column::where('board_id', $board_id)->count();
 
         $totalTasks = Task::whereHas('column', function ($query) use ($board_id) {
@@ -34,6 +36,7 @@ class OverviewTaskController extends Controller
         return response()->json([
             'success' => true,
             'assignees' => $assignees,
+            'board_name' => $board_name,
             'total_columns' => $totalColumns,
             'total_tasks' => $totalTasks,
         ]);

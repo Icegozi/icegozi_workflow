@@ -158,4 +158,9 @@ class Board extends Model
                 'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u=' . urlencode($user->email),
             ]);
     }
+
+    public function getBoardNameById($board_id)
+    {
+        return self::where('id', $board_id)->value('name');
+    }
 }

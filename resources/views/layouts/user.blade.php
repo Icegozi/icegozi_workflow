@@ -63,8 +63,8 @@
     <script src="{{ asset_min('plugins/jquery/jquery-3.7.1.min.js') }}"></script>
     <script src="{{ asset_min('plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset_min('assets/js/adminlte.js') }}"></script>
-    <script src="{{ asset_min('assets/js/user.js') }}"></script>
     <script src="{{ asset_min('plugins/jquery/jquery-ui.min.js') }}"></script>
+    <script src="{{ asset_min('assets/js/user.js') }}"></script>
     <script src="{{ asset_min('assets/js/permission.js') }}"></script>
 
     <script>

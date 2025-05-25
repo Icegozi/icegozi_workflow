@@ -226,11 +226,9 @@ $(document).ready(function () {
     // ===========================================
     let isDragging = false;
     let offsetX = 0, offsetY = 0;
-    let ovlTop = '20%';
-    let ovlLeft = '40%';
     let $sheepWrapper = $(".sheep-wrapper"); 
 
-    if ($sheepWrapper.length) { // Only run sheep logic if the element exists
+    if ($sheepWrapper.length) { 
         let originalPosition = {
             top: $sheepWrapper.css("top"),
             left: $sheepWrapper.css("left")
@@ -289,10 +287,10 @@ $(document).ready(function () {
                 method: 'GET',
                 success: function (response) {
                     if (response.success) {
+                        const board_name = response.board_name;
                         const assignees = response.assignees;
                         const totalColumns = response.total_columns;
                         const totalTasks = response.total_tasks;
-
                         const assigneeRows = assignees.map(user => `
                             <tr>
                                 <td><img src="${user.avatar_url}" alt="${user.name}" class="rounded-circle" width="30" height="30"></td>
@@ -302,12 +300,19 @@ $(document).ready(function () {
                         `).join('');
 
                         const overlayHtml = `
-                            <div class="overlay-content p-3 bg-white shadow rounded" id="ovl_content" style="
+                            <div class="overlay-content p-2 bg-white shadow rounded" id="ovl_content" style="
                                 min-width: 400px;
                                 max-height: 90vh;
                                 overflow-y: auto;
+                                font-size: 12px;
                             ">
-                            <h6 class="text-left">Số lượng:</h6>
+                           
+                           <div id="dragHeader" class="bg-dark text-white rounded px-2 py-2 d-flex justify-content-between align-items-center cursor-move">
+                                <h6 class="mb-0">${board_name}</h6>
+                                <i id="close" class="fa-solid fa-xmark text-danger fs-4" style="cursor: pointer;"></i>
+                            </div>
+
+                            <p class="text-left mt-2">Số lượng</p>
                                 <table class="table table-bordered table-sm">
                                     <tbody>
                                         <tr>
@@ -321,7 +326,7 @@ $(document).ready(function () {
                                     </tbody>
                                 </table>
 
-                                <h6 class="mt-3 text-left">Thành viên tham gia:</h6>
+                                <p class="mt-3 text-left">Thành viên tham gia</p>
                                 <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
                                     <table class="table table-striped table-sm mb-0">
                                         <thead class="thead-light">
@@ -342,11 +347,19 @@ $(document).ready(function () {
 
                         $("#cardOverlay").html(overlayHtml);
 
-                        // Positioning (you must define ovlTop, ovlLeft before this)
-                        $("#ovl_content").css({
-                            position: "absolute",
-                            top: ovlTop,
-                            left: ovlLeft
+                        requestAnimationFrame(function () {
+                            const ovlContent = $("#ovl_content");
+                            const ovlTop = window.innerHeight / 2 - ovlContent.outerHeight() / 2;
+                            const ovlLeft = window.innerWidth / 2 - ovlContent.outerWidth() / 2;
+
+                            ovlContent.css({
+                                position: "fixed",
+                                top: ovlTop + "px",
+                                left: ovlLeft + "px",
+                                zIndex: 1050
+                            });
+
+                            ovlContent.draggable({ handle: "#dragHeader" });
                         });
 
                         $("#cardOverlay").fadeIn();
@@ -361,7 +374,9 @@ $(document).ready(function () {
         }
 
 
-        $(document).on("click", "#cardOverlay", function () {
+        
+
+        $(document).on("click", "#close", function () {
             $("#cardOverlay").fadeOut(function () {
                 $sheepWrapper.css({
                     top: originalPosition.top,

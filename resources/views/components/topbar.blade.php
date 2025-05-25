@@ -14,13 +14,13 @@
         <li class="nav-item d-none d-sm-inline-block">
             <a href="{{ route('user.dashboard') }}" class="nav-link">Bảng của tôi</a>
         </li>
-        <li class="nav-item dropdown"> {{-- Added dropdown class --}}
+        <li class="nav-item dropdown"> 
             <a class="nav-link dropdown-toggle {{ request()->routeIs('boards.settings') ? 'active' : 'text-while' }}"
                 href="#" id="boardPermissionsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true"
                 aria-expanded="false">
                 Mời thành viên
             </a>
-            <div class="dropdown-menu" aria-labelledby="boardPermissionsDropdown">
+            <div class="dropdown-menu" aria-labelledby="boardPermissionsDropdown" style="max-height: 500px; overflow-y: auto;">
                 @php
                     $ownedBoardsForDropdown = Auth::user()
                         ? Auth::user()->boardsOwned()->orderBy('name')->get()
