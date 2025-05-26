@@ -1,34 +1,47 @@
 $(document).ready(function () {
-    $.ajax({
-        url: window.routeUrls.userList,
-        method: 'GET',
-        success: function (response) {
-            console.log(response);
-                if (response.success && response.users.length > 0) {
-                const users = response.users;
-                const dropdownMenu = $('[aria-labelledby="userManagementDropdownSidebar"]');
-                dropdownMenu.css({
-                    'max-height': '400px',
-                    'overflow-y': 'auto'
-                });
-
-                users.forEach(user => {
-                    const userLink = window.routeUrls.userShowBase.replace(':userIdPlaceholder', user.id);
-                    const linkElement = $('<a>', {
-                        class: 'dropdown-item',
-                        text: user.name,
-                        href: userLink
-                    });
-
-                    dropdownMenu.append(linkElement);
-                });
+    $(document).ready(function () {
+        $('#userSelect').select2({
+            placeholder: "Chọn người dùng...",
+            allowClear: true,
+            minimumInputLength: 0,
+            language: {
+                inputTooShort: function () {
+                    return "Nhập ít nhất 1 ký tự...";
+                },
+                noResults: function () {
+                    return "Tài khoản không tồn tại!";
+                },
+                searching: function () {
+                    return "Đang tìm kiếm...";
+                }
+            },
+            ajax: {
+                url: window.routeUrls.userList,
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        search: params.term
+                    };
+                },
+                processResults: function (data) {
+                    return {
+                        results: data.results
+                    };
+                },
+                cache: true
             }
+        });
 
-        },
-        error: function () {
-            console.error('Lỗi khi lấy danh sách người dùng');
-        }
+        // Gắn sự kiện khi chọn user -> chuyển trang
+        $('#userSelect').on('change', function () {
+            const selectedUrl = $(this).val();
+            if (selectedUrl) {
+                window.location.href = selectedUrl;
+            }
+        });
     });
+
 
    // Xử lý sự kiện click vào nút xóa
     $(document).on('click', '.delete-user', function () {

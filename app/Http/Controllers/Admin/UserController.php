@@ -7,6 +7,7 @@ use App\Http\Requests\UserRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -50,12 +51,12 @@ class UserController extends Controller
 
         if ($ok) {
             return redirect()
-                ->route('admin.user.index') 
+                ->route('admin.user.index')
                 ->with('success', 'Cập nhật người dùng thành công!');
         }
 
         return redirect()
-            ->back()               
+            ->back()
             ->withErrors(['error' => 'Không tìm thấy người dùng hoặc cập nhật thất bại']);
     }
 
@@ -76,12 +77,31 @@ class UserController extends Controller
         ], 404);
     }
 
-    public function getUserList()
+    public function getUserList(Request $request)
     {
-        $users = User::select('id', 'name')->get();
-        return response()->json([
-            'success' => true,
-            'users' => $users,
-        ]);
+        $search = $request->input('search');
+        $query = User::select('id', 'name');
+
+       if ($search) {
+            $search = strtolower($search);
+            $search_ascii = Str::ascii($search);
+
+            $query->where(function ($q) use ($search_ascii) {
+                $q->whereRaw("LOWER(name) COLLATE utf8mb4_general_ci LIKE ?", ["%{$search_ascii}%"])
+                ->orWhereRaw("LOWER(email) COLLATE utf8mb4_general_ci LIKE ?", ["%{$search_ascii}%"]);
+            });
+        }
+
+        $users = $query->limit(20)->get();
+
+        $results = [];
+        foreach ($users as $user) {
+            $results[] = [
+                'id' => route('admin.user.show', ['id' => $user->id]),
+                'text' => $user->name
+            ];
+        }
+
+        return response()->json(['results' => $results]);
     }
 }

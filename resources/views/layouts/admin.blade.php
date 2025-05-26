@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="{{ asset_min('plugins/jquery/jquery-ui.css') }}">
     <link rel="stylesheet" href="{{ asset_min('assets/css/admin.css') }}">
     <link rel="stylesheet" href="{{ asset_min('assets/css/flatpickr.min.css') }}">
+    <link href="{{ asset_min('assets/css/select2.min.css')}}" rel="stylesheet" />
 </head>
 
 <body class="sidebar-mini layout-fixed layout-navbar-fixed layout-footer-fixed" style="height: 100%;">
@@ -42,11 +43,12 @@
     </div>
 
     {{-- Scripts --}}
+    <script src="{{ asset_min('plugins/jquery/jquery-3.7.1.min.js') }}"></script>
     <script src="{{ asset_min('plugins/jquery/chart.umd.min.js') }}"></script>
     <script src="{{ asset_min('plugins/jquery/chartjs-adapter-date-fns.bundle.min.js') }}"></script>
     <script src="{{ asset_min('plugins/jquery/vn.js') }}"></script>
     <script src="{{ asset_min('plugins/jquery/flatpickr.js') }}"></script>
-    <script src="{{ asset_min('plugins/jquery/jquery-3.7.1.min.js') }}"></script>
+    <script src="{{ asset_min('assets/js/select2.min.js')}}"></script>
     <script src="{{ asset_min('plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset_min('assets/js/adminlte.js') }}"></script>
     <script>

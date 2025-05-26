@@ -3,51 +3,25 @@
     <a class="navbar-brand" href="#">My<span>App</span></a>
     <hr>
 
-    <!-- Danh sách liên kết -->
     <ul class="nav nav-pills flex-column mb-auto">
-        <li class="nav-item">
-            <a href="{{ route('admin.dashboard') }}" class="nav-link text-dark " aria-current="page">
-                Thống kê
-            </a>
+        <li class="nav-item mb-3">
+            <label for="userSelect">Sửa tài khoản</label>
+            <select id="userSelect" class="form-control" style="width: 100%;">
+                <option value="">chọn tài khoản...</option>
+            </select>
         </li>
-        <li class="nav-item dropdown">
-    <a class="nav-link text-dark dropdown-toggle"
-       href="#" id=userManagementDropdownSidebar"
-       role="button" data-toggle="dropdown"
-       aria-haspopup="true" aria-expanded="false">
-        Quản lý tài khoản
-    </a>
-    <div class="dropdown-menu" aria-labelledby="userManagementDropdownSidebar">
-        <!-- Các <a class="dropdown-item"> sẽ được thêm bằng jQuery -->
-    </div>
-</li>
-
-
     </ul>
+
 
 </div>
 
 <style>
-    .dropdown-item:active,
-    .dropdown-item:focus,
-    .dropdown-item:hover {
-        background-color: transparent !important;
-        color: red !important;
+ /* Tùy chỉnh nhãn label */
+    label[for="userSelect"] {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 6px;
+        color: #343a40;
     }
-
-    .nav-link.dropdown-toggle:focus,
-    .nav-link.dropdown-toggle:active,
-    .nav-link.dropdown-toggle.show {
-        background-color: inherit !important;
-        color: inherit !important;
-        box-shadow: none !important;
-        outline: none !important;
-    }
-
-
-    .nav-link:focus,
-    .dropdown-item:focus {
-        outline: none !important;
-        box-shadow: none !important;
-    }
+   
 </style>
