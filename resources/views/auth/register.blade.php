@@ -11,50 +11,32 @@
     <div class="card-body">
       <p class="login-box-msg">Tạo tài khoản mới</p>
 
-      <form action="{{ route('register') }}" method="POST">
-      @csrf
-      <div class="input-group mb-3">
-        <input type="text" class="form-control" name="name" placeholder="Họ tên" value="{{ old('name') }}" required>
-        <div class="input-group-append">
-        <div class="input-group-text h-100"><span class="fas fa-user"></span></div>
-        </div>
-      </div>
+      <x-common.form :action="route('register')" method="POST">
+      <x-common.text-input type="text" name="name" placeholder="Họ tên" :value="old('name')"
+        icon="fas fa-user" required />
 
-      <div class="input-group mb-3">
-        <input type="email" class="form-control" name="email" placeholder="Email" value="{{ old('email', request('email')) }}" required>
-        <div class="input-group-append">
-        <div class="input-group-text h-100"><span class="fas fa-envelope"></span></div>
-        </div>
-      </div>
+      <x-common.text-input type="email" name="email" placeholder="Email" :value="old('email', request('email'))"
+        icon="fas fa-envelope" required />
 
-      <div class="input-group mb-3">
-        <input type="password" class="form-control" name="password" placeholder="Mật khẩu" required>
-        <div class="input-group-append">
-        <div class="input-group-text h-100"><span class="fas fa-lock"></span></div>
-        </div>
-      </div>
+      <x-common.text-input type="password" name="password" placeholder="Mật khẩu"
+        icon="fas fa-lock" required />
 
-      <div class="input-group mb-3">
-        <input type="password" class="form-control" name="password_confirmation" placeholder="Nhập lại mật khẩu"
-        required>
-        <div class="input-group-append">
-        <div class="input-group-text h-100"><span class="fas fa-lock"></span></div>
-        </div>
-      </div>
+      <x-common.text-input type="password" name="password_confirmation" placeholder="Nhập lại mật khẩu"
+        icon="fas fa-lock" required />
 
       <div class="row">
         <div class="col-md-6 mb-2">
-          <button type="submit" class="btn btn-dark btn-block font-weight-bold">
+          <x-common.button variant="dark" class="btn-block font-weight-bold">
             Đăng ký
-          </button>
+          </x-common.button>
         </div>
         <div class="col-md-6 d-flex align-items-center justify-content-md-end justify-content-center">
           <a href="{{ route('login.form') }}" class="text-dark" style="text-decoration: none;">
             Tôi đã có tài khoản
           </a>
         </div>
-      </div>  
-      </form>
+      </div>
+      </x-common.form>
 
     </div>
     </div>

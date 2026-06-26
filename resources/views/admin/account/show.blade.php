@@ -6,9 +6,7 @@
     <h3>Cập nhật tài khoản</h3>
 
     <div id="user-edit-container">
-        <form id="editUserForm" method="POST" action="{{ route('admin.user.update', $user->id) }}">
-            @csrf
-            @method('PUT')
+        <x-common.form id="editUserForm" method="PUT" :action="route('admin.user.update', $user->id)">
 
             <!-- Hidden input for User ID -->
             <input type="hidden" id="userId" name="id" value="{{ $user->id }}">
@@ -17,14 +15,14 @@
                 <tbody>
                     <tr>
                         <th scope="row">Họ và tên</th>
-                        <td><input type="text" class="form-control" id="userName" name="name"
-                                value="{{ old('name', $user->name) }}" required></td>
+                        <td><x-common.text-input type="text" id="userName" name="name"
+                                :value="old('name', $user->name)" groupClass="" required /></td>
                     </tr>
 
                     <tr>
                         <th scope="row">Email</th>
-                        <td><input type="email" class="form-control" id="userEmail" name="email"
-                                value="{{ old('email', $user->email) }}" required></td>
+                        <td><x-common.text-input type="email" id="userEmail" name="email"
+                                :value="old('email', $user->email)" groupClass="" required /></td>
                     </tr>
 
                     <tr>
@@ -36,14 +34,14 @@
 
                     <tr>
                         <th scope="row">Mật khẩu mới</th>
-                        <td><input type="password" class="form-control" id="userPassword" name="password"
-                                placeholder="Nhập mật khẩu mới"></td>
+                        <td><x-common.text-input type="password" id="userPassword" name="password"
+                                placeholder="Nhập mật khẩu mới" groupClass="" /></td>
                     </tr>
 
                     <tr>
                         <th scope="row">Xác nhận mật khẩu mới</th>
-                        <td><input type="password" class="form-control" id="userPasswordConfirmation"
-                                name="password_confirmation" placeholder="Xác nhận mật khẩu mới"></td>
+                        <td><x-common.text-input type="password" id="userPasswordConfirmation"
+                                name="password_confirmation" placeholder="Xác nhận mật khẩu mới" groupClass="" /></td>
                     </tr>
 
                     <tr>
@@ -55,14 +53,9 @@
                     <tr>
                         <th scope="row">Trạng thái</th>
                         <td>
-                            <select class="form-control" id="userStatus" name="status">
-                                <option value="active" {{ $user->status == 'active' ? 'selected' : '' }}>Kích hoạt
-                                </option>
-                                <option value="inactive" {{ $user->status == 'inactive' ? 'selected' : '' }}>Không kích hoạt
-                                </option>
-                                <option value="banned" {{ $user->status == 'banned' ? 'selected' : '' }}>Bị khóa</option>
-                                </option>
-                            </select>
+                            <x-common.select id="userStatus" name="status"
+                                :options="['active' => 'Kích hoạt', 'inactive' => 'Không kích hoạt', 'banned' => 'Bị khóa']"
+                                :selected="old('status', $user->status)" />
                         </td>
                     </tr>
 
@@ -95,11 +88,11 @@
             </table>
 
             <div class="d-flex justify-content-end">
-                <button type="submit" class="btn btn-outline-dark mr-2">Lưu thay đổi</button>
+                <x-common.button variant="outline-dark" class="mr-2">Lưu thay đổi</x-common.button>
                 <a href="{{ route('admin.user.index') }}" class="btn btn-danger">Hủy</a>
             </div>
 
-        </form>
+        </x-common.form>
     </div>
 @endsection
 

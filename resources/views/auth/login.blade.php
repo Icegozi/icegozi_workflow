@@ -13,26 +13,12 @@
       <div class="card-body login-card-body">
       <p class="login-box-msg">Đăng nhập để bắt đầu phiên làm việc</p>
 
-      <form action="{{ route('login') }}" method="POST">
-        @csrf
-        <div class="input-group mb-3">
-        <input type="email" name="email" class="form-control" placeholder="Email" value="{{ old('email') }}"
-          required autofocus>
-        <div class="input-group-append">
-          <div class="input-group-text h-100">
-          <span class="fas fa-envelope"></span>
-          </div>
-        </div>
-        </div>
+      <x-common.form :action="route('login')" method="POST">
+        <x-common.text-input type="email" name="email" placeholder="Email" :value="old('email')"
+          icon="fas fa-envelope" required autofocus />
 
-        <div class="input-group mb-3">
-        <input type="password" name="password" class="form-control" placeholder="Mật khẩu" required>
-        <div class="input-group-append">
-          <div class="input-group-text h-100">
-          <span class="fas fa-lock"></span>
-          </div>
-        </div>
-        </div>
+        <x-common.text-input type="password" name="password" placeholder="Mật khẩu"
+          icon="fas fa-lock" required />
 
         <div class="row">
         <div class="col-7">
@@ -45,10 +31,10 @@
         </div>
 
         <div class="col-5 text-end">
-          <button type="submit" class="btn btn-dark btn-block font-weight-bold">Đăng nhập</button>
+          <x-common.button variant="dark" class="btn-block font-weight-bold">Đăng nhập</x-common.button>
         </div>
         </div>
-      </form>
+      </x-common.form>
 
       <p class="mb-0 mt-3">
         <a href="{{ route('register') }}" class="text-dark" style="text-decoration: none;">Chưa có tài khoản? Đăng ký</a>

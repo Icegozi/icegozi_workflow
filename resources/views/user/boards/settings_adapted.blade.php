@@ -19,64 +19,45 @@
             <div class="col-lg-5 mb-4 mb-lg-0">
                 {{-- Invite Members Form --}}
                 @if(Auth::user()->id == $board->user_id || Auth::user()->hasBoardPermission($board, 'board_member_manager'))
-                    <div class="card shadow mb-4">
-                        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-secondary">
-                            <h6 class="m-0 font-weight-bold text-white "><i class="fas fa-user-plus mr-2"></i>Mời thành viên
-                                mới</h6>
-                        </div>
-                        <div class="card-body">
+                    <x-common.card title="Mời thành viên mới" icon="fas fa-user-plus" class="shadow mb-4">
                             @if(session('success_invite'))
-                            <div class="alert alert-success small p-2">{{ session('success_invite') }}</div> @endif
+                            <x-common.alert type="success" class="small p-2">{{ session('success_invite') }}</x-common.alert> @endif
                             @if(session('error_invite'))
-                            <div class="alert alert-danger small p-2">{{ session('error_invite') }}</div> @endif
+                            <x-common.alert type="danger" class="small p-2">{{ session('error_invite') }}</x-common.alert> @endif
                             @if(session('warning_invite'))
-                            <div class="alert alert-warning small p-2">{{ session('warning_invite') }}</div> @endif
+                            <x-common.alert type="warning" class="small p-2">{{ session('warning_invite') }}</x-common.alert> @endif
 
-                            <form action="{{ route('boards.invite', $board) }}" method="POST">
-                                @csrf
-                                <div class="form-group">
-                                    <label for="email" class="small font-weight-bold">Email thành viên</label>
-                                    <input type="email" name="email" id="email"
-                                        class="form-control form-control-sm @error('email') is-invalid @enderror"
-                                        value="{{ old('email') }}" required placeholder="nhap@emailcuaban.com">
-                                    @error('email') <div class="invalid-feedback small">{{ $message }}</div> @enderror
-                                </div>
-                                <div class="form-group">
-                                    <label for="role_permission_name" class="small font-weight-bold">Vai trò (Quyền)</label>
-                                    <select name="role_permission_name" id="role_permission_name"
-                                        class="form-control form-control-sm @error('role_permission_name') is-invalid @enderror"
-                                        required>
-                                        <option value="" disabled {{ old('role_permission_name') ? '' : 'selected' }}>-- Chọn
-                                            vai trò --</option>
-                                        @foreach($potentialRoles as $permissionName => $displayName)
-                                            <option value="{{ $permissionName }}" {{ old('role_permission_name') == $permissionName ? 'selected' : '' }}>
-                                                {{ $displayName }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('role_permission_name') <div class="invalid-feedback small">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                                <button type="submit" class="btn btn-outline-dark btn-sm btn-block">
-                                    <i class="fas fa-paper-plane mr-1"></i> Gửi lời mời
-                                </button>
-                            </form>
-                        </div>
-                    </div>
+                            <x-common.form :action="route('boards.invite', $board)" method="POST">
+                                <x-common.form-field label="Email thành viên" name="email">
+                                    <x-common.text-input type="email" name="email" id="email" groupClass=""
+                                        class="form-control-sm @error('email') is-invalid @enderror"
+                                        :value="old('email')" required placeholder="nhap@emailcuaban.com" />
+                                </x-common.form-field>
+                                <x-common.form-field label="Vai trò (Quyền)" name="role_permission_name">
+                                    <x-common.select name="role_permission_name" id="role_permission_name" required
+                                        class="form-control-sm @error('role_permission_name') is-invalid @enderror"
+                                        placeholder="-- Chọn vai trò --"
+                                        :options="$potentialRoles" :selected="old('role_permission_name')" />
+                                </x-common.form-field>
+                                <x-common.button variant="outline-dark" icon="fas fa-paper-plane" class="btn-sm btn-block">
+                                    Gửi lời mời
+                                </x-common.button>
+                            </x-common.form>
+                    </x-common.card>
                 @endif
 
                 {{-- Pending Invitations --}}
                 @if(Auth::user()->id == $board->user_id || Auth::user()->hasBoardPermission($board, 'board_member_manager'))
-                    <div class="card shadow">
-                        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-secondary">
+                    <x-common.card class="shadow" bodyClass="card-body p-0">
+                        <x-slot:header>
                             <h6 class="m-0 font-weight-bold text-white">
                                 <i class="fas fa-hourglass-half mr-2"></i>Lời mời đang chờ
                                 (@if($pendingInvitations) <span
                                     class="badge badge-warning badge-pill">{{ $pendingInvitations->count() }}</span> @else 0
                                 @endif)
                             </h6>
-                        </div>
-                        <div class="card-body p-0"> {{-- p-0 to make list-group flush with card --}}
+                        </x-slot:header>
+                        {{-- p-0 để list-group sát mép card --}}
                             @if($pendingInvitations && $pendingInvitations->count() > 0)
                                 <ul class="list-group list-group-flush">
                                     @foreach($pendingInvitations as $invitation)
@@ -109,23 +90,17 @@
                                     <i class="fas fa-info-circle mr-1"></i> Không có lời mời nào đang chờ.
                                 </div>
                             @endif
-                        </div>
-                    </div>
+                    </x-common.card>
                 @endif
             </div>
 
             {{-- Right Column: Current Members --}}
             <div class="col-lg-7">
-                <div class="card shadow">
-                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-secondary">
-                        <h6 class="m-0 font-weight-bold text-white"><i class="fas fa-users mr-2"></i>Thành viên hiện tại
-                        </h6>
-                    </div>
-                    <div class="card-body">
+                <x-common.card title="Thành viên hiện tại" icon="fas fa-users" class="shadow">
                         @if(session('success_member'))
-                        <div class="alert alert-success small p-2">{{ session('success_member') }}</div> @endif
+                        <x-common.alert type="success" class="small p-2">{{ session('success_member') }}</x-common.alert> @endif
                         @if(session('error_member'))
-                        <div class="alert alert-danger small p-2">{{ session('error_member') }}</div> @endif
+                        <x-common.alert type="danger" class="small p-2">{{ session('error_member') }}</x-common.alert> @endif
 
                         <div class="table-responsive">
                             <table class="table table-hover table-sm" style="font-size: 0.9rem;">
@@ -173,13 +148,9 @@
                                                         }
                                                     }
                                                 @endphp
-                                                <select class="form-control form-control-sm member-role-select" {{ (Auth::id() !== $board->user_id && !Auth::user()->hasBoardPermission($board, 'board_member_manager')) ? 'disabled' : '' }}>
-                                                    @foreach($potentialRoles as $permissionName => $displayName)
-                                                        <option value="{{ $permissionName }}" {{ $currentHighestRole == $permissionName ? 'selected' : '' }}>
-                                                            {{ $displayName }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
+                                                <x-common.select class="form-control-sm member-role-select"
+                                                    :options="$potentialRoles" :selected="$currentHighestRole"
+                                                    @disabled(Auth::id() !== $board->user_id && !Auth::user()->hasBoardPermission($board, 'board_member_manager')) />
                                             </td>
                                             @if(Auth::id() === $board->user_id || Auth::user()->hasBoardPermission($board, 'board_member_manager'))
                                                 <td class="text-right">
@@ -208,8 +179,7 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-                </div>
+                </x-common.card>
             </div>
         </div>
     </div>
