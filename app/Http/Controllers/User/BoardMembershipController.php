@@ -108,7 +108,7 @@ class BoardMembershipController extends Controller
         }
 
         $request->validate([
-            'email' => 'required|email',
+            'email' => 'required|email:rfc,strict',
             'role_permission_name' => 'required|string|exists:permissions,name', // Ensure role is a valid permission name
         ]);
 
