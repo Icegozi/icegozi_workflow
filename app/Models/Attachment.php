@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Carbon; // Đảm bảo import Carbon
+use Illuminate\Support\Facades\Storage; // Đảm bảo import Carbon
 
 class Attachment extends Model
 {
@@ -41,7 +41,6 @@ class Attachment extends Model
         return $this->belongsTo(User::class);
     }
 
-
     public function getUrlAttribute()
     {
         return $this->file_path ? Storage::disk('public')->url($this->file_path) : null;
@@ -53,29 +52,30 @@ class Attachment extends Model
         // Sử dụng file_name đã được migrate
         $extension = strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION));
         $map = [
-            'pdf'  => 'fa-file-pdf text-danger', 
-            'doc'  => 'fa-file-word text-primary',
+            'pdf' => 'fa-file-pdf text-danger',
+            'doc' => 'fa-file-word text-primary',
             'docx' => 'fa-file-word text-primary',
-            'xls'  => 'fa-file-excel text-success',
+            'xls' => 'fa-file-excel text-success',
             'xlsx' => 'fa-file-excel text-success',
-            'ppt'  => 'fa-file-powerpoint text-warning',
+            'ppt' => 'fa-file-powerpoint text-warning',
             'pptx' => 'fa-file-powerpoint text-warning',
-            'png'  => 'fa-file-image text-info',
-            'jpg'  => 'fa-file-image text-info',
+            'png' => 'fa-file-image text-info',
+            'jpg' => 'fa-file-image text-info',
             'jpeg' => 'fa-file-image text-info',
-            'gif'  => 'fa-file-image text-info',
-            'zip'  => 'fa-file-archive text-secondary',
-            'rar'  => 'fa-file-archive text-secondary',
-            'txt'  => 'fa-file-alt text-muted',
+            'gif' => 'fa-file-image text-info',
+            'zip' => 'fa-file-archive text-secondary',
+            'rar' => 'fa-file-archive text-secondary',
+            'txt' => 'fa-file-alt text-muted',
         ];
-        return $map[$extension] ?? 'fa-file text-muted'; 
+
+        return $map[$extension] ?? 'fa-file text-muted';
     }
 
     // Accessor kiểm tra quyền xóa
     public function getCanDeleteAttribute()
     {
         // Có thể thêm điều kiện khác, ví dụ: admin cũng có thể xóa
-        return Auth::check() && (Auth::id() === $this->user_id /* || Auth::user()->isAdmin() */ );
+        return Auth::check() && (Auth::id() === $this->user_id /* || Auth::user()->isAdmin() */);
     }
 
     // Accessor cho tên người upload
@@ -94,15 +94,19 @@ class Attachment extends Model
     public function getFormattedCapacityAttribute() // Xem xét đổi tên thành getFormattedFileSizeAttribute
     {
         $bytes = $this->file_size; // Sử dụng file_size đã được migrate
-        if (is_null($bytes)) return ''; // Trả về chuỗi rỗng nếu null
-        if ($bytes == 0) return '0 Bytes';
+        if (is_null($bytes)) {
+            return '';
+        } // Trả về chuỗi rỗng nếu null
+        if ($bytes == 0) {
+            return '0 Bytes';
+        }
 
         $k = 1024;
         $dm = 1; // Số chữ số thập phân
         $sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
         $i = floor(log($bytes, $k));
 
-        return round($bytes / pow($k, $i), $dm) . ' ' . $sizes[$i];
+        return round($bytes / pow($k, $i), $dm).' '.$sizes[$i];
     }
 
     // Sự kiện model để tự động xóa file vật lý khi record bị xóa

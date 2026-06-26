@@ -3,12 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use Carbon\Carbon;
-use LaravelDaily\LaravelCharts\Classes\LaravelChart;
 use Auth;
-use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -19,19 +17,19 @@ class DashboardController extends Controller
         $boards = $accessibleBoards;
         $boardsWithRoles = $boards->map(function ($board) use ($user) {
             $board->currentUserRole = $user->getRoleForBoard($board);
+
             return $board;
         });
 
         return view('admin.dashboard', ['boards' => $boardsWithRoles]);
     }
 
-
     public function getUserRegistrations(Request $request)
     {
         try {
             $dateRange = $request->query('date_range');
 
-            if (!$dateRange) {
+            if (! $dateRange) {
                 return response()->json(['labels' => [], 'datasets' => []]);
             }
 
@@ -74,11 +72,12 @@ class DashboardController extends Controller
                         'borderColor' => 'rgb(75, 192, 192)',
                         'fill' => false,
                         'tension' => 0.1,
-                    ]
-                ]
+                    ],
+                ],
             ]);
         } catch (\Throwable $e) {
-            logger()->error("Chart data error: " . $e->getMessage());
+            logger()->error('Chart data error: '.$e->getMessage());
+
             return response()->json(['error' => 'Internal server error'], 500);
         }
     }

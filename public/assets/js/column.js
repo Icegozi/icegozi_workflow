@@ -7,8 +7,8 @@ $(function () {
     function getRoute(routeName, params = {}) {
         let url = window.routeUrls[routeName] || '';
         for (const key in params) {
-            url = url.replace(`:${key}Placeholder`, params[key]);
-            url = url.replace(`:${key}`, params[key]);
+            url = url.replace(new RegExp(`:${key}Placeholder`, 'g'), params[key]);
+            url = url.replace(new RegExp(`:${key}\\b`, 'g'), params[key]);
         }
 
         if (url.includes(':boardId') && !params['boardId'] && window.currentBoardId) {
@@ -25,34 +25,13 @@ $(function () {
     }
 
     // --- Initialize Sortables ---
+    // Việc kéo-thả thẻ (card) do TaskJS quản lý (có gọi AJAX cập nhật vị trí).
+    // Hàm này chỉ ủy quyền sang TaskJS để tránh khởi tạo sortable trùng lặp,
+    // cạnh tranh handler trên cùng phần tử .column-content.
     function initializeCardSortable() {
-        $(".column-content").sortable({
-            connectWith: ".column-content",
-            items: "> .kanban-card:not(.add-card-placeholder)", 
-            placeholder: "kanban-placeholder",
-            forcePlaceholderSize: true,
-            tolerance: "pointer",
-            start: function (event, ui) {
-                ui.item.addClass('dragging');
-                ui.placeholder.height(ui.item.outerHeight());
-            },
-            stop: function (event, ui) {
-                ui.item.removeClass('dragging');
-
-                // --- Giữ thẻ "Thêm công việc" ở cuối ---
-                const column = ui.item.closest('.column-content');
-                const addCard = column.find('.add-card-placeholder');
-                column.append(addCard); 
-
-                // --- Gửi dữ liệu mới về server ---
-                let taskId = ui.item.data(' task-id');
-                let newColumnId = ui.item.closest('.kanban-column').data('column-id');
-                let taskOrder = ui.item.parent().children('.kanban-card').not('.add-card-placeholder').map(function () {
-                    return $(this).data('task-id');
-                }).get();
-
-            }
-        }).disableSelection();
+        if (window.TaskJS && typeof TaskJS.initializeSortableForExistingColumns === 'function') {
+            TaskJS.initializeSortableForExistingColumns();
+        }
     }
 
 
@@ -109,13 +88,15 @@ $(function () {
                 if (response.success) {
                     // showNotification(response.message); // Thông báo thành công
                 } else {
-                    $("#kanbanBoard").sortable("cancel");
+                    // Lưu thất bại: tải lại để DOM khớp với trạng thái thật trên server.
+                    showNotification(response.message || 'Không thể cập nhật thứ tự cột. Đang tải lại...', 'error');
+                    location.reload();
                 }
             },
             error: function (jqXHR) {
                 console.error("AJAX Error Details:", jqXHR);
-                showNotification(`Error ${jqXHR.status}: ${jqXHR.statusText}. Check console.`, 'error');
-                $("#kanbanBoard").sortable("cancel");
+                showNotification(`Error ${jqXHR.status}: ${jqXHR.statusText}. Đang tải lại...`, 'error');
+                location.reload();
             }
         });
     }
@@ -159,7 +140,7 @@ $(function () {
                     const newColumnHtml = `
                     <div class="kanban-column" data-column-id="${response.column.id}">
                         <div class="column-header d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="column-title flex-grow-1 mr-2" data-column-id="${response.column.id}">${response.column.name}</h5>
+                            <h5 class="column-title flex-grow-1 mr-2" data-column-id="${response.column.id}">${escapeHtml(response.column.name)}</h5>
                             <div class="column-actions">
                                 <button class="btn btn-sm btn-light edit-column-btn" title="Đổi tên cột"><i class="fas fa-pencil-alt"></i></button>
                                 <button class="btn btn-sm btn-light delete-column-btn" title="Xoá cột"><i class="fas fa-trash-alt"></i></button>
@@ -335,6 +316,9 @@ $(function () {
                 return;
             }
 
+            // Chặn double-submit khi click nhanh nhiều lần.
+            const $saveBtn = $(this).prop('disabled', true);
+
             $.ajax({
                 url: url,
                 method: 'POST',
@@ -343,19 +327,19 @@ $(function () {
                     _token: $('meta[name="csrf-token"]').attr('content')
                 },
                 success: function (response) {
-                    console.log(response.task.id);
-                    
                     if (response.success && response.task) {
-                        const savedCardHtml = `<div class="kanban-card" data-task-id="${response.task.id}"><h5>${cardTitle}</h5></div>`;
+                        const savedCardHtml = `<div class="kanban-card" data-task-id="${response.task.id}"><h5>${escapeHtml(cardTitle)}</h5></div>`;
                         $entry.replaceWith(savedCardHtml);
                         $columnContent.find('.add-card-placeholder').show();
-                        initializeCardSortable(); 
+                        initializeCardSortable();
                         location.reload();
                     } else {
+                        $saveBtn.prop('disabled', false);
                         showNotification(response.message || 'Không thể tạo công việc.', 'error');
                     }
                 },
                 error: function (jqXHR) {
+                    $saveBtn.prop('disabled', false);
                     let errorMsg = 'Lỗi khi lưu công việc.';
                     if (jqXHR.responseJSON) {
                         if (jqXHR.responseJSON.errors && jqXHR.responseJSON.errors.title) {

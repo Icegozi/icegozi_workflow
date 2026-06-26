@@ -18,12 +18,11 @@ return new class extends Migration
             $table->string('status')->default('todo');
             $table->string('priority')->default('normal');
             $table->foreignId('column_id')->constrained('columns')->onDelete('cascade');
-            $table->integer('position')->default(0); 
+            $table->integer('position')->default(0);
             $table->date('due_date')->nullable();
             $table->timestamps();
         });
     }
-
 
     /**
      * Reverse the migrations.

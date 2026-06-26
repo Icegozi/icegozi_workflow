@@ -14,6 +14,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $users = User::paginate(20);
+
         return view('admin.account.index', compact('users'));
     }
 
@@ -21,9 +22,11 @@ class UserController extends Controller
     {
         return view('admin.account.create');
     }
+
     public function search(Request $request)
     {
         $users = User::searchUsers($request->query('q'))->paginate(20);
+
         return Response::json([
             'success' => true,
             'users' => $users,
@@ -33,6 +36,7 @@ class UserController extends Controller
     public function store(UserRequest $request)
     {
         User::addUser($request->all());
+
         return redirect()
             ->route('admin.user.index')
             ->with('success', 'Tài khoản đã được tạo thành công.');
@@ -82,13 +86,13 @@ class UserController extends Controller
         $search = $request->input('search');
         $query = User::select('id', 'name');
 
-       if ($search) {
+        if ($search) {
             $search = strtolower($search);
             $search_ascii = Str::ascii($search);
 
             $query->where(function ($q) use ($search_ascii) {
-                $q->whereRaw("LOWER(name) COLLATE utf8mb4_general_ci LIKE ?", ["%{$search_ascii}%"])
-                ->orWhereRaw("LOWER(email) COLLATE utf8mb4_general_ci LIKE ?", ["%{$search_ascii}%"]);
+                $q->whereRaw('LOWER(name) COLLATE utf8mb4_general_ci LIKE ?', ["%{$search_ascii}%"])
+                    ->orWhereRaw('LOWER(email) COLLATE utf8mb4_general_ci LIKE ?', ["%{$search_ascii}%"]);
             });
         }
 
@@ -98,7 +102,7 @@ class UserController extends Controller
         foreach ($users as $user) {
             $results[] = [
                 'id' => route('admin.user.show', ['id' => $user->id]),
-                'text' => $user->name
+                'text' => $user->name,
             ];
         }
 

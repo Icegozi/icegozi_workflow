@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -13,25 +12,22 @@ class PermissionSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::table('permissions')->insert([
-            [
-                'name' => 'board_viewer',
-                'description' => 'Quyền xem nội dung',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'name' => 'board_editor',
-                'description' => 'Quyền chỉnh sửa nội dung',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'name' => 'board_member_manager',
-                'description' => 'Quyền mời và quản lý thành viên trong bảng',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        $permissions = [
+            ['name' => 'board_viewer', 'description' => 'Quyền xem nội dung'],
+            ['name' => 'board_editor', 'description' => 'Quyền chỉnh sửa nội dung'],
+            ['name' => 'board_member_manager', 'description' => 'Quyền mời và quản lý thành viên trong bảng'],
+        ];
+
+        // Idempotent: chạy lại không tạo bản ghi trùng.
+        foreach ($permissions as $permission) {
+            DB::table('permissions')->updateOrInsert(
+                ['name' => $permission['name']],
+                [
+                    'description' => $permission['description'],
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
     }
 }

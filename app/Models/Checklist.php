@@ -14,7 +14,7 @@ class Checklist extends Model
         'title',
         'is_done',
         'position',
-        'task_id', 
+        'task_id',
     ];
 
     protected $casts = [

@@ -4,7 +4,6 @@ namespace App\Notifications;
 
 use App\Models\BoardInvitation;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use URL;
@@ -53,11 +52,11 @@ class BoardInvitationNotification extends Notification
 
         return (new MailMessage)
             ->subject("Lời mời tham gia bảng: {$boardName}")
-            ->greeting("Chào bạn,")
+            ->greeting('Chào bạn,')
             ->line("{$inviterName} đã mời bạn tham gia vào bảng '{$boardName}' với vai trò '{$roleDisplayName}'.")
             ->action('Chấp nhận lời mời', $acceptUrl)
-            ->line("Nếu bạn không thực hiện yêu cầu này, bạn có thể bỏ qua email này.")
-            ->salutation("Trân trọng,\n" . config('app.name'));
+            ->line('Nếu bạn không thực hiện yêu cầu này, bạn có thể bỏ qua email này.')
+            ->salutation("Trân trọng,\n".config('app.name'));
     }
 
     /**
@@ -71,7 +70,7 @@ class BoardInvitationNotification extends Notification
             'invitation_id' => $this->invitation->id,
             'board_id' => $this->invitation->board_id,
             'board_name' => $this->invitation->board->name,
-            'message' => "Bạn có lời mời tham gia bảng {$this->invitation->board->name}."
+            'message' => "Bạn có lời mời tham gia bảng {$this->invitation->board->name}.",
         ];
     }
 }

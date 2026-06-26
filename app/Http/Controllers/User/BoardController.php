@@ -8,7 +8,6 @@ use App\Models\Board;
 use App\Models\Column;
 use App\Models\User;
 use Auth;
-use Illuminate\Http\Request;
 
 class BoardController extends Controller
 {
@@ -28,9 +27,9 @@ class BoardController extends Controller
     public function store(BoardRequest $request)
     {
         $validated = $request->validated();
-        $column = new Column();
-        $boards = new Board();
-        $users = new User(); 
+        $column = new Column;
+        $boards = new Board;
+        $users = new User;
 
         $data = [
             'user_id' => Auth::id(),
@@ -40,6 +39,7 @@ class BoardController extends Controller
         $board = $boards->createBoard($data);
         $column->createDefaultColumns($board->id);
         $currentUserRole = $users->getRoleForBoard($board);
+
         return response()->json([
             'success' => true,
             'message' => 'Bảng đã được tạo thành công!',
@@ -51,14 +51,13 @@ class BoardController extends Controller
                 'url_show' => route('boards.show', $board->id),
                 'url_update' => route('boards.update', $board->id),
                 'url_destroy' => route('boards.destroy', $board->id),
-            ]
+            ],
         ], 201);
     }
 
-
     public function show(Board $board)
     {
-        $this->authorizeBoardAccess($board, ['board_viewer','board_editor', 'board_member_manager']);
+        $this->authorizeBoardAccess($board, ['board_viewer', 'board_editor', 'board_member_manager']);
         $board->load([
             'columns' => function ($query) {
                 $query->orderBy('position', 'asc');
@@ -73,7 +72,6 @@ class BoardController extends Controller
 
         return view('user.boards.show', compact('board'));
     }
-
 
     public function update(BoardRequest $request, Board $board)
     {
@@ -91,7 +89,6 @@ class BoardController extends Controller
         ]);
     }
 
-
     public function destroy(Board $board)
     {
         $this->authorizeBoardAccess($board, ['board_member_manager']);
@@ -100,7 +97,7 @@ class BoardController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Bảng đã được xoá thành công.'
+            'message' => 'Bảng đã được xoá thành công.',
         ]);
     }
 }

@@ -1,0 +1,75 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: icegozi-workflow:latest
+    container_name: icegozi_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-laravel}
+      DB_USERNAME: ${DB_USERNAME:-laravel}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      # Mail: gửi qua mailpit (xem email tại http://localhost:${MAILPIT_UI_PORT:-8025})
+      MAIL_MAILER: ${MAIL_MAILER:-smtp}
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      RUN_MIGRATIONS: "true"
+      RUN_SEEDERS: "${RUN_SEEDERS:-false}"
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      # Persist user uploads / generated files across rebuilds
+      - storage_data:/var/www/html/storage/app
+    networks:
+      - icegozi
+
+  db:
+    image: mysql:8.0
+    container_name: icegozi_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-laravel}
+      MYSQL_USER: ${DB_USERNAME:-laravel}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret}
+    ports:
+      - "${DB_HOST_IP:-127.0.0.1}:${DB_PORT:-3306}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD:-rootsecret}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - icegozi
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: icegozi_mailpit
+    restart: unless-stopped
+    ports:
+      # Giao diện web để xem email (vd: link mời thành viên)
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    networks:
+      - icegozi
+
+volumes:
+  db_data:
+  storage_data:
+
+networks:
+  icegozi:
+    driver: bridge

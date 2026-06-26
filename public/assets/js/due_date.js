@@ -29,7 +29,38 @@ $(document).ready(function () {
             return alert('Vui lòng chọn ngày hết hạn.');
         }
 
+        const url = window.routeUrls.tasksUpdateBase.replace(':taskIdPlaceholder', taskId);
+        // TaskRequest yêu cầu 'title' nên phải gửi kèm tiêu đề hiện tại.
+        const title = $('#modalTaskTitleInput').val()
+            || (window.originalTaskData ? originalTaskData.title : '');
 
+        $btn.prop('disabled', true);
+        $.ajax({
+            url: url,
+            method: 'PUT',
+            data: {
+                title: title,
+                due_date: newDueDate,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function (response) {
+                if (response.success) {
+                    $('#dueDatePickerContainer').hide();
+                    location.reload();
+                } else {
+                    alert(response.message || 'Không thể cập nhật ngày hết hạn.');
+                }
+            },
+            error: function (xhr) {
+                const msg = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Không thể cập nhật ngày hết hạn.';
+                alert(msg);
+            },
+            complete: function () {
+                $btn.prop('disabled', false);
+            }
+        });
     });
 
 });

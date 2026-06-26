@@ -22,11 +22,18 @@ class TaskRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Khi tạo mới: hạn không được ở quá khứ.
+        // Khi cập nhật: cho phép giữ nguyên hạn cũ (có thể đã quá hạn) khi sửa các trường khác.
+        $isCreate = $this->isMethod('post');
+        $dueDateRules = $isCreate
+            ? 'nullable|date|after_or_equal:today'
+            : 'nullable|date';
+
         return [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'priority' => ['nullable', Rule::in(['low', 'normal', 'high', 'urgent'])],
-            'due_date'    => 'nullable|date|after_or_equal:today',
+            'due_date' => $dueDateRules,
         ];
     }
 }

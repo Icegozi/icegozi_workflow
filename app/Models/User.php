@@ -3,15 +3,14 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Auth;
-use Hash;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class User extends Authenticatable
 {
@@ -26,8 +25,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'is_admin',
-        'status'
     ];
 
     /**
@@ -47,6 +44,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_admin' => 'boolean',
     ];
 
     public function comments(): HasMany
@@ -107,26 +105,30 @@ class User extends Authenticatable
 
     public static function register(array $data)
     {
-        return self::create([
+        // is_admin/status không nằm trong $fillable nên dùng forceFill để gán có chủ đích.
+        $user = new self;
+        $user->forceFill([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'is_admin' => false,
             'status' => 'active',
-        ]);
-    }
+        ])->save();
 
+        return $user;
+    }
 
     public static function login(array $credentials, bool $remember = false): bool
     {
         $user = self::where('email', $credentials['email'])->first();
 
-        if (!$user || $user->status !== 'active') {
+        if (! $user || $user->status !== 'active') {
             return false;
         }
 
         if (Auth::attempt($credentials, $remember)) {
             session()->regenerate();
+
             return true;
         }
 
@@ -145,31 +147,16 @@ class User extends Authenticatable
         if ($board->user_id === $this->id) {
             return true;
         }
-        $permission = Permission::where('name', $permissionName)->first();
-        if (!$permission) {
-            return false;
-        }
 
-        $permissionUser = PermissionUser::where('user_id', $this->id)
-            ->where('permission_id', $permission->id)
-            ->first();
-
-        if (!$permissionUser) {
-            return false;
-        }
-
-        $hasBoardPermission = BoardPermission::where('board_id', $board->id)
-            ->where('permission_user_id', $permissionUser->id)
+        // Gộp 3 truy vấn thành 1 join để tránh N+1 khi kiểm tra quyền hàng loạt.
+        return BoardPermission::query()
+            ->where('board_permissions.board_id', $board->id)
+            ->join('permission_users', 'board_permissions.permission_user_id', '=', 'permission_users.id')
+            ->join('permissions', 'permission_users.permission_id', '=', 'permissions.id')
+            ->where('permission_users.user_id', $this->id)
+            ->where('permissions.name', $permissionName)
             ->exists();
-
-        if ($hasBoardPermission) {
-            return true;
-        }
-
-        return false;
     }
-
-
 
     public function getRoleForBoard(Board $board): ?string
     {
@@ -183,6 +170,7 @@ class User extends Authenticatable
                 return $pName;
             }
         }
+
         return null;
     }
 
@@ -204,31 +192,39 @@ class User extends Authenticatable
 
     public static function addUser(array $data): ?User
     {
-        return self::create([
+        // Chỉ gọi từ luồng quản trị; gán is_admin/status có chủ đích qua forceFill.
+        $user = new self;
+        $user->forceFill([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'is_admin' => $data['is_admin'] ?? false,
             'status' => $data['status'] ?? 'active',
-        ]);
+        ])->save();
+
+        return $user;
     }
 
     public static function updateUserById(int $id, array $data): bool
     {
         $user = self::find($id);
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
-        if (!empty($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
-        } else {
-            unset($data['password']);
+        // Chỉ chấp nhận các trường được phép; is_admin/status gán có chủ đích (luồng quản trị).
+        $fields = [];
+        foreach (['name', 'email', 'is_admin', 'status'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $fields[$key] = $data[$key];
+            }
+        }
+        if (! empty($data['password'])) {
+            $fields['password'] = Hash::make($data['password']);
         }
 
-        return $user->update($data);
+        return $user->forceFill($fields)->save();
     }
-
 
     public static function deleteUserById(int $id): bool
     {
@@ -236,7 +232,7 @@ class User extends Authenticatable
             return false;
         }
         $user = self::find($id);
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -245,8 +241,9 @@ class User extends Authenticatable
 
     public static function searchUsers(string $keyword)
     {
-        return self::where('name', 'like', "%{$keyword}%")
-            ->orWhere('email', 'like', "%{$keyword}%")
-            ->get();
+        return self::where(function ($query) use ($keyword) {
+            $query->where('name', 'like', "%{$keyword}%")
+                ->orWhere('email', 'like', "%{$keyword}%");
+        })->get();
     }
 }

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\Column;
 use App\Models\Task;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class OverviewTaskController extends Controller
 {
@@ -14,14 +14,21 @@ class OverviewTaskController extends Controller
 
     public function __construct()
     {
-        $this->board = new Board();
+        $this->board = new Board;
     }
 
     public function getTaskOverlayData($board_id)
     {
-        if (!$board_id) {
+        if (! $board_id) {
             return response()->json(['success' => false, 'message' => 'board_id is required'], 400);
         }
+
+        $board = Board::findOrFail($board_id);
+        $user = Auth::user();
+        $canView = $user->hasBoardPermission($board, 'board_viewer')
+            || $user->hasBoardPermission($board, 'board_editor')
+            || $user->hasBoardPermission($board, 'board_member_manager');
+        abort_unless($canView, 403, 'Bạn không có quyền xem bảng này.');
 
         $assignees = $this->board->getAssignedUsersByBoardId($board_id);
 

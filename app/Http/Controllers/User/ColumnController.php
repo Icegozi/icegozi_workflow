@@ -13,8 +13,8 @@ use Illuminate\Validation\Rule;
 
 class ColumnController extends Controller
 {
-     // Authorization Helper
-     private function authorizeTaskAccess(Task $task, array $requiredPermissions = [])
+    // Authorization Helper
+    private function authorizeTaskAccess(Task $task, array $requiredPermissions = [])
     {
         $user = Auth::user();
         $board = $task->column->board;
@@ -38,162 +38,182 @@ class ColumnController extends Controller
         abort(403, 'Bạn không có quyền thực hiện thao tác!');
     }
 
- 
-     /**
-      * Store a newly created column in storage.
-      */
-     public function store(Request $request, Board $board)
-     {
-         $this->authorizeBoardAccess($board,['board_editor','board_member_manager']);
- 
-         $validated = $request->validate([
-             'name' => [
-                 'required',
-                 'string',
-                 'max:255',
-                  // Ensure name is unique *within this specific board*
-                 Rule::unique('columns')->where(function ($query) use ($board) {
-                     return $query->where('board_id', $board->id);
-                 }),
-             ]
-         ]);
- 
-         try {
-              // Determine the next position
-             $maxPosition = $board->columns()->max('position');
-             $nextPosition = ($maxPosition === null) ? 0 : $maxPosition + 1;
- 
-             $column = Column::create([
-                 'name' => $validated['name'],
-                 'board_id' => $board->id,
-                 'position' => $nextPosition,
-             ]);
- 
-              // Prepare data for frontend (you might want to return rendered HTML later)
-             return response()->json([
-                 'success' => true,
-                 'message' => 'Cột đã được tạo thành công!',
-                 'column' => [
-                     'id' => $column->id,
-                     'name' => $column->name,
-                     'position' => $column->position,
-                     'url_update' => route('columns.update', ['board' => $board->id, 'column' => $column->id]),
-                     'url_destroy' => route('columns.destroy', ['board' => $board->id, 'column' => $column->id]),
-                 ]
-             ], 201);
- 
-         } catch (\Exception $e) {
-             // Log the error
-             \Log::error("Error creating column: " . $e->getMessage());
-             return response()->json(['success' => false, 'message' => 'Không thể tạo cột. Đã xảy ra lỗi.'], 500);
-         }
-     }
- 
-     /**
-      * Update the specified column (rename).
-      */
-     public function update(Request $request, Board $board, Column $column)
-     {
-        $this->authorizeBoardAccess($board,['board_editor','board_member_manager']);
- 
-         // Ensure the column actually belongs to the board in the URL
-         if ($column->board_id !== $board->id) {
-              abort(404); // Or 403, column not found on this board
-         }
- 
-         $validated = $request->validate([
-             'name' => [
-                 'required',
-                 'string',
-                 'max:255',
-                 // Ensure name is unique within this board, ignoring the current column
-                 Rule::unique('columns')->where(function ($query) use ($board) {
-                     return $query->where('board_id', $board->id);
-                 })->ignore($column->id),
-             ]
-         ]);
- 
-         try {
-             $column->update(['name' => $validated['name']]);
- 
-             return response()->json([
-                 'success' => true,
-                 'message' => 'Tên cột đã được cập nhật.',
-                 'new_name' => $column->name
-             ]);
-         } catch (\Exception $e) {
-              \Log::error("Error updating column {$column->id}: " . $e->getMessage());
-             return response()->json(['success' => false, 'message' => 'Không thể cập nhật tên cột. Đã xảy ra lỗi.'], 500);
-         }
-     }
- 
-     /**
-      * Remove the specified column from storage.
-      */
-     public function destroy(Board $board, Column $column)
-     {
-        $this->authorizeBoardAccess($board,['board_member_manager']);
- 
-         if ($column->board_id !== $board->id) {
-              abort(404);
-         }
+    /**
+     * Store a newly created column in storage.
+     */
+    public function store(Request $request, Board $board)
+    {
+        $this->authorizeBoardAccess($board, ['board_editor', 'board_member_manager']);
 
-         if ($column->tasks()->exists()) {
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                // Ensure name is unique *within this specific board*
+                Rule::unique('columns')->where(function ($query) use ($board) {
+                    return $query->where('board_id', $board->id);
+                }),
+            ],
+        ]);
 
-         }
- 
-         try {
-             DB::beginTransaction(); 
- 
-             $deletedPosition = $column->position;
-             $column->delete(); 
- 
-             Column::where('board_id', $board->id)
-                   ->where('position', '>', $deletedPosition)
-                   ->decrement('position');
- 
-             DB::commit(); 
- 
-             return response()->json(['success' => true, 'message' => 'Cột đã được xoá thành công.']);
- 
-         } catch (\Exception $e) {
-             DB::rollBack(); 
-             return response()->json(['success' => false, 'message' => 'Không thể xoá cột. Đã xảy ra lỗi.'], 500);
-         }
-     }
- 
+        try {
+            // Determine the next position
+            $maxPosition = $board->columns()->max('position');
+            $nextPosition = ($maxPosition === null) ? 0 : $maxPosition + 1;
 
-     public function reorder(Request $request, Board $board)
-     {
-        $this->authorizeBoardAccess($board,['board_editor','board_member_manager']);
- 
-         $request->validate([
-             'order' => 'required|array',
-             'order.*' => 'integer|exists:columns,id',
-         ]);
- 
-         $orderedIds = $request->input('order');
- 
-         try {
-             DB::beginTransaction();
- 
-             foreach ($orderedIds as $index => $columnId) {
-                 $column = Column::where('id', $columnId)->where('board_id', $board->id)->first();
-                 if ($column) {
-                     $column->position = $index;
-                     $column->save();
-                 } else {
-                     throw new \Exception("Invalid column ID {$columnId} for board {$board->id}");
-                 }
-             }
- 
-             DB::commit();
-             return response()->json(['success' => true, 'message' => 'Thứ tự cột đã được cập nhật.']);
- 
-         } catch (\Exception $e) {
-             DB::rollBack();
-              \Log::error("Error reordering columns for board {$board->id}: " . $e->getMessage());
-             return response()->json(['success' => false, 'message' => 'Không thể cập nhật thứ tự cột. Đã xảy ra lỗi.'], 500);
-         }
-     }
+            $column = Column::create([
+                'name' => $validated['name'],
+                'board_id' => $board->id,
+                'position' => $nextPosition,
+            ]);
+
+            // Prepare data for frontend (you might want to return rendered HTML later)
+            return response()->json([
+                'success' => true,
+                'message' => 'Cột đã được tạo thành công!',
+                'column' => [
+                    'id' => $column->id,
+                    'name' => $column->name,
+                    'position' => $column->position,
+                    'url_update' => route('columns.update', ['board' => $board->id, 'column' => $column->id]),
+                    'url_destroy' => route('columns.destroy', ['board' => $board->id, 'column' => $column->id]),
+                ],
+            ], 201);
+
+        } catch (\Exception $e) {
+            // Log the error
+            \Log::error('Error creating column: '.$e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Không thể tạo cột. Đã xảy ra lỗi.'], 500);
+        }
+    }
+
+    /**
+     * Update the specified column (rename).
+     */
+    public function update(Request $request, Board $board, Column $column)
+    {
+        $this->authorizeBoardAccess($board, ['board_editor', 'board_member_manager']);
+
+        // Ensure the column actually belongs to the board in the URL
+        if ($column->board_id !== $board->id) {
+            abort(404); // Or 403, column not found on this board
+        }
+
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                // Ensure name is unique within this board, ignoring the current column
+                Rule::unique('columns')->where(function ($query) use ($board) {
+                    return $query->where('board_id', $board->id);
+                })->ignore($column->id),
+            ],
+        ]);
+
+        try {
+            $column->update(['name' => $validated['name']]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tên cột đã được cập nhật.',
+                'new_name' => $column->name,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Error updating column {$column->id}: ".$e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Không thể cập nhật tên cột. Đã xảy ra lỗi.'], 500);
+        }
+    }
+
+    /**
+     * Remove the specified column from storage.
+     */
+    public function destroy(Board $board, Column $column)
+    {
+        $this->authorizeBoardAccess($board, ['board_member_manager']);
+
+        if ($column->board_id !== $board->id) {
+            abort(404);
+        }
+
+        // Tránh xoá nhầm: không cho xoá cột đang chứa công việc.
+        if ($column->tasks()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể xoá cột đang chứa công việc. Vui lòng di chuyển hoặc xoá các công việc trước.',
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $deletedPosition = $column->position;
+            $column->delete();
+
+            Column::where('board_id', $board->id)
+                ->where('position', '>', $deletedPosition)
+                ->decrement('position');
+
+            DB::commit();
+
+            return response()->json(['success' => true, 'message' => 'Cột đã được xoá thành công.']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json(['success' => false, 'message' => 'Không thể xoá cột. Đã xảy ra lỗi.'], 500);
+        }
+    }
+
+    public function reorder(Request $request, Board $board)
+    {
+        $this->authorizeBoardAccess($board, ['board_editor', 'board_member_manager']);
+
+        $request->validate([
+            'order' => 'required|array',
+            'order.*' => 'integer|exists:columns,id',
+        ]);
+
+        $orderedIds = array_map('intval', $request->input('order'));
+
+        // Phải chứa đúng toàn bộ cột của bảng (không thiếu, không trùng),
+        // nếu không việc đánh lại position sẽ tạo ra vị trí trùng/sai.
+        $boardColumnIds = $board->columns()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        sort($boardColumnIds);
+        $sortedInput = $orderedIds;
+        sort($sortedInput);
+        if ($sortedInput !== $boardColumnIds) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Danh sách sắp xếp phải chứa đúng toàn bộ cột của bảng.',
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($orderedIds as $index => $columnId) {
+                $column = Column::where('id', $columnId)->where('board_id', $board->id)->first();
+                if ($column) {
+                    $column->position = $index;
+                    $column->save();
+                } else {
+                    throw new \Exception("Invalid column ID {$columnId} for board {$board->id}");
+                }
+            }
+
+            DB::commit();
+
+            return response()->json(['success' => true, 'message' => 'Thứ tự cột đã được cập nhật.']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Error reordering columns for board {$board->id}: ".$e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Không thể cập nhật thứ tự cột. Đã xảy ra lỗi.'], 500);
+        }
+    }
 }
