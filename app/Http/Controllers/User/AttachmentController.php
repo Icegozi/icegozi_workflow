@@ -15,10 +15,12 @@ use Illuminate\Support\Str;
 
 class AttachmentController extends Controller
 {
-    private function authorizeTaskAccess(Task $task, array $requiredPermissions = [])
+    private function authorizeTaskAccess(?Task $task, array $requiredPermissions = [])
     {
+        abort_if(! $task, 404, 'Không tìm thấy công việc.');
+        $board = $task->column?->board;
+        abort_if(! $board, 404, 'Không tìm thấy bảng.');
         $user = Auth::user();
-        $board = $task->column->board;
         foreach ($requiredPermissions as $permission) {
             if ($user->hasBoardPermission($board, $permission)) {
                 return $board;
@@ -44,7 +46,7 @@ class AttachmentController extends Controller
         $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
         $request->validate([
             'attachments' => 'required|array',
-            'attachments.*' => 'file|max:10240',
+            'attachments.*' => 'file|max:10240|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,gif,bmp,webp,zip,rar,7z,txt,csv',
         ]);
 
         $uploadedAttachmentsData = [];
@@ -66,36 +68,30 @@ class AttachmentController extends Controller
                             continue;
                         }
 
-                        // >>> PHẦN QUAN TRỌNG CẦN KIỂM TRA <<<
-                        $attachment = Attachment::create([
-                            'file_name' => $originalName,         // PHẢI CÓ
-                            'file_path' => $path,                 // PHẢI CÓ
-                            'file_size' => $file->getSize(),       // PHẢI CÓ
-                            'mime_type' => $file->getMimeType(),   // NÊN CÓ
-                            'task_id' => $task->id,
-                            'user_id' => Auth::id(),
-                        ]);
-                        // >>> KẾT THÚC PHẦN QUAN TRỌNG <<<
+                        $attachment = \DB::transaction(function () use ($task, $originalName, $path, $file) {
+                            $attachment = Attachment::create([
+                                'file_name' => $originalName,
+                                'file_path' => $path,
+                                'file_size' => $file->getSize(),
+                                'mime_type' => $file->getMimeType(),
+                                'task_id' => $task->id,
+                                'user_id' => Auth::id(),
+                            ]);
 
-                        // Để trả về client, có thể thêm URL truy cập file và các thông tin khác từ accessor
-                        $attachment->url = $attachment->url; // Kích hoạt accessor
-                        $attachment->uploaded_at_formatted = $attachment->uploaded_at_formatted; // Kích hoạt accessor
-                        // ... các accessor khác nếu cần
-
-                        $uploadedAttachmentsData[] = $attachment;
-
-                        // Load relationship user để có uploader_name nếu cần ngay
-                        // $attachment->load('user'); // Nếu bạn muốn trả về uploader_name ngay
-
-                        if ($task->taskHistories()) { // Kiểm tra trước khi tạo
                             $task->taskHistories()->create([
                                 'user_id' => Auth::id(),
                                 'action' => 'attachment_added',
                                 'note' => "Đã thêm đính kèm: {$originalName}",
                             ]);
-                        } else {
-                            Log::warning("Task ID {$task->id}: task_histories is not available to record attachment addition.");
-                        }
+
+                            return $attachment;
+                        });
+
+                        // Kích hoạt các accessor để trả về client
+                        $attachment->url = $attachment->url;
+                        $attachment->uploaded_at_formatted = $attachment->uploaded_at_formatted;
+
+                        $uploadedAttachmentsData[] = $attachment;
 
                         $successMessages[] = "File '{$originalName}' đã được tải lên.";
 
@@ -140,10 +136,8 @@ class AttachmentController extends Controller
     {
         $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
         try {
-            // Đảm bảo load đúng và sử dụng accessor nếu cần
-            $attachments = $task->attachments()->latest()->get()->map(function ($attachment) {
-                return $attachment;
-            });
+            // Eager-load user để tránh N+1 khi serialize accessor uploader_name
+            $attachments = $task->attachments()->with('user')->latest()->get();
 
             return response()->json([
                 'success' => true,
@@ -166,17 +160,15 @@ class AttachmentController extends Controller
 
         try {
             $originalName = $attachment->file_name;
-            $attachment->delete();
 
-            if ($task && $task->taskHistories()) {
+            \DB::transaction(function () use ($attachment, $task, $originalName) {
+                $attachment->delete();
                 $task->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'attachment_deleted',
                     'note' => "Đã xoá đính kèm: {$originalName}",
                 ]);
-            } else {
-                Log::warning("Task or task_histories not available to record attachment deletion for attachment ID {$attachment->id}.");
-            }
+            });
 
             return response()->json([
                 'success' => true,

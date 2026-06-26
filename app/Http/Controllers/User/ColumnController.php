@@ -139,8 +139,12 @@ class ColumnController extends Controller
             abort(404);
         }
 
+        // Tránh xoá nhầm: không cho xoá cột đang chứa công việc.
         if ($column->tasks()->exists()) {
-
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể xoá cột đang chứa công việc. Vui lòng di chuyển hoặc xoá các công việc trước.',
+            ], 422);
         }
 
         try {
@@ -173,7 +177,20 @@ class ColumnController extends Controller
             'order.*' => 'integer|exists:columns,id',
         ]);
 
-        $orderedIds = $request->input('order');
+        $orderedIds = array_map('intval', $request->input('order'));
+
+        // Phải chứa đúng toàn bộ cột của bảng (không thiếu, không trùng),
+        // nếu không việc đánh lại position sẽ tạo ra vị trí trùng/sai.
+        $boardColumnIds = $board->columns()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        sort($boardColumnIds);
+        $sortedInput = $orderedIds;
+        sort($sortedInput);
+        if ($sortedInput !== $boardColumnIds) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Danh sách sắp xếp phải chứa đúng toàn bộ cột của bảng.',
+            ], 422);
+        }
 
         try {
             DB::beginTransaction();

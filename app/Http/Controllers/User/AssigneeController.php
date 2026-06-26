@@ -9,13 +9,16 @@ use App\Models\Board;
 use App\Models\Task;
 use App\Models\User;
 use Auth;
+use Illuminate\Support\Facades\DB;
 
 class AssigneeController extends Controller
 {
-    private function authorizeTaskAccess(Task $task, array $requiredPermissions = [])
+    private function authorizeTaskAccess(?Task $task, array $requiredPermissions = [])
     {
+        abort_if(! $task, 404, 'Task not found.');
+        $board = $task->column?->board;
+        abort_if(! $board, 404, 'Board not found.');
         $user = Auth::user();
-        $board = $task->column->board;
         foreach ($requiredPermissions as $permission) {
             if ($user->hasBoardPermission($board, $permission)) {
                 return $board;
@@ -24,11 +27,27 @@ class AssigneeController extends Controller
         abort(403, 'Bạn không có quyền thực hiện thao tác!');
     }
 
+    private function isBoardMember(Board $board, int $userId): bool
+    {
+        if ($board->user_id === $userId) {
+            return true;
+        }
+        $target = User::find($userId);
+
+        return $target
+            && ($target->hasBoardPermission($board, 'board_viewer')
+                || $target->hasBoardPermission($board, 'board_editor')
+                || $target->hasBoardPermission($board, 'board_member_manager'));
+    }
+
     public function store(AssigneeRequest $request, Task $task)
     {
-        $this->authorizeTaskAccess($task, ['board_member_manager']);
+        $board = $this->authorizeTaskAccess($task, ['board_member_manager']);
         $assignee = new Assignee;
         $userId = $request->user_id;
+        if (! $this->isBoardMember($board, (int) $userId)) {
+            return $this->response(false, 'Người dùng không thuộc bảng này.', $task, 422);
+        }
         if ($assignee->isExistsAsignee($userId, $task->id)) {
             return $this->response(false, 'Người dùng đã được giao nhiệm vụ này.', $task, 409);
         }
@@ -40,10 +59,14 @@ class AssigneeController extends Controller
 
     public function update(AssigneeRequest $request, Task $task, User $user)
     {
-        $this->authorizeTaskAccess($task, ['board_member_manager']);
+        $board = $this->authorizeTaskAccess($task, ['board_member_manager']);
         $assignee = new Assignee;
+        $newUserId = (int) $request->user_id;
+        if (! $this->isBoardMember($board, $newUserId)) {
+            return $this->response(false, 'Người dùng không thuộc bảng này.', $task, 422);
+        }
 
-        $updatedAssignee = $assignee->updateUserForTask($task->id, $user->id);
+        $updatedAssignee = $assignee->updateUserForTask($task->id, $user->id, $newUserId);
         if (! $updatedAssignee) {
             return $this->response(false, 'Cập nhật người phụ trách không thành công.', $task, 500);
         }
@@ -59,8 +82,10 @@ class AssigneeController extends Controller
             return $this->response(false, 'Người dùng không được giao nhiệm vụ này.', $task, 404);
         }
 
-        $assignee->removeAsignee($user->id, $task->id);
-        $this->logUnassignHistory($task, $user);
+        DB::transaction(function () use ($assignee, $task, $user) {
+            $assignee->removeAsignee($user->id, $task->id);
+            $this->logUnassignHistory($task, $user);
+        });
 
         return $this->response(true, 'Xóa người phụ trách thành công!', $task->fresh());
     }
@@ -91,7 +116,7 @@ class AssigneeController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u='.urlencode($user->email),
+            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u='.$user->id,
         ]);
 
         $task->column_name = $task->column->name ?? '';
@@ -107,7 +132,7 @@ class AssigneeController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/100?u='.urlencode($user->email),
+                'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/100?u='.$user->id,
             ];
         });
 

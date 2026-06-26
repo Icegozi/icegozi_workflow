@@ -25,10 +25,10 @@ $(document).ready(function () {
 
                     const commentHtml = `
                          <div class="media mb-3" id="comment-${comment.id}">
-                        <img src="${comment.user_avatar}" class="rounded-circle mr-2" width="32" height="32" alt="${comment.user_name}">
+                        <img src="${escapeHtml(comment.user_avatar)}" class="rounded-circle mr-2" width="32" height="32" alt="${escapeHtml(comment.user_name)}">
                         <div class="media-body">
-                            <h6 class="mt-0 mb-1">${comment.user.name} <small class="text-muted">(${createdAt})</small></h6>
-                            <p>${comment.content.replace(/\n/g, '<br>')}</p>
+                            <h6 class="mt-0 mb-1">${escapeHtml(comment.user.name)} <small class="text-muted">(${escapeHtml(createdAt)})</small></h6>
+                            <p>${escapeHtml(comment.content).replace(/\n/g, '<br>')}</p>
                         </div>
                         <div class="dropdown mr-3">
                                 <a href="#" class="text-muted dropdown-toggle-no-caret" id="commentMenu${comment.id}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Tùy chọn bình luận">

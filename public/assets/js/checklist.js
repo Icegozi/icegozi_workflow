@@ -292,7 +292,8 @@ $(document).ready(function() {
                 data: { title: newTitle },
                 success: function(response) {
                     if (response.success && response.checklist) {
-                        $titleSpan.text(escapeHtml(response.checklist.title)).data('original-title', escapeHtml(response.checklist.title));
+                        // .text() đã tự escape; không bọc escapeHtml để tránh hiển thị &amp; &lt;
+                        $titleSpan.text(response.checklist.title).data('original-title', response.checklist.title);
                     } else {
                         alert('Lỗi: ' + (response.message || 'Không thể cập nhật tiêu đề.'));
                         $editInput.val(originalTitle); // Revert in input if save fails

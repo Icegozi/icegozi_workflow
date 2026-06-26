@@ -7,15 +7,18 @@ use App\Models\Board;
 use App\Models\Checklist;
 use App\Models\Task;
 use Auth;
+use DB;
 use Illuminate\Http\Request;
 use Log;
 
 class ChecklistController extends Controller
 {
-    private function authorizeTaskAccess(Task $task, array $requiredPermissions = [])
+    private function authorizeTaskAccess(?Task $task, array $requiredPermissions = [])
     {
+        abort_if(! $task, 404, 'Không tìm thấy công việc.');
+        $board = $task->column?->board;
+        abort_if(! $board, 404, 'Không tìm thấy bảng.');
         $user = Auth::user();
-        $board = $task->column->board;
         foreach ($requiredPermissions as $permission) {
             if ($user->hasBoardPermission($board, $permission)) {
                 return $board;
@@ -53,21 +56,24 @@ class ChecklistController extends Controller
         ]);
 
         try {
-            $maxPosition = $task->checklists()->max('position');
-            $position = is_null($maxPosition) ? 0 : $maxPosition + 1;
+            $checklist = DB::transaction(function () use ($task, $request) {
+                $maxPosition = $task->checklists()->max('position');
+                $position = is_null($maxPosition) ? 0 : $maxPosition + 1;
 
-            $checklist = $task->checklists()->create([
-                'title' => $request->title,
-                'position' => $position,
-                'is_done' => false, // Default
-            ]);
+                $checklist = $task->checklists()->create([
+                    'title' => $request->title,
+                    'position' => $position,
+                    'is_done' => false,
+                ]);
 
-            // Log history on task
-            $task->taskHistories()->create([
-                'user_id' => Auth::id(),
-                'action' => 'added_checklist_item',
-                'note' => "Đã thêm mục checklist: '{$checklist->title}'",
-            ]);
+                $task->taskHistories()->create([
+                    'user_id' => Auth::id(),
+                    'action' => 'added_checklist_item',
+                    'note' => "Đã thêm mục checklist: '{$checklist->title}'",
+                ]);
+
+                return $checklist;
+            });
 
             return response()->json(['success' => true, 'message' => 'Mục checklist đã được thêm.', 'checklist' => $checklist], 201);
         } catch (\Exception $e) {
@@ -109,16 +115,17 @@ class ChecklistController extends Controller
             }
 
             if (! empty($updatedFieldsMessages)) {
-                $checklist->save(); // <-- THIS IS WHERE THE DATABASE INTERACTION HAPPENS
+                DB::transaction(function () use ($checklist, $task, $updatedFieldsMessages) {
+                    $checklist->save();
 
-                // Log history if the task relationship exists
-                if ($checklist->task) { // Ensure task relationship is loaded or exists
-                    $checklist->task->taskHistories()->create([
-                        'user_id' => Auth::id(),
-                        'action' => 'updated_checklist_item',
-                        'note' => 'Đã cập nhật mục checklist: '.implode(', ', $updatedFieldsMessages),
-                    ]);
-                }
+                    if ($task) {
+                        $task->taskHistories()->create([
+                            'user_id' => Auth::id(),
+                            'action' => 'updated_checklist_item',
+                            'note' => 'Đã cập nhật mục checklist: '.implode(', ', $updatedFieldsMessages),
+                        ]);
+                    }
+                });
             }
 
             // Return the fresh checklist item (with potentially updated values)
@@ -134,20 +141,20 @@ class ChecklistController extends Controller
 
     public function destroy(Checklist $checklist)
     {
-        $this->authorizeTaskAccess($task, ['board_member_manager']);
         $task = $checklist->task;
+        $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
 
         try {
             $checklistTitle = $checklist->title;
-            $checklist->delete();
 
-            if ($task) {
+            DB::transaction(function () use ($checklist, $task, $checklistTitle) {
+                $checklist->delete();
                 $task->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'deleted_checklist_item',
                     'note' => "Đã xóa mục checklist: '{$checklistTitle}'",
                 ]);
-            }
+            });
 
             return response()->json(['success' => true, 'message' => 'Mục checklist đã được xóa.']);
         } catch (\Exception $e) {
@@ -167,17 +174,19 @@ class ChecklistController extends Controller
         ]);
 
         try {
-            foreach ($request->ids as $index => $checklistId) {
-                Checklist::where('id', $checklistId)
-                    ->where('task_id', $task->id)
-                    ->update(['position' => $index]);
-            }
+            DB::transaction(function () use ($request, $task) {
+                foreach ($request->ids as $index => $checklistId) {
+                    Checklist::where('id', $checklistId)
+                        ->where('task_id', $task->id)
+                        ->update(['position' => $index]);
+                }
 
-            $task->taskHistories()->create([
-                'user_id' => Auth::id(),
-                'action' => 'reordered_checklist',
-                'note' => 'Đã sắp xếp lại các mục trong checklist.',
-            ]);
+                $task->taskHistories()->create([
+                    'user_id' => Auth::id(),
+                    'action' => 'reordered_checklist',
+                    'note' => 'Đã sắp xếp lại các mục trong checklist.',
+                ]);
+            });
 
             return response()->json(['success' => true, 'message' => 'Thứ tự checklist đã được cập nhật.']);
         } catch (\Exception $e) {

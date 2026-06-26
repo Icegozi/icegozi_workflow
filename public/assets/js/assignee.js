@@ -48,7 +48,7 @@ var AssigneeManager = (function ($) {
 
         $assigneeSelect.empty().append('<option value="">-- Bỏ chọn người phụ trách --</option>');
         boardUsers.forEach(user => {
-            $assigneeSelect.append(`<option value="${user.id}">${user.name} (${user.email})</option>`);
+            $assigneeSelect.append(`<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} (${escapeHtml(user.email)})</option>`);
         });
 
         if (currentAssignee && currentAssignee.id) {
@@ -156,12 +156,12 @@ var AssigneeManager = (function ($) {
             const assigneeAvatar = assignee.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(assigneeName)}&background=random&size=30`;
 
             $assigneesContainer.append(`
-                <img src="${assigneeAvatar}"
-                     class="rounded-circle border border-white" 
+                <img src="${escapeHtml(assigneeAvatar)}"
+                     class="rounded-circle border border-white"
                      width="30" height="30"
-                     title="${assigneeName} (ID: ${assignee.id})"
-                     alt="${assigneeName}">
-                <span class="ml-2 align-self-center">${assigneeName}</span>
+                     title="${escapeHtml(assigneeName)} (ID: ${escapeHtml(assignee.id)})"
+                     alt="${escapeHtml(assigneeName)}">
+                <span class="ml-2 align-self-center">${escapeHtml(assigneeName)}</span>
             `);
         } else {
             $assigneesContainer.html('<span class="text-muted small">Chưa có ai tham gia.</span>');

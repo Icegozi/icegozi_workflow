@@ -98,7 +98,7 @@ var TaskJS = (function ($) {
         const $descTextarea = $('#modalTaskDescriptionTextarea');
 
         if (taskData.description) {
-            $descDisplay.html(taskData.description.replace(/\n/g, '<br>'));
+            $descDisplay.html(escapeHtml(taskData.description).replace(/\n/g, '<br>'));
         } else {
             $descDisplay.html('<em class="text-muted">Thêm mô tả chi tiết hơn...</em>');
         }
@@ -116,12 +116,12 @@ var TaskJS = (function ($) {
                 const assigneeAvatar = assignee.avatar_url || 'https://i.pravatar.cc/30?u=' + encodeURIComponent(assignee.email || `unknown_${Date.now()}`);
 
                 $assigneesContainer.append(`
-            <img src="${assigneeAvatar}"
-                 class="rounded-circle border border-white mr-n2" 
+            <img src="${escapeHtml(assigneeAvatar)}"
+                 class="rounded-circle border border-white mr-n2"
                  width="30" height="30"
-                 title="${assigneeName}"
-                 alt="${assigneeName}">
-            <span class="ml-2 align-self-center">${assigneeName}</span>
+                 title="${escapeHtml(assigneeName)}"
+                 alt="${escapeHtml(assigneeName)}">
+            <span class="ml-2 align-self-center">${escapeHtml(assigneeName)}</span>
         `);
             });
         } else {
@@ -160,17 +160,17 @@ var TaskJS = (function ($) {
                 $activityLog.append(`
             <div class="activity-item mb-2 pb-2 border-bottom">
                 <div class="d-flex align-items-start">
-                    <img src="${history.user_avatar || 'https://i.pravatar.cc/150?img=3'}"
+                    <img src="${escapeHtml(history.user_avatar || 'https://i.pravatar.cc/150?img=3')}"
                          class="rounded-circle mr-2"
                          width="32"
                          height="32"
-                         alt="${history.user_name}">
+                         alt="${escapeHtml(history.user_name)}">
                     <div>
                         <p class="mb-0">
-                            <span class="font-weight-bold">${history.user_name || 'Hệ thống'}</span>
-                            ${history.note || ''}
+                            <span class="font-weight-bold">${escapeHtml(history.user_name || 'Hệ thống')}</span>
+                            ${escapeHtml(history.note || '')}
                         </p>
-                        <small class="text-muted">${formatHistoryCreatedAt}</small>
+                        <small class="text-muted">${escapeHtml(formatHistoryCreatedAt)}</small>
                     </div>
                 </div>
             </div>
@@ -198,7 +198,8 @@ var TaskJS = (function ($) {
         }
 
 
-        $loadMoreBtn.on('click', function () {
+        // .off() trước khi .on() để tránh chồng handler mỗi lần mở task (gây nhảy nhiều trang).
+        $loadMoreBtn.off('click').on('click', function () {
             currentPage++;
             renderActivityLogPage(currentPage);
         });
@@ -213,10 +214,10 @@ var TaskJS = (function ($) {
             taskData.comments.forEach(comment => {
                 $commentLog.append(`
                    <div class="media mb-3" id="comment-${comment.id}">
-                        <img src="${comment.user_avatar}" class="rounded-circle mr-2" width="32" height="32" alt="${comment.user_name}">
+                        <img src="${escapeHtml(comment.user_avatar)}" class="rounded-circle mr-2" width="32" height="32" alt="${escapeHtml(comment.user_name)}">
                         <div class="media-body">
-                            <h6 class="mt-0 mb-1">${comment.user_name} <small class="text-muted">(${comment.time_ago})</small></h6>
-                            <p>${comment.content.replace(/\n/g, '<br>')}</p>
+                            <h6 class="mt-0 mb-1">${escapeHtml(comment.user_name)} <small class="text-muted">(${escapeHtml(comment.time_ago)})</small></h6>
+                            <p>${escapeHtml(comment.content).replace(/\n/g, '<br>')}</p>
                         </div>
                         <div class="dropdown mr-3">
                                 <a href="#" class="text-muted dropdown-toggle-no-caret" id="commentMenu${comment.id}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Tùy chọn bình luận">
@@ -364,7 +365,7 @@ var TaskJS = (function ($) {
 
                     // === MÔ TẢ ===
                     const displayDesc = task.description
-                        ? task.description.replace(/\n/g, '<br>')
+                        ? escapeHtml(task.description).replace(/\n/g, '<br>')
                         : '<em class="text-muted">Thêm mô tả chi tiết hơn...</em>';
                     $('#modalTaskDescriptionContainer .description-box-display').html(displayDesc);
                     originalTaskData.description = task.description;
@@ -511,14 +512,14 @@ var TaskJS = (function ($) {
                             success: function (r) {
                                 if (!r.success) {
                                     showNotification(r.message || 'Cập nhật vị trí thất bại.', 'error');
-                                    $(".column-content").sortable("cancel");
+                                    location.reload();
                                 } else {
 
                                 }
                             },
                             error: function (e) {
                                 showNotification('Cập nhật vị trí thất bại.', 'error');
-                                $(".column-content").sortable("cancel");
+                                location.reload();
                             }
                         });
                     }

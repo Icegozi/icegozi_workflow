@@ -29,15 +29,15 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::middleware('guest')->group(function () {
     // Đăng ký
     Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register.form');
-    Route::post('/register', [RegisterController::class, 'register'])->name('register');
+    Route::post('/register', [RegisterController::class, 'register'])->name('register')->middleware('throttle:10,1');
 
     // Đăng nhập
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login.form');
-    Route::post('/login', [LoginController::class, 'login'])->name('login');
+    Route::post('/login', [LoginController::class, 'login'])->name('login')->middleware('throttle:5,1');
 });
 
 // ==== ROUTE CHUNG CHO USER & ADMIN ====
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'active'])->group(function () {
 
     // Dashboard chung, tự điều hướng theo role
     Route::get('/dashboard', function () {
@@ -90,7 +90,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Board Membership and Invitations
     Route::get('/boards/{board}/settings', [BoardMembershipController::class, 'settings'])->name('boards.settings');
-    Route::post('/boards/{board}/invite', [BoardMembershipController::class, 'inviteMember'])->name('boards.invite');
+    Route::post('/boards/{board}/invite', [BoardMembershipController::class, 'inviteMember'])->name('boards.invite')->middleware('throttle:20,1');
     Route::post('/boards/{board}/members/{member}/update-role', [BoardMembershipController::class, 'updateMemberRole'])->name('boards.members.updateRole');
     Route::delete('/boards/{board}/members/{member}/remove', [BoardMembershipController::class, 'removeMember'])->name('boards.members.remove');
     Route::delete('/boards/{board}/invitations/{invitation}/cancel', [BoardMembershipController::class, 'cancelInvitation'])->name('boards.invitations.cancel');

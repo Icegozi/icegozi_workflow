@@ -80,7 +80,7 @@ var AttachmentManager = (function ($) {
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <i class="fas fa-file-alt mr-2 text-secondary"></i>
-                        <span class="attachment-name font-weight-bold">${file.name}</span>
+                        <span class="attachment-name font-weight-bold">${escapeHtml(file.name)}</span>
                         <small class="text-muted ml-2">(${fileSizeKB} KB) - Chờ tải lên</small>
                     </div>
                     <button class="btn btn-sm btn-outline-danger remove-staged-attachment-btn" title="Xóa khỏi danh sách chờ">
@@ -118,8 +118,8 @@ var AttachmentManager = (function ($) {
             <div class="attachment-item mb-2 p-2 border rounded" data-attachment-id="${attachment.id}">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <i class="${fileIcon} mr-2"></i>
-                        <a href="${downloadUrl}" class="attachment-name font-weight-bold" title="Tải xuống ${attachment.file_name}">${attachment.file_name}</a>
+                        <i class="${escapeHtml(fileIcon)} mr-2"></i>
+                        <a href="${escapeHtml(downloadUrl)}" class="attachment-name font-weight-bold" title="Tải xuống ${escapeHtml(attachment.file_name)}">${escapeHtml(attachment.file_name)}</a>
                             ${fileSizeKB ? `<small class="text-muted ml-2">(${fileSizeKB})</small>` : ''}
                             ${attachment.uploaded_at_formatted ? `<small class="text-muted ml-2"> - ${attachment.uploaded_at_formatted}</small>` : ''}
                         </div>

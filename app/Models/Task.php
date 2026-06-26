@@ -59,7 +59,8 @@ class Task extends Model
 
     public function board()
     {
-        return $this->column()->first()->board()->first();
+        // Null-safe: task có thể tạm thời không có column hợp lệ.
+        return optional($this->column)->board;
     }
 
     public function createForColumn(Column $column, array $data): Task

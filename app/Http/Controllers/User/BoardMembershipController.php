@@ -183,8 +183,20 @@ class BoardMembershipController extends Controller
             return redirect()->route('login.form')->with('error', 'Lời mời này dành cho một tài khoản email khác.');
         }
 
-        DB::transaction(function () use ($invitation, $user) {
-            if (! $this->grantBoardPermission($invitation->board, $user, $invitation->role_permission_name)) {
+        // Người mời phải còn quyền quản lý tại thời điểm chấp nhận, tránh tình huống
+        // một quản trị viên đã bị gỡ/giáng cấp nhưng lời mời cũ vẫn cấp quyền cao.
+        $board = $invitation->board;
+        $inviter = $invitation->inviter;
+        $inviterStillAuthorized = $inviter
+            && ($inviter->id === $board->user_id
+                || $inviter->hasBoardPermission($board, 'board_member_manager'));
+        if (! $inviterStillAuthorized) {
+            $invitation->delete();
+            abort(403, 'Lời mời không còn hợp lệ vì người mời không còn quyền quản lý bảng.');
+        }
+
+        DB::transaction(function () use ($invitation, $board, $user) {
+            if (! $this->grantBoardPermission($board, $user, $invitation->role_permission_name)) {
                 // This scenario should be rare if permission exists, but good to handle
                 throw new \Exception("Không thể cấp quyền '{$invitation->role_permission_name}'.");
             }

@@ -15,10 +15,12 @@ use Log;
 
 class TaskController extends Controller
 {
-    private function authorizeTaskAccess(Task $task, array $requiredPermissions = [])
+    private function authorizeTaskAccess(?Task $task, array $requiredPermissions = [])
     {
+        abort_if(! $task, 404, 'Task not found.');
+        $board = $task->column?->board;
+        abort_if(! $board, 404, 'Board not found.');
         $user = Auth::user();
-        $board = $task->column->board;
         foreach ($requiredPermissions as $permission) {
             if ($user->hasBoardPermission($board, $permission)) {
                 return $board;
@@ -45,13 +47,14 @@ class TaskController extends Controller
         $this->authorizeBoardAccess($board, ['board_editor', 'board_member_manager']);
 
         try {
-            $taskInstance = new Task;
-            $taskHistory = new TaskHistory;
             $data = $request->validated();
             $data['priority'] = $request->input('priority', 'normal');
-            $createdTask = $taskInstance->createForColumn($column, $data);
-            $action = 'tạo';
-            $taskHistory->logTaskHistory($createdTask, $action, $oldColumn->name ?? null, $newColumn->name ?? null);
+            $createdTask = DB::transaction(function () use ($column, $data) {
+                $task = (new Task)->createForColumn($column, $data);
+                (new TaskHistory)->logTaskHistory($task, 'tạo', null, $column->name);
+
+                return $task;
+            });
             $createdTask->load('assignees');
 
             return response()->json([
@@ -71,7 +74,7 @@ class TaskController extends Controller
                             'id' => $user->id,
                             'name' => $user->name,
                             'email' => $user->email,
-                            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u='.urlencode($user->email),
+                            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u='.$user->id,
                         ];
                     }),
                 ],
@@ -98,8 +101,8 @@ class TaskController extends Controller
         // Định dạng ngày nếu cần
         $task->formatted_due_date = $task->due_date ? $task->due_date->format('d/m/Y') : null;
 
-        if ($task->task_histories instanceof \Illuminate\Database\Eloquent\Collection) {
-            $task->task_histories = $task->task_histories()
+        if ($task->taskHistories instanceof \Illuminate\Database\Eloquent\Collection) {
+            $task->task_histories = $task->taskHistories()
                 ->orderByDesc('created_at')
                 ->limit(100)
                 ->get();
@@ -113,7 +116,7 @@ class TaskController extends Controller
                     'id' => $history->id,
                     'user_id' => $user?->id,
                     'user_name' => $user?->name ?? 'Người dùng không xác định',
-                    'user_avatar' => $user ? 'https://i.pravatar.cc/40?u='.urlencode($user->email) : 'https://i.pravatar.cc/40?u=unknown',
+                    'user_avatar' => $user ? 'https://i.pravatar.cc/40?u='.$user->id : 'https://i.pravatar.cc/40?u=unknown',
                     'action' => $history->action,
                     'note' => $history->note,
                     'created_at' => $history->created_at->format('Y/m/d H:i:s'),
@@ -127,7 +130,7 @@ class TaskController extends Controller
         if ($task->comments instanceof \Illuminate\Database\Eloquent\Collection) {
             $task->comments->transform(function ($comment) {
                 $comment->user_name = $comment->user ? $comment->user->name : 'Người dùng không xác định';
-                $comment->user_avatar = $comment->user ? ('https://i.pravatar.cc/40?u='.urlencode($comment->user->email)) : 'https://i.pravatar.cc/40?u=unknown';
+                $comment->user_avatar = $comment->user ? ('https://i.pravatar.cc/40?u='.$comment->user->id) : 'https://i.pravatar.cc/40?u=unknown';
                 $comment->time_ago = $comment->created_at ? $comment->created_at->diffForHumans() : 'Không rõ thời gian';
 
                 return $comment;
@@ -238,10 +241,15 @@ class TaskController extends Controller
             $action = 'di chuyển';
             $taskHistory->logTaskHistory($task, $action, $oldColumn->name ?? null, $newColumn->name ?? null);
 
+            $boardTaskIds = Task::whereHas('column', function ($q) use ($board) {
+                $q->where('board_id', $board->id);
+            })->pluck('id')->all();
+
             foreach ($request->order as $index => $taskId) {
-                Task::where('id', $taskId)->update([
-                    'position' => $index, // hoặc $index + 1 tùy bạn
-                ]);
+                if (! in_array((int) $taskId, $boardTaskIds, true)) {
+                    abort(403, 'Nhiệm vụ không thuộc bảng này.');
+                }
+                Task::where('id', $taskId)->update(['position' => $index]);
             }
 
             $action = 'Di chuyển';

@@ -50,6 +50,7 @@
     <script src="{{ asset_min('plugins/jquery/jquery-ui.min.js') }}"></script> {{-- Make sure jQuery UI is loaded BEFORE
     column.js --}}
     <script src="{{ asset_min('assets/js/adminlte.js') }}"></script>
+    <script src="{{ asset_min('assets/js/escape.js') }}"></script>
     <script>
         // Add CSRF token for AJAX
         $.ajaxSetup({
