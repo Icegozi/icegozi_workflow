@@ -27,9 +27,9 @@ class BoardController extends Controller
     public function store(BoardRequest $request)
     {
         $validated = $request->validated();
-        $column = new Column;
-        $boards = new Board;
-        $users = new User;
+        $column = new Column();
+        $boards = new Board();
+        $users = new User();
 
         $data = [
             'user_id' => Auth::id(),

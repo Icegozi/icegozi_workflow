@@ -5,8 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class () extends Migration {
     /**
      * - Chặn gán trùng (cùng task + cùng user) ở mức DB.
      * - Thêm chỉ mục (column_id, position) phục vụ render bảng theo thứ tự.

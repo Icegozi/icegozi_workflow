@@ -14,7 +14,9 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens;
+    use HasFactory;
+    use Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -106,7 +108,7 @@ class User extends Authenticatable
     public static function register(array $data)
     {
         // is_admin/status không nằm trong $fillable nên dùng forceFill để gán có chủ đích.
-        $user = new self;
+        $user = new self();
         $user->forceFill([
             'name' => $data['name'],
             'email' => $data['email'],
@@ -193,7 +195,7 @@ class User extends Authenticatable
     public static function addUser(array $data): ?User
     {
         // Chỉ gọi từ luồng quản trị; gán is_admin/status có chủ đích qua forceFill.
-        $user = new self;
+        $user = new self();
         $user->forceFill([
             'name' => $data['name'],
             'email' => $data['email'],

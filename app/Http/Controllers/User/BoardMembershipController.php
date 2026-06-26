@@ -145,14 +145,13 @@ class BoardMembershipController extends Controller
         try {
             \Illuminate\Support\Facades\Notification::route('mail', $emailToInvite)->notify(new BoardInvitationNotification($invitation));
         } catch (\Exception $e) {
-            \Log::error('Failed to send invitation: '.$e->getMessage());
+            \Log::error('Failed to send invitation: ' . $e->getMessage());
             $invitation->delete();
 
             return back()->with('error', 'Không thể gửi email mời. Vui lòng kiểm tra cấu hình mail.');
         }
 
-        return back()->with('success', 'Lời mời đã được gửi tới '.$emailToInvite);
-
+        return back()->with('success', 'Lời mời đã được gửi tới ' . $emailToInvite);
     }
 
     public function acceptInvitation(Request $request, $token)
@@ -203,7 +202,7 @@ class BoardMembershipController extends Controller
             $invitation->update(['accepted_at' => now()]);
         });
 
-        return redirect()->route('boards.show', $invitation->board_id)->with('success', 'Bạn đã tham gia thành công vào bảng '.$invitation->board->name);
+        return redirect()->route('boards.show', $invitation->board_id)->with('success', 'Bạn đã tham gia thành công vào bảng ' . $invitation->board->name);
     }
 
     public function updateMemberRole(Request $request, Board $board, User $member)

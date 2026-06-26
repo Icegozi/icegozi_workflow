@@ -1,0 +1,10 @@
+{
+    "preset": "psr12",
+    "rules": {
+        "concat_space": {
+            "spacing": "one"
+        },
+        "single_trait_insert_per_statement": true,
+        "new_with_parentheses": true
+    }
+}

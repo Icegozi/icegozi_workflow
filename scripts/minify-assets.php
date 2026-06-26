@@ -15,7 +15,7 @@
  * bản .min (hoặc khi --force).
  */
 
-require __DIR__.'/../vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
 use MatthiasMullie\Minify;
 
@@ -29,8 +29,8 @@ if ($argDir === '--force') {
 }
 
 $defaults = [
-    'js' => __DIR__.'/../public/assets/js',
-    'css' => __DIR__.'/../public/assets/css',
+    'js' => __DIR__ . '/../public/assets/js',
+    'css' => __DIR__ . '/../public/assets/css',
 ];
 
 if (! isset($defaults[$type])) {
@@ -40,14 +40,14 @@ if (! isset($defaults[$type])) {
 
 $dir = $argDir ? rtrim($argDir, '/') : $defaults[$type];
 $ext = $type;                  // 'js' | 'css'
-$minExt = '.min.'.$ext;
+$minExt = '.min.' . $ext;
 
 if (! is_dir($dir)) {
     fwrite(STDERR, "Không tìm thấy thư mục: {$dir}\n");
     exit(2);
 }
 
-$files = glob($dir.'/*.'.$ext) ?: [];
+$files = glob($dir . '/*.' . $ext) ?: [];
 $processed = 0;
 $skipped = 0;
 $failed = 0;
@@ -58,7 +58,7 @@ foreach ($files as $src) {
         continue;
     }
 
-    $minPath = preg_replace('/\.'.preg_quote($ext, '/').'$/', $minExt, $src);
+    $minPath = preg_replace('/\.' . preg_quote($ext, '/') . '$/', $minExt, $src);
 
     // Bỏ qua nếu bản .min đã mới hơn nguồn (trừ khi --force).
     if (! $force && is_file($minPath) && filemtime($minPath) >= filemtime($src)) {
@@ -69,18 +69,23 @@ foreach ($files as $src) {
 
     try {
         $minifier = $type === 'css' ? new Minify\CSS($src) : new Minify\JS($src);
-        $tmp = $minPath.'.'.getmypid().'.tmp';
+        $tmp = $minPath . '.' . getmypid() . '.tmp';
         $minifier->minify($tmp);   // ghi ra file tạm
         rename($tmp, $minPath);    // đổi tên (atomic)
 
         $before = filesize($src);
         $after = filesize($minPath);
         $saved = $before > 0 ? round((1 - $after / $before) * 100) : 0;
-        printf("  ✓ %-28s %6.1fKB -> %6.1fKB (-%d%%)\n",
-            basename($minPath), $before / 1024, $after / 1024, $saved);
+        printf(
+            "  ✓ %-28s %6.1fKB -> %6.1fKB (-%d%%)\n",
+            basename($minPath),
+            $before / 1024,
+            $after / 1024,
+            $saved
+        );
         $processed++;
     } catch (\Throwable $e) {
-        fwrite(STDERR, '  ✗ '.basename($src).': '.$e->getMessage()."\n");
+        fwrite(STDERR, '  ✗ ' . basename($src) . ': ' . $e->getMessage() . "\n");
         if (isset($tmp) && is_file($tmp)) {
             @unlink($tmp);
         }

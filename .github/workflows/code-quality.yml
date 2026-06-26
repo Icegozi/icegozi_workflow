@@ -1,0 +1,121 @@
+name: Code Quality Check
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+          extensions: mbstring, dom, curl, zip, pdo, mysql, fileinfo, openssl, tokenizer, xml, ctype, json, bcmath, gd, exif, pcntl
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.composer/cache
+            ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer Dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Build Frontend
+        run: npm run build
+
+      - name: Get changed PHP files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            app/**/*.php
+            routes/**/*.php
+            config/**/*.php
+          files_ignore: |
+            database/**
+            tests/**
+            resources/**
+            bootstrap/**
+            storage/**
+            public/**
+            vendor/**
+            node_modules/**
+
+      - name: Run Laravel Pint (Code Standards) - Changed Files Only
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          if [ ! -f vendor/bin/pint ]; then
+            echo "⚠️ Laravel Pint not found, skipping code standards check"
+            exit 0
+          fi
+          CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "$CHANGED_FILES" | xargs vendor/bin/pint --test
+          fi
+
+      - name: Run PHPMD (Mess Detection) - Changed Files Only
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          if [ ! -f vendor/bin/phpmd ]; then
+            echo "⚠️ PHPMD not found, skipping mess detection check"
+            exit 0
+          fi
+          CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
+          if [ -n "$CHANGED_FILES" ]; then
+            CHANGED_FILES_CSV=$(echo "$CHANGED_FILES" | tr ' \n' ',' | sed 's/,,*/,/g; s/,$//')
+            vendor/bin/phpmd "$CHANGED_FILES_CSV" text ./phpmd.xml
+          fi
+
+      - name: Run PHPCS (Code Sniffer) - Changed Files Only
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          if [ ! -f vendor/bin/phpcs ]; then
+            echo "⚠️ PHPCS not found, skipping code sniffer check"
+            exit 0
+          fi
+          CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
+          if [ -n "$CHANGED_FILES" ]; then
+            # Dùng phpcs.xml nếu có, nếu không fallback PSR12
+            if [ -f phpcs.xml ]; then
+              STANDARD="./phpcs.xml"
+              echo "📋 Using project phpcs.xml ruleset"
+            else
+              STANDARD="PSR12"
+              echo "📋 Using PSR12 standard (phpcs.xml not found)"
+            fi
+            echo "$CHANGED_FILES" | xargs vendor/bin/phpcs --standard="$STANDARD"
+          fi
+
+      - name: All Validations Passed
+        if: steps.changed-files.outputs.any_changed != 'true'
+        run: echo "✅ All validations passed"

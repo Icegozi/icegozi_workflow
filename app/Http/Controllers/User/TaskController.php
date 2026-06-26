@@ -50,8 +50,8 @@ class TaskController extends Controller
             $data = $request->validated();
             $data['priority'] = $request->input('priority', 'normal');
             $createdTask = DB::transaction(function () use ($column, $data) {
-                $task = (new Task)->createForColumn($column, $data);
-                (new TaskHistory)->logTaskHistory($task, 'tạo', null, $column->name);
+                $task = (new Task())->createForColumn($column, $data);
+                (new TaskHistory())->logTaskHistory($task, 'tạo', null, $column->name);
 
                 return $task;
             });
@@ -74,13 +74,13 @@ class TaskController extends Controller
                             'id' => $user->id,
                             'name' => $user->name,
                             'email' => $user->email,
-                            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u='.$user->id,
+                            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u=' . $user->id,
                         ];
                     }),
                 ],
             ], 201);
         } catch (\Exception $e) {
-            Log::error("Error creating task in column {$column->id}: ".$e->getMessage().' at '.$e->getFile().':'.$e->getLine());
+            Log::error("Error creating task in column {$column->id}: " . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
 
             return response()->json(['success' => false, 'message' => 'Không thể thêm nhiệm vụ mới. Vui lòng thử lại.'], 500);
         }
@@ -116,7 +116,7 @@ class TaskController extends Controller
                     'id' => $history->id,
                     'user_id' => $user?->id,
                     'user_name' => $user?->name ?? 'Người dùng không xác định',
-                    'user_avatar' => $user ? 'https://i.pravatar.cc/40?u='.$user->id : 'https://i.pravatar.cc/40?u=unknown',
+                    'user_avatar' => $user ? 'https://i.pravatar.cc/40?u=' . $user->id : 'https://i.pravatar.cc/40?u=unknown',
                     'action' => $history->action,
                     'note' => $history->note,
                     'created_at' => $history->created_at->format('Y/m/d H:i:s'),
@@ -130,7 +130,7 @@ class TaskController extends Controller
         if ($task->comments instanceof \Illuminate\Database\Eloquent\Collection) {
             $task->comments->transform(function ($comment) {
                 $comment->user_name = $comment->user ? $comment->user->name : 'Người dùng không xác định';
-                $comment->user_avatar = $comment->user ? ('https://i.pravatar.cc/40?u='.$comment->user->id) : 'https://i.pravatar.cc/40?u=unknown';
+                $comment->user_avatar = $comment->user ? ('https://i.pravatar.cc/40?u=' . $comment->user->id) : 'https://i.pravatar.cc/40?u=unknown';
                 $comment->time_ago = $comment->created_at ? $comment->created_at->diffForHumans() : 'Không rõ thời gian';
 
                 return $comment;
@@ -189,7 +189,7 @@ class TaskController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error("Error updating task {$task->id}: ".$e->getMessage());
+            Log::error("Error updating task {$task->id}: " . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -210,7 +210,7 @@ class TaskController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Xóa nhiệm vụ thành công']);
         } catch (\Exception $e) {
-            Log::error("Error deleting task {$task->id}: ".$e->getMessage());
+            Log::error("Error deleting task {$task->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'không thể xóa nhiệm vụ'], 500);
         }
@@ -223,7 +223,7 @@ class TaskController extends Controller
     {
         $task = Task::findOrFail($request->task_id);
         $board = $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
-        $taskHistory = new TaskHistory;
+        $taskHistory = new TaskHistory();
         $oldColumn = Column::find($task->column_id);
         $newColumn = Column::findOrFail($request->new_column_id);
         if ($newColumn->board_id !== $board->id) {
@@ -259,7 +259,7 @@ class TaskController extends Controller
             return response()->json(['success' => true, 'message' => 'Vị trí nhiệm vụ đã cập nhật.']);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Lỗi khi cập nhật vị trí: '.$e->getMessage());
+            Log::error('Lỗi khi cập nhật vị trí: ' . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể cập nhật vị trí nhiệm vụ.'], 500);
         }

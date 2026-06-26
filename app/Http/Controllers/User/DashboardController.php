@@ -23,9 +23,15 @@ class DashboardController extends Controller
         return view('user.dashboard', ['boards' => $boardsWithRoles]);
     }
 
-    public function store(BoardRequest $request) {}
+    public function store(BoardRequest $request)
+    {
+    }
 
-    public function update(BoardRequest $request, Board $board) {}
+    public function update(BoardRequest $request, Board $board)
+    {
+    }
 
-    public function destroy(Board $board) {}
+    public function destroy(Board $board)
+    {
+    }
 }

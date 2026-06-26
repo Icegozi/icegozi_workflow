@@ -80,10 +80,9 @@ class ColumnController extends Controller
                     'url_destroy' => route('columns.destroy', ['board' => $board->id, 'column' => $column->id]),
                 ],
             ], 201);
-
         } catch (\Exception $e) {
             // Log the error
-            \Log::error('Error creating column: '.$e->getMessage());
+            \Log::error('Error creating column: ' . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể tạo cột. Đã xảy ra lỗi.'], 500);
         }
@@ -122,7 +121,7 @@ class ColumnController extends Controller
                 'new_name' => $column->name,
             ]);
         } catch (\Exception $e) {
-            \Log::error("Error updating column {$column->id}: ".$e->getMessage());
+            \Log::error("Error updating column {$column->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể cập nhật tên cột. Đã xảy ra lỗi.'], 500);
         }
@@ -160,7 +159,6 @@ class ColumnController extends Controller
             DB::commit();
 
             return response()->json(['success' => true, 'message' => 'Cột đã được xoá thành công.']);
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -208,10 +206,9 @@ class ColumnController extends Controller
             DB::commit();
 
             return response()->json(['success' => true, 'message' => 'Thứ tự cột đã được cập nhật.']);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Error reordering columns for board {$board->id}: ".$e->getMessage());
+            \Log::error("Error reordering columns for board {$board->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể cập nhật thứ tự cột. Đã xảy ra lỗi.'], 500);
         }

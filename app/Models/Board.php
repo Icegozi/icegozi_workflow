@@ -157,7 +157,7 @@ class Board extends Model
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u='.urlencode($user->email),
+                'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u=' . urlencode($user->email),
             ]);
     }
 

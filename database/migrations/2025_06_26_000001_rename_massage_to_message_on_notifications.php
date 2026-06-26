@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class () extends Migration {
     /**
      * Sửa lỗi gõ sai cột `massage` -> `message` cho các DB đã migrate trước đó.
      * Dùng raw SQL để không phụ thuộc doctrine/dbal, và phòng thủ theo cột đang tồn tại.

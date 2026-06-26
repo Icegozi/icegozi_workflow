@@ -76,7 +76,7 @@ class DashboardController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            logger()->error('Chart data error: '.$e->getMessage());
+            logger()->error('Chart data error: ' . $e->getMessage());
 
             return response()->json(['error' => 'Internal server error'], 500);
         }

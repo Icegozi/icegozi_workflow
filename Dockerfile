@@ -31,15 +31,17 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Install PHP dependencies (no scripts; artisan not fully available yet)
+# Install PHP dependencies (no scripts; artisan not fully available yet).
+# INSTALL_DEV=true (mặc định) cài cả dev-deps để có sẵn các tool chất lượng
+# (pint, phpcs, phpmd, phpunit) trong image phục vụ `make lint/phpcs/phpmd/test`.
+# Khi build production gọn: --build-arg INSTALL_DEV=false
+ARG INSTALL_DEV=true
 COPY composer.json composer.lock ./
-RUN composer install \
-        --no-dev \
-        --no-interaction \
-        --no-progress \
-        --prefer-dist \
-        --no-scripts \
-        --optimize-autoloader
+RUN if [ "$INSTALL_DEV" = "true" ]; then \
+        composer install --no-interaction --no-progress --prefer-dist --no-scripts --optimize-autoloader; \
+    else \
+        composer install --no-dev --no-interaction --no-progress --prefer-dist --no-scripts --optimize-autoloader; \
+    fi
 
 
 # ---------------------------------------------------------------------------

@@ -59,7 +59,6 @@ class TaskHistory extends Model
         }
 
         if ($action === 'tạo' || $action === 'thêm bình luận') {
-
             $note = "Nhiệm vụ <strong>{$task->title}</strong> đã được <strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
         }
 

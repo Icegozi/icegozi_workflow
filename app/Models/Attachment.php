@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage; // Đảm bảo import Carbon
+use Illuminate\Support\Facades\Storage;
+
+// Đảm bảo import Carbon
 
 class Attachment extends Model
 {
@@ -106,7 +108,7 @@ class Attachment extends Model
         $sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
         $i = floor(log($bytes, $k));
 
-        return round($bytes / pow($k, $i), $dm).' '.$sizes[$i];
+        return round($bytes / pow($k, $i), $dm) . ' ' . $sizes[$i];
     }
 
     // Sự kiện model để tự động xóa file vật lý khi record bị xóa

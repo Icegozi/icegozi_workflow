@@ -3,8 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-return new class extends Migration
-{
+return new class () extends Migration {
     /**
      * Các quyền cấp bảng là DỮ LIỆU THAM CHIẾU BẮT BUỘC (validation dùng exists:permissions,name
      * khi mời thành viên). Seed qua migration để mọi môi trường đều có sau khi `migrate`,

@@ -58,8 +58,8 @@ class AttachmentController extends Controller
                 foreach ($request->file('attachments') as $file) {
                     try {
                         $originalName = $file->getClientOriginalName();
-                        $filename = Str::slug(pathinfo($originalName, PATHINFO_FILENAME)).'-'.time().'-'.Str::random(5).'.'.$file->getClientOriginalExtension();
-                        $path = $file->storeAs('attachments/task_'.$task->id, $filename, 'public'); // Lưu vào disk 'public'
+                        $filename = Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '-' . time() . '-' . Str::random(5) . '.' . $file->getClientOriginalExtension();
+                        $path = $file->storeAs('attachments/task_' . $task->id, $filename, 'public'); // Lưu vào disk 'public'
 
                         if (! $path) {
                             $errorMessages[] = "Không thể lưu file: {$originalName}.";
@@ -94,9 +94,8 @@ class AttachmentController extends Controller
                         $uploadedAttachmentsData[] = $attachment;
 
                         $successMessages[] = "File '{$originalName}' đã được tải lên.";
-
                     } catch (Exception $e) {
-                        Log::error("Attachment upload failed for file: {$originalName} on task {$task->id}. Error: ".$e->getMessage(), ['exception' => $e]);
+                        Log::error("Attachment upload failed for file: {$originalName} on task {$task->id}. Error: " . $e->getMessage(), ['exception' => $e]);
                         $errorMessages[] = "Lỗi khi tải lên file '{$originalName}'.";
                     }
                 }
@@ -110,18 +109,17 @@ class AttachmentController extends Controller
             if (! empty($uploadedAttachmentsData)) {
                 return response()->json([
                     'success' => true,
-                    'message' => implode("\n", $successMessages).(! empty($errorMessages) ? "\nLỗi: ".implode("\n", $errorMessages) : ''),
+                    'message' => implode("\n", $successMessages) . (! empty($errorMessages) ? "\nLỗi: " . implode("\n", $errorMessages) : ''),
                     'attachments' => $uploadedAttachmentsData,
                 ]);
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không có tệp nào được tải lên thành công. '.implode("\n", $errorMessages),
+                    'message' => 'Không có tệp nào được tải lên thành công. ' . implode("\n", $errorMessages),
                 ], 500);
             }
-
         } catch (Exception $e) {
-            Log::error("General attachment store error for task {$task->id}: ".$e->getMessage(), ['exception' => $e]);
+            Log::error("General attachment store error for task {$task->id}: " . $e->getMessage(), ['exception' => $e]);
 
             return response()->json([
                 'success' => false,
@@ -144,7 +142,7 @@ class AttachmentController extends Controller
                 'attachments' => $attachments,
             ]);
         } catch (Exception $e) {
-            Log::error("Get attachments failed for task {$task->id}: ".$e->getMessage());
+            Log::error("Get attachments failed for task {$task->id}: " . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -175,7 +173,7 @@ class AttachmentController extends Controller
                 'message' => 'Đính kèm đã được xoá.',
             ]);
         } catch (Exception $e) {
-            Log::error("Attachment delete failed for attachment {$attachment->id}: ".$e->getMessage());
+            Log::error("Attachment delete failed for attachment {$attachment->id}: " . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -196,9 +194,8 @@ class AttachmentController extends Controller
             }
 
             return Storage::disk('public')->download($attachment->file_path, $attachment->file_name);
-
         } catch (Exception $e) {
-            Log::error("Download attachment failed for attachment {$attachment->id}: ".$e->getMessage(), ['exception' => $e]);
+            Log::error("Download attachment failed for attachment {$attachment->id}: " . $e->getMessage(), ['exception' => $e]);
 
             return response()->json([
                 'success' => false,

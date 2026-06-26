@@ -166,13 +166,32 @@ clear: ## Xóa toàn bộ cache (config/route/view/app)
 test: ## Chạy test suite (PHPUnit) — không TTY
 	$(EXEC_T) php artisan test
 
+# LƯU Ý: container KHÔNG bind-mount mã nguồn nên pint/phpcbf chạy trong container
+# chỉ sửa bản code đã nướng vào image (mất khi container restart), KHÔNG đụng file host.
+# Vì vậy các tool chất lượng chạy trên HOST (nơi có mã nguồn thật + dev vendor),
+# giống cách CI cài và chạy. Cần `composer install` trên host trước.
 .PHONY: lint
 lint: ## Kiểm tra code style (Laravel Pint, dry-run)
-	$(EXEC_T) ./vendor/bin/pint --test
+	$(PHP) ./vendor/bin/pint --test
 
 .PHONY: lint-fix
 lint-fix: ## Tự sửa code style (Laravel Pint)
-	$(EXEC) ./vendor/bin/pint
+	$(PHP) ./vendor/bin/pint
+
+.PHONY: phpcs
+phpcs: ## Kiểm tra chuẩn PSR-12 (PHP_CodeSniffer) trên app/routes/config
+	$(PHP) ./vendor/bin/phpcs --standard=./phpcs.xml
+
+.PHONY: phpcbf
+phpcbf: ## Tự sửa lỗi PSR-12 vá được (PHP_CodeSniffer)
+	$(PHP) ./vendor/bin/phpcbf --standard=./phpcs.xml || true
+
+.PHONY: phpmd
+phpmd: ## Phát hiện "mess" (PHPMD) trên app/
+	$(PHP) ./vendor/bin/phpmd app text ./phpmd.xml
+
+.PHONY: quality
+quality: lint phpcs phpmd ## Chạy toàn bộ kiểm tra chất lượng (Pint + PHPCS + PHPMD)
 
 # =============================================================================
 #  Tài nguyên tĩnh (minify)

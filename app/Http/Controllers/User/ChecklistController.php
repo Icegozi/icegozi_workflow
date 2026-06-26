@@ -77,7 +77,7 @@ class ChecklistController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Mục checklist đã được thêm.', 'checklist' => $checklist], 201);
         } catch (\Exception $e) {
-            Log::error("Error creating checklist for task {$task->id}: ".$e->getMessage());
+            Log::error("Error creating checklist for task {$task->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể thêm mục checklist.'], 500);
         }
@@ -122,7 +122,7 @@ class ChecklistController extends Controller
                         $task->taskHistories()->create([
                             'user_id' => Auth::id(),
                             'action' => 'updated_checklist_item',
-                            'note' => 'Đã cập nhật mục checklist: '.implode(', ', $updatedFieldsMessages),
+                            'note' => 'Đã cập nhật mục checklist: ' . implode(', ', $updatedFieldsMessages),
                         ]);
                     }
                 });
@@ -130,10 +130,9 @@ class ChecklistController extends Controller
 
             // Return the fresh checklist item (with potentially updated values)
             return response()->json(['success' => true, 'message' => 'Mục checklist đã được cập nhật.', 'checklist' => $checklist->fresh()]);
-
         } catch (\Exception $e) {
             // Log the detailed error
-            Log::error("Error updating checklist {$checklist->id}: ".$e->getMessage().' Stack trace: '.$e->getTraceAsString());
+            Log::error("Error updating checklist {$checklist->id}: " . $e->getMessage() . ' Stack trace: ' . $e->getTraceAsString());
 
             return response()->json(['success' => false, 'message' => 'Không thể cập nhật mục checklist.'], 500); // Generic 500
         }
@@ -158,7 +157,7 @@ class ChecklistController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Mục checklist đã được xóa.']);
         } catch (\Exception $e) {
-            Log::error("Error deleting checklist {$checklist->id}: ".$e->getMessage());
+            Log::error("Error deleting checklist {$checklist->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể xóa mục checklist.'], 500);
         }
@@ -190,7 +189,7 @@ class ChecklistController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Thứ tự checklist đã được cập nhật.']);
         } catch (\Exception $e) {
-            Log::error("Error reordering checklists for task {$task->id}: ".$e->getMessage());
+            Log::error("Error reordering checklists for task {$task->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể cập nhật thứ tự checklist.'], 500);
         }

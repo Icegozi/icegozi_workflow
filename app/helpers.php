@@ -20,13 +20,13 @@ if (! function_exists('asset_min')) {
             $map = ['.css' => Minify\CSS::class, '.js' => Minify\JS::class];
             foreach ($map as $ext => $minifierClass) {
                 if (Str::endsWith($path, $ext)) {
-                    $minPath = Str::replaceLast($ext, '.min'.$ext, $path);
+                    $minPath = Str::replaceLast($ext, '.min' . $ext, $path);
                     $minFullPath = public_path($minPath);
 
                     if (! is_file($minFullPath) || filemtime($minFullPath) < filemtime($publicPath)) {
                         try {
                             // Ghi ra file tạm rồi đổi tên (atomic) để tránh race khi 2 request cùng minify.
-                            $tmp = $minFullPath.'.'.getmypid().'.tmp';
+                            $tmp = $minFullPath . '.' . getmypid() . '.tmp';
                             (new $minifierClass($publicPath))->minify($tmp);
                             @rename($tmp, $minFullPath);
                         } catch (\Throwable $e) {
@@ -41,7 +41,7 @@ if (! function_exists('asset_min')) {
                         return asset($path);
                     }
 
-                    return asset($minPath).'?v='.filemtime($minFullPath);
+                    return asset($minPath) . '?v=' . filemtime($minFullPath);
                 }
             }
         }
