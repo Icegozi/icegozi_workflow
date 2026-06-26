@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
 use App\Models\User;
+use Inertia\Inertia;
 
 class RegisterController extends Controller
 {
     public function showRegistrationForm()
     {
-        return view('auth.register');
+        return Inertia::render('Auth/Register', [
+            'email' => request('email', ''),
+        ]);
     }
 
     public function register(RegisterRequest $request)

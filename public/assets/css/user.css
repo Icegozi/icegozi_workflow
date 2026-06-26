@@ -26,7 +26,7 @@ body {
 .content-wrapper {
     flex: 1;
     padding: 20px;
-    background-image: url('../img/bg-uocmo2.jpg');
+    background-image: none;
     background-repeat: no-repeat;
     background-attachment: fixed;
     margin: 0;
@@ -317,7 +317,7 @@ body {
 }
 
 .bg {
-    background-image: url('../img/bg-uocmo2.jpg');
+    background-image: none;
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center; 

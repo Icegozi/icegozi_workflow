@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 class UserController extends Controller
 {
@@ -15,12 +16,12 @@ class UserController extends Controller
     {
         $users = User::paginate(20);
 
-        return view('admin.account.index', compact('users'));
+        return Inertia::render('Admin/Accounts/Index', compact('users'));
     }
 
     public function create(Request $request)
     {
-        return view('admin.account.create');
+        return Inertia::render('Admin/Accounts/Create');
     }
 
     public function search(Request $request)
@@ -44,9 +45,9 @@ class UserController extends Controller
 
     public function show($id)
     {
-        $user = User::find($id);
+        $user = User::findOrFail($id);
 
-        return view('admin.account.show', compact('user'));
+        return Inertia::render('Admin/Accounts/Edit', compact('user'));
     }
 
     public function update(UserRequest $request, $id)
@@ -69,16 +70,10 @@ class UserController extends Controller
         $ok = User::deleteUserById($id);
 
         if ($ok) {
-            return Response::json([
-                'success' => true,
-                'message' => 'Đã xóa người dùng',
-            ]);
+            return redirect()->route('admin.user.index')->with('success', 'Đã xóa người dùng.');
         }
 
-        return Response::json([
-            'success' => false,
-            'message' => 'Không thể tự xóa chính mình',
-        ], 404);
+        return redirect()->back()->with('error', 'Không thể tự xóa chính mình.');
     }
 
     public function getUserList(Request $request)

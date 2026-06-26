@@ -2,8 +2,14 @@
 #  icegozi_workflow — Makefile
 #  Laravel 10 · PHP 8.2-FPM · Nginx · Supervisor · MySQL 8 (Docker Compose)
 #
+#  Kiến trúc: backend Laravel (Inertia) + frontend Vue 3 build bằng Vite.
+#
 #  Quy ước:
-#    - Mọi lệnh đều đi qua Docker Compose; không cần PHP/Composer/Node trên host.
+#    - Phần lớn lệnh đi qua Docker Compose (container app đã có PHP + extension).
+#    - Một số lệnh chạy trên HOST (cần Node + PHP + `composer install` trên host):
+#        · Vite dev/build: make run-dev, make assets
+#        · Chất lượng: make lint / phpcs / phpmd
+#        · Minify CSS theme: make minifycss
 #    - `make help` liệt kê toàn bộ target (nguồn duy nhất của sự thật).
 #    - Tham số động: `make artisan c="route:list"`, `make composer c="require ..."`
 # =============================================================================
@@ -22,6 +28,12 @@ DB_SERVICE   ?= db
 # Chạy artisan/composer trong container app (đã có sẵn PHP + extension)
 EXEC         := $(COMPOSE) exec $(APP_SERVICE)
 EXEC_T       := $(COMPOSE) exec -T $(APP_SERVICE)   # -T: không cấp TTY (CI/pipe)
+
+# Node/NPM chạy trên HOST (dev server Vite). Đổi: make run-dev NPM=pnpm
+NPM          ?= npm
+# Mẫu nhận diện tiến trình Vite CỦA DỰ ÁN NÀY (tránh đụng dự án khác).
+# Dùng "[v]ite" để chính lệnh pkill không tự khớp cmdline của nó -> không tự giết.
+VITE_MATCH   := icegozi_workflow/node_modules/.*[v]ite
 
 # Nạp biến từ .env nếu tồn tại (cho DB_*, APP_PORT...)
 ifneq (,$(wildcard ./.env))
@@ -194,24 +206,48 @@ phpmd: ## Phát hiện "mess" (PHPMD) trên app/
 quality: lint phpcs phpmd ## Chạy toàn bộ kiểm tra chất lượng (Pint + PHPCS + PHPMD)
 
 # =============================================================================
-#  Tài nguyên tĩnh (minify)
+#  Frontend (Vite + Vue 3 / Inertia)
 # =============================================================================
-# Chạy bằng PHP trên host để các file .min.* được sinh ngay trong mã nguồn
-# (commit được + build sẵn vào image). Đổi qua PHP khác bằng: make minifyjs PHP=php8.3
+# Node/Vite chạy trên HOST. Image tự build asset (npm ci + npm run build) ở stage
+# 'assets' của Dockerfile -> các target dưới đây chủ yếu phục vụ DEV trên host.
+# Đổi trình quản lý gói: make run-dev NPM=pnpm
+.PHONY: npm-install
+npm-install: ## Cài node_modules trên host (npm ci)
+	$(NPM) ci
+
+.PHONY: assets
+assets: ## Build asset production trên host (vite build -> public/build)
+	$(NPM) run build
+
+# Dev có HMR: cần docker-compose.override.yml bind-mount ./public; Vite chạy trên HOST
+# ghi public/hot -> container tự nạp asset từ dev server (không cần build lại image).
+.PHONY: start
+start: ## Chạy Vite dev server (HMR). Tự `up` container trước. Ctrl+C để dừng.
+	@$(MAKE) --no-print-directory up
+	@printf "$(GREEN)[run-dev]$(RESET) Vite HMR đang chạy. Sửa .vue/CSS là cập nhật ngay.\n"
+	@printf "$(YELL)Nhấn Ctrl+C để dừng (nếu còn sót: make stop-dev)$(RESET)\n"
+	$(NPM) run dev
+
+.PHONY: stop-dev
+stop-dev: ## Dừng hẳn Vite dev server còn sót + xóa public/hot
+	@pkill -f "$(VITE_MATCH)" 2>/dev/null && printf "$(GREEN)[stop-dev]$(RESET) Đã dừng tiến trình Vite.\n" || printf "$(YELL)[stop-dev]$(RESET) Không có tiến trình Vite nào của dự án.\n"
+	@rm -f public/hot && printf "$(GREEN)[stop-dev]$(RESET) Đã xóa public/hot (container quay lại dùng public/build).\n"
+
+# =============================================================================
+#  Tài nguyên tĩnh theme AdminLTE (minify CSS)
+# =============================================================================
+# CSS theme cũ (AdminLTE/Bootstrap/FontAwesome) vẫn nạp qua asset_min() trong
+# app.blade.php; pre-minify để tối ưu. JS nay do Vite build (không còn public/assets/js).
+# PHP host: make minifycss PHP=php8.3
 PHP ?= php
 
-.PHONY: minifyjs
-minifyjs: ## Minify toàn bộ JS trong public/assets/js -> *.min.js
-	@printf "$(CYAN)[minify]$(RESET) JS trong public/assets/js\n"
-	$(PHP) scripts/minify-assets.php js
-
 .PHONY: minifycss
-minifycss: ## Minify toàn bộ CSS trong public/assets/css -> *.min.css
+minifycss: ## Minify CSS trong public/assets/css -> *.min.css
 	@printf "$(CYAN)[minify]$(RESET) CSS trong public/assets/css\n"
 	$(PHP) scripts/minify-assets.php css
 
 .PHONY: minify
-minify: minifyjs minifycss ## Minify cả JS và CSS
+minify: minifycss ## Minify CSS theme (alias minifycss)
 
 # =============================================================================
 #  Dọn dẹp

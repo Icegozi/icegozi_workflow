@@ -12,16 +12,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $user = Auth::user();
-        $accessibleBoards = $user->getAllAccessibleBoards();
-        $boards = $accessibleBoards;
-        $boardsWithRoles = $boards->map(function ($board) use ($user) {
-            $board->currentUserRole = $user->getRoleForBoard($board);
-
-            return $board;
-        });
-
-        return view('admin.dashboard', ['boards' => $boardsWithRoles]);
+        return \Inertia\Inertia::render('Admin/Dashboard');
     }
 
     public function getUserRegistrations(Request $request)

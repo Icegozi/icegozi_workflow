@@ -1,0 +1,12 @@
+/* Bỏ ảnh nền bg-uocmo2.jpg trên mọi khu vực (body, content, cột kanban, sidebar) */
+body,
+.content-wrapper,
+.column-content,
+.bg {
+    background-image: none !important;
+}
+
+/* Nền phẳng nhẹ thay cho ảnh, giữ giao diện sạch và dễ đọc */
+body {
+    background-color: #f4f6f9 !important;
+}

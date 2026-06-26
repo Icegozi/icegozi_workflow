@@ -6,21 +6,24 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\BoardRequest;
 use App\Models\Board;
 use Auth;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
     public function index()
     {
         $user = Auth::user();
-        $accessibleBoards = $user->getAllAccessibleBoards();
-        $boards = $accessibleBoards;
-        $boardsWithRoles = $boards->map(function ($board) use ($user) {
-            $board->currentUserRole = $user->getRoleForBoard($board);
+        $boards = $user->getAllAccessibleBoards()->map(function ($board) use ($user) {
+            return [
+                'id' => $board->id,
+                'name' => $board->name,
+                'currentUserRole' => $user->getRoleForBoard($board),
+                'updated_at' => optional($board->updated_at)->format('d/m/Y'),
+                'show_url' => route('boards.show', $board->id),
+            ];
+        })->values();
 
-            return $board;
-        });
-
-        return view('user.dashboard', ['boards' => $boardsWithRoles]);
+        return Inertia::render('User/Dashboard', ['boards' => $boards]);
     }
 
     public function store(BoardRequest $request)

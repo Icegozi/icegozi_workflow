@@ -15,10 +15,11 @@ use App\Http\Controllers\User\DashboardController as UserDashboardController;
 use App\Http\Controllers\User\OverviewTaskController;
 use App\Http\Controllers\User\TaskController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 // Trang chủ
 Route::get('/', function () {
-    return view('welcome');
+    return Inertia::render('Welcome');
 })->name('welcome');
 
 // ==== AUTHENTICATION ====
@@ -68,7 +69,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
     Route::post('/tasks/update-position', [TaskController::class, 'updatePosition'])->name('tasks.updatePosition');
-    Route::get('/tasks/{task}/details', [TaskController::class, 'showDetailsPage'])->name('tasks.showDetailsPage');
 
     // comment
     Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');

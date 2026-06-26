@@ -14,6 +14,7 @@ use Auth;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
+use Inertia\Inertia;
 use Str;
 
 class BoardMembershipController extends Controller
@@ -97,8 +98,38 @@ class BoardMembershipController extends Controller
             'board_member_manager' => 'Người quản lý',
         ];
 
-        // Ensure the view name matches what you have
-        return view('user.boards.settings_adapted', compact('board', 'membersData', 'pendingInvitations', 'potentialRoles'));
+        $members = collect($membersData)->map(function ($item) use ($potentialRoles) {
+            $u = $item['user'];
+            $highest = null;
+            foreach (array_keys($potentialRoles) as $roleKey) {
+                if (in_array($roleKey, $item['roles'])) {
+                    $highest = $roleKey;
+                    break;
+                }
+            }
+
+            return ['id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'role' => $highest];
+        })->values();
+
+        $invitations = $pendingInvitations->map(fn ($inv) => [
+            'id' => $inv->id,
+            'email' => $inv->email,
+            'role_permission_name' => $inv->role_permission_name,
+            'inviter_name' => optional($inv->inviter)->name,
+            'created_at_human' => optional($inv->created_at)->diffForHumans(),
+        ])->values();
+
+        $canManage = Auth::id() === $board->user_id
+            || Auth::user()->hasBoardPermission($board, 'board_member_manager');
+
+        return Inertia::render('Boards/Settings', [
+            'board' => ['id' => $board->id, 'name' => $board->name],
+            'owner' => ['name' => $board->owner->name, 'email' => $board->owner->email],
+            'members' => $members,
+            'invitations' => $invitations,
+            'potentialRoles' => $potentialRoles,
+            'canManage' => $canManage,
+        ]);
     }
 
     public function inviteMember(Request $request, Board $board)
@@ -208,10 +239,10 @@ class BoardMembershipController extends Controller
     public function updateMemberRole(Request $request, Board $board, User $member)
     {
         if (Auth::id() !== $board->user_id && ! Auth::user()->hasBoardPermission($board, 'board_member_manager')) {
-            return response()->json(['success' => false, 'message' => 'Không có quyền.'], 403);
+            return redirect()->back()->with('error', 'Không có quyền.');
         }
         if ($member->id === $board->user_id) {
-            return response()->json(['success' => false, 'message' => 'Không thể thay đổi vai trò của chủ sở hữu.'], 400);
+            return redirect()->back()->with('error', 'Không thể thay đổi vai trò của chủ sở hữu.');
         }
 
         $request->validate([
@@ -229,16 +260,16 @@ class BoardMembershipController extends Controller
             }
         });
 
-        return response()->json(['success' => true, 'message' => 'Vai trò của thành viên đã được cập nhật.']);
+        return redirect()->back()->with('success', 'Vai trò của thành viên đã được cập nhật.');
     }
 
     public function removeMember(Board $board, User $member)
     {
         if (Auth::id() !== $board->user_id && ! Auth::user()->hasBoardPermission($board, 'board_member_manager')) {
-            return response()->json(['success' => false, 'message' => 'Không có quyền.'], 403);
+            return redirect()->back()->with('error', 'Không có quyền.');
         }
         if ($member->id === $board->user_id) {
-            return response()->json(['success' => false, 'message' => 'Không thể xóa chủ sở hữu.'], 400);
+            return redirect()->back()->with('error', 'Không thể xóa chủ sở hữu.');
         }
 
         DB::transaction(function () use ($board, $member) {
@@ -247,7 +278,7 @@ class BoardMembershipController extends Controller
             BoardInvitation::where('board_id', $board->id)->where('email', $member->email)->delete(); // If using invitations
         });
 
-        return response()->json(['success' => true, 'message' => 'Thành viên đã được xóa khỏi bảng.']);
+        return redirect()->back()->with('success', 'Thành viên đã được xóa khỏi bảng.');
     }
 
     public function cancelInvitation(Board $board, BoardInvitation $invitation) // If using BoardInvitations
