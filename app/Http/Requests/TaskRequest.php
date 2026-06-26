@@ -26,7 +26,7 @@ class TaskRequest extends FormRequest
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'priority' => ['nullable', Rule::in(['low', 'normal', 'high', 'urgent'])],
-            'due_date'    => 'nullable|date|after_or_equal:today',
+            'due_date' => 'nullable|date|after_or_equal:today',
         ];
     }
 }

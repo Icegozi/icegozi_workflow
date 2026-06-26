@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use Auth;
-use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class BoardPermission extends Pivot
 {
     protected $table = 'board_permissions';
+
     public $incrementing = true;
 
     protected $fillable = ['board_id', 'permission_user_id'];

@@ -37,38 +37,37 @@ class Assignee extends Model
     public function removeAsignee($userId, $taskId)
     {
         return self::where('user_id', $userId)
-                   ->where('task_id', $taskId)
-                   ->delete();
+            ->where('task_id', $taskId)
+            ->delete();
     }
 
     public function isExistsAsignee($userId, $taskId)
     {
         return self::where('user_id', $userId)
-                   ->where('task_id', $taskId)
-                   ->exists();
+            ->where('task_id', $taskId)
+            ->exists();
     }
 
     public function getUsersByTask($taskId)
     {
         return self::where('task_id', $taskId)
-                ->with('user') 
-                ->get()
-                ->pluck('user');
+            ->with('user')
+            ->get()
+            ->pluck('user');
     }
 
     public function updateUserForTask($taskId, $newUserId)
     {
         $assignee = self::where('task_id', $taskId)->first();
 
-        if (!$assignee) {
-            return false; 
+        if (! $assignee) {
+            return false;
         }
 
         $assignee->update([
             'user_id' => $newUserId,
         ]);
 
-        return $assignee; 
+        return $assignee;
     }
-
 }

@@ -10,15 +10,17 @@ use Illuminate\Http\Request;
 
 class LoginController extends Controller
 {
-    public function showLoginForm(){
+    public function showLoginForm()
+    {
         return view('auth.login');
     }
+
     public function login(LoginRequest $request)
     {
         $credentials = $request->only('email', 'password');
         $remember = $request->has('remember');
 
-        if (User::login($credentials,$remember)) {
+        if (User::login($credentials, $remember)) {
             $user = Auth::user();
 
             if ($user->is_admin) {
@@ -36,7 +38,7 @@ class LoginController extends Controller
     public function logout(Request $request)
     {
         User::logout();
+
         return redirect('/login');
     }
-
 }

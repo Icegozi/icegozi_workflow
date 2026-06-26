@@ -21,20 +21,20 @@ class UserRequest extends FormRequest
      */
     public function rules(): array
     {
-        $userId = $this->route('id'); 
+        $userId = $this->route('id');
 
         return [
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $userId, 
+            'email' => 'required|email|unique:users,email,'.$userId,
             'password' => [
-                'nullable', 
+                'nullable',
                 'string',
                 'min:8',
                 'regex:/[a-z]/',
                 'regex:/[A-Z]/',
                 'regex:/[0-9]/',
                 'regex:/[@$!%*#?&]/',
-                'confirmed'
+                'confirmed',
             ],
             'status' => 'required|in:active,inactive,banned',
             'is_admin' => 'nullable|boolean',

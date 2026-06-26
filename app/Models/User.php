@@ -7,11 +7,10 @@ use Auth;
 use Hash;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class User extends Authenticatable
 {
@@ -27,7 +26,7 @@ class User extends Authenticatable
         'email',
         'password',
         'is_admin',
-        'status'
+        'status',
     ];
 
     /**
@@ -116,17 +115,17 @@ class User extends Authenticatable
         ]);
     }
 
-
     public static function login(array $credentials, bool $remember = false): bool
     {
         $user = self::where('email', $credentials['email'])->first();
 
-        if (!$user || $user->status !== 'active') {
+        if (! $user || $user->status !== 'active') {
             return false;
         }
 
         if (Auth::attempt($credentials, $remember)) {
             session()->regenerate();
+
             return true;
         }
 
@@ -146,7 +145,7 @@ class User extends Authenticatable
             return true;
         }
         $permission = Permission::where('name', $permissionName)->first();
-        if (!$permission) {
+        if (! $permission) {
             return false;
         }
 
@@ -154,7 +153,7 @@ class User extends Authenticatable
             ->where('permission_id', $permission->id)
             ->first();
 
-        if (!$permissionUser) {
+        if (! $permissionUser) {
             return false;
         }
 
@@ -169,8 +168,6 @@ class User extends Authenticatable
         return false;
     }
 
-
-
     public function getRoleForBoard(Board $board): ?string
     {
         if ($board->user_id === $this->id) {
@@ -183,6 +180,7 @@ class User extends Authenticatable
                 return $pName;
             }
         }
+
         return null;
     }
 
@@ -216,11 +214,11 @@ class User extends Authenticatable
     public static function updateUserById(int $id, array $data): bool
     {
         $user = self::find($id);
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
-        if (!empty($data['password'])) {
+        if (! empty($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         } else {
             unset($data['password']);
@@ -229,14 +227,13 @@ class User extends Authenticatable
         return $user->update($data);
     }
 
-
     public static function deleteUserById(int $id): bool
     {
         if (auth()->id() === $id) {
             return false;
         }
         $user = self::find($id);
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 

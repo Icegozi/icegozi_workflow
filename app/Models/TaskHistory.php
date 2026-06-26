@@ -11,7 +11,7 @@ class TaskHistory extends Model
     use HasFactory;
 
     protected $fillable = [
-        'task_id',   
+        'task_id',
         'user_id',
         'action',
         'note',
@@ -47,7 +47,7 @@ class TaskHistory extends Model
     public function logTaskHistory($task, $action, $oldColumnName = null, $newColumnName = null)
     {
         if (is_array($task)) {
-            $task = Task::findOrFail($task['id']); 
+            $task = Task::findOrFail($task['id']);
         }
         $userId = Auth::id();
         $userName = Auth::user()->name;
@@ -58,18 +58,15 @@ class TaskHistory extends Model
             $note = "Nhiệm vụ <strong>{$task->title}</strong> đã được <strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
         }
 
-        
         if ($action === 'tạo' || $action === 'thêm bình luận') {
-          
+
             $note = "Nhiệm vụ <strong>{$task->title}</strong> đã được <strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
         }
 
-        if ($action === 'xóa bình luận'){
+        if ($action === 'xóa bình luận') {
             $note = "Nhiệm vụ <strong>{$task->title}</strong> đã bị <strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
         }
 
         self::createHistory($task->id, $userId, $action, $note);
     }
-
-
 }

@@ -2,16 +2,16 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class PermissionUser extends Pivot
 {
     protected $table = 'permission_users';
-    public $incrementing = true; 
+
+    public $incrementing = true;
 
     protected $fillable = ['user_id', 'permission_id'];
-
 
     public function user(): BelongsTo
     {

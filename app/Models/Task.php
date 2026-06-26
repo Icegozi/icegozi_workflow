@@ -5,23 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 
 class Task extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'title',
         'description',
-        'status',      
+        'status',
         'priority',
         'column_id',
         'due_date',
-        'position',  
+        'position',
     ];
-
 
     protected $casts = [
         'due_date' => 'date',
@@ -51,10 +51,12 @@ class Task extends Model
     {
         return $this->belongsToMany(User::class, 'assignees', 'task_id', 'user_id')->withTimestamps();
     }
+
     public function checklists(): HasMany
     {
         return $this->hasMany(Checklist::class)->orderBy('position');
     }
+
     public function board()
     {
         return $this->column()->first()->board()->first();
@@ -67,8 +69,8 @@ class Task extends Model
 
         $data['position'] = $position;
         $data['column_id'] = $column->id;
-        $data['status'] = $data['status'] ?? 'todo';       
-        $data['priority'] = $data['priority'] ?? 'normal'; 
+        $data['status'] = $data['status'] ?? 'todo';
+        $data['priority'] = $data['priority'] ?? 'normal';
 
         return self::create($data);
     }
@@ -76,17 +78,17 @@ class Task extends Model
     public function loadDetails(): self
     {
         return $this->load([
-            'column', 
+            'column',
             'assignees',
             'attachments',
-            'comments.user',     
-            'taskHistories.user', 
+            'comments.user',
+            'taskHistories.user',
         ]);
     }
 
     public function updateDetails(array $data): bool
     {
-        $originalData = $this->only(array_keys($data)); 
+        $originalData = $this->only(array_keys($data));
         $updated = $this->update($data);
 
         if ($updated) {
@@ -98,7 +100,7 @@ class Task extends Model
                 }
             }
 
-            if (!empty($changes)) {
+            if (! empty($changes)) {
                 $this->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'updated',
@@ -121,13 +123,11 @@ class Task extends Model
         return $this->delete();
     }
 
-
     public function moveToColumnWithOrder($newColumnId, $orderedTaskIds, $userId)
     {
         $oldColumnId = $this->column_id;
         $oldColumn = $this->column;
-        $newColumn = Column::find($newColumnId); 
-
+        $newColumn = Column::find($newColumnId);
 
         $this->update(['column_id' => $newColumnId]);
 
@@ -141,12 +141,11 @@ class Task extends Model
         }
 
         $tasksToUpdate = Task::whereIn('id', $orderedTaskIds)
-                            ->where('column_id', $newColumnId)
-                            ->get();
+            ->where('column_id', $newColumnId)
+            ->get();
 
         foreach ($tasksToUpdate as $index => $task) {
             $task->update(['position' => $index]);
         }
     }
-
 }

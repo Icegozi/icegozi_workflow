@@ -18,6 +18,7 @@ class IsAdmin
         if (auth()->check() && auth()->user()->is_admin) {
             return $next($request);
         }
-        return redirect('/'); 
+
+        return redirect('/');
     }
 }

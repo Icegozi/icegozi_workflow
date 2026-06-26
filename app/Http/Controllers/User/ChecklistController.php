@@ -38,14 +38,15 @@ class ChecklistController extends Controller
 
     public function index(Task $task)
     {
-        $this->authorizeTaskAccess($task,['board_viewer','board_editor','board_member_manager']);
+        $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
         $checklists = $task->checklists()->orderBy('position')->get();
+
         return response()->json(['success' => true, 'checklists' => $checklists]);
     }
 
     public function store(Request $request, Task $task)
     {
-        $this->authorizeTaskAccess($task,['board_editor','board_member_manager']);
+        $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
 
         $request->validate([
             'title' => 'required|string|max:255',
@@ -70,7 +71,8 @@ class ChecklistController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Mục checklist đã được thêm.', 'checklist' => $checklist], 201);
         } catch (\Exception $e) {
-            Log::error("Error creating checklist for task {$task->id}: " . $e->getMessage());
+            Log::error("Error creating checklist for task {$task->id}: ".$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Không thể thêm mục checklist.'], 500);
         }
     }
@@ -78,7 +80,7 @@ class ChecklistController extends Controller
     public function update(Request $request, Checklist $checklist)
     {
         $task = $checklist->task;
-        $this->authorizeTaskAccess($task,['board_editor','board_member_manager']);
+        $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
 
         // VALIDATION:
         $validatedData = $request->validate([
@@ -106,16 +108,16 @@ class ChecklistController extends Controller
                 $updatedFieldsMessages[] = "trạng thái mục '{$titleForMessage}' thành {$status}";
             }
 
-            if (!empty($updatedFieldsMessages)) {
+            if (! empty($updatedFieldsMessages)) {
                 $checklist->save(); // <-- THIS IS WHERE THE DATABASE INTERACTION HAPPENS
 
                 // Log history if the task relationship exists
                 if ($checklist->task) { // Ensure task relationship is loaded or exists
                     $checklist->task->taskHistories()->create([
-                    'user_id' => Auth::id(),
-                    'action' => 'updated_checklist_item',
-                    'note' => "Đã cập nhật mục checklist: " . implode(', ', $updatedFieldsMessages),
-                ]);
+                        'user_id' => Auth::id(),
+                        'action' => 'updated_checklist_item',
+                        'note' => 'Đã cập nhật mục checklist: '.implode(', ', $updatedFieldsMessages),
+                    ]);
                 }
             }
 
@@ -124,14 +126,15 @@ class ChecklistController extends Controller
 
         } catch (\Exception $e) {
             // Log the detailed error
-            Log::error("Error updating checklist {$checklist->id}: " . $e->getMessage() . " Stack trace: " . $e->getTraceAsString());
+            Log::error("Error updating checklist {$checklist->id}: ".$e->getMessage().' Stack trace: '.$e->getTraceAsString());
+
             return response()->json(['success' => false, 'message' => 'Không thể cập nhật mục checklist.'], 500); // Generic 500
         }
     }
 
     public function destroy(Checklist $checklist)
     {
-        $this->authorizeTaskAccess($task,['board_member_manager']);
+        $this->authorizeTaskAccess($task, ['board_member_manager']);
         $task = $checklist->task;
 
         try {
@@ -148,14 +151,15 @@ class ChecklistController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Mục checklist đã được xóa.']);
         } catch (\Exception $e) {
-            Log::error("Error deleting checklist {$checklist->id}: " . $e->getMessage());
+            Log::error("Error deleting checklist {$checklist->id}: ".$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Không thể xóa mục checklist.'], 500);
         }
     }
 
     public function reorder(Request $request, Task $task)
     {
-        $this->authorizeTaskAccess($task,['board_editor','board_member_manager']);
+        $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
 
         $request->validate([
             'ids' => 'required|array',
@@ -165,19 +169,20 @@ class ChecklistController extends Controller
         try {
             foreach ($request->ids as $index => $checklistId) {
                 Checklist::where('id', $checklistId)
-                         ->where('task_id', $task->id)
-                         ->update(['position' => $index]);
+                    ->where('task_id', $task->id)
+                    ->update(['position' => $index]);
             }
 
             $task->taskHistories()->create([
                 'user_id' => Auth::id(),
                 'action' => 'reordered_checklist',
-                'note' => "Đã sắp xếp lại các mục trong checklist.",
+                'note' => 'Đã sắp xếp lại các mục trong checklist.',
             ]);
 
             return response()->json(['success' => true, 'message' => 'Thứ tự checklist đã được cập nhật.']);
         } catch (\Exception $e) {
-            Log::error("Error reordering checklists for task {$task->id}: " . $e->getMessage());
+            Log::error("Error reordering checklists for task {$task->id}: ".$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Không thể cập nhật thứ tự checklist.'], 500);
         }
     }

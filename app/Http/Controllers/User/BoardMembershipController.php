@@ -13,9 +13,8 @@ use App\Notifications\BoardInvitationNotification;
 use Auth;
 use DB;
 use Illuminate\Http\Request;
-use Illuminate\Notifications\Notification;
-use Str;
 use Illuminate\Support\Facades\URL;
+use Str;
 
 class BoardMembershipController extends Controller
 {
@@ -23,8 +22,9 @@ class BoardMembershipController extends Controller
     private function grantBoardPermission(Board $board, User $user, string $permissionName): bool
     {
         $permission = Permission::firstWhere('name', $permissionName);
-        if (!$permission) {
+        if (! $permission) {
             \Log::error("Permission {$permissionName} not found.");
+
             return false;
         }
 
@@ -37,6 +37,7 @@ class BoardMembershipController extends Controller
         BoardPermission::firstOrCreate(
             ['board_id' => $board->id, 'permission_user_id' => $permissionUser->id]
         );
+
         return true;
     }
 
@@ -44,14 +45,16 @@ class BoardMembershipController extends Controller
     private function revokeBoardPermission(Board $board, User $user, string $permissionName): bool
     {
         $permission = Permission::firstWhere('name', $permissionName);
-        if (!$permission)
+        if (! $permission) {
             return false;
+        }
 
         $permissionUser = PermissionUser::where('user_id', $user->id)
             ->where('permission_id', $permission->id)
             ->first();
-        if (!$permissionUser)
-            return true; // Already doesn't have it
+        if (! $permissionUser) {
+            return true;
+        } // Already doesn't have it
 
         // Delete the board_permissions link
         BoardPermission::where('board_id', $board->id)
@@ -64,6 +67,7 @@ class BoardMembershipController extends Controller
 
         return true;
     }
+
     // Helper to revoke ALL board-specific permissions for a user on a board
     private function revokeAllBoardPermissionsForUser(Board $board, User $user)
     {
@@ -73,11 +77,10 @@ class BoardMembershipController extends Controller
             ->delete();
     }
 
-
     public function settings(Board $board) // Route model binding for $board
     {
         // Authorization: Only board owner or those with 'board_member_manager' permission
-        if (Auth::id() !== $board->user_id && !Auth::user()->hasBoardPermission($board, 'board_member_manager')) {
+        if (Auth::id() !== $board->user_id && ! Auth::user()->hasBoardPermission($board, 'board_member_manager')) {
             abort(403, 'Bạn không có quyền truy cập cài đặt của bảng này.');
         }
 
@@ -98,10 +101,9 @@ class BoardMembershipController extends Controller
         return view('user.boards.settings_adapted', compact('board', 'membersData', 'pendingInvitations', 'potentialRoles'));
     }
 
-
     public function inviteMember(Request $request, Board $board)
     {
-        if (Auth::id() !== $board->user_id && !Auth::user()->hasBoardPermission($board, 'board_member_manager')) {
+        if (Auth::id() !== $board->user_id && ! Auth::user()->hasBoardPermission($board, 'board_member_manager')) {
             abort(403, 'Bạn không có quyền mời thành viên.');
         }
 
@@ -143,22 +145,24 @@ class BoardMembershipController extends Controller
         try {
             \Illuminate\Support\Facades\Notification::route('mail', $emailToInvite)->notify(new BoardInvitationNotification($invitation));
         } catch (\Exception $e) {
-            \Log::error("Failed to send invitation: " . $e->getMessage());
+            \Log::error('Failed to send invitation: '.$e->getMessage());
             $invitation->delete();
+
             return back()->with('error', 'Không thể gửi email mời. Vui lòng kiểm tra cấu hình mail.');
         }
-        return back()->with('success', 'Lời mời đã được gửi tới ' . $emailToInvite);
+
+        return back()->with('success', 'Lời mời đã được gửi tới '.$emailToInvite);
 
     }
 
     public function acceptInvitation(Request $request, $token)
     {
-        if (!$request->hasValidSignature()) {
+        if (! $request->hasValidSignature()) {
             abort(401, 'Liên kết mời không hợp lệ hoặc đã hết hạn.');
         }
 
         $invitation = BoardInvitation::where('token', $token)->whereNull('accepted_at')->first();
-        if (!$invitation) {
+        if (! $invitation) {
             abort(404, 'Không tìm thấy lời mời hoặc đã được chấp nhận.');
         }
         if ($invitation->expires_at && $invitation->expires_at->isPast()) {
@@ -166,31 +170,33 @@ class BoardMembershipController extends Controller
             abort(401, 'Lời mời này đã hết hạn.');
         }
 
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             session(['url.intended' => URL::full()]);
+
             return redirect()->route('login.form')->with('info', 'Vui lòng đăng nhập hoặc đăng ký để chấp nhận lời mời.');
         }
         $user = Auth::user();
         if ($user->email !== $invitation->email) {
             Auth::logout();
             session(['url.intended' => URL::full()]);
+
             return redirect()->route('login.form')->with('error', 'Lời mời này dành cho một tài khoản email khác.');
         }
 
         DB::transaction(function () use ($invitation, $user) {
-            if (!$this->grantBoardPermission($invitation->board, $user, $invitation->role_permission_name)) {
+            if (! $this->grantBoardPermission($invitation->board, $user, $invitation->role_permission_name)) {
                 // This scenario should be rare if permission exists, but good to handle
                 throw new \Exception("Không thể cấp quyền '{$invitation->role_permission_name}'.");
             }
             $invitation->update(['accepted_at' => now()]);
         });
 
-        return redirect()->route('boards.show', $invitation->board_id)->with('success', 'Bạn đã tham gia thành công vào bảng ' . $invitation->board->name);
+        return redirect()->route('boards.show', $invitation->board_id)->with('success', 'Bạn đã tham gia thành công vào bảng '.$invitation->board->name);
     }
 
     public function updateMemberRole(Request $request, Board $board, User $member)
     {
-        if (Auth::id() !== $board->user_id && !Auth::user()->hasBoardPermission($board, 'board_member_manager')) {
+        if (Auth::id() !== $board->user_id && ! Auth::user()->hasBoardPermission($board, 'board_member_manager')) {
             return response()->json(['success' => false, 'message' => 'Không có quyền.'], 403);
         }
         if ($member->id === $board->user_id) {
@@ -207,7 +213,7 @@ class BoardMembershipController extends Controller
             $this->revokeAllBoardPermissionsForUser($board, $member);
 
             // 2. Grant the new permission
-            if (!$this->grantBoardPermission($board, $member, $newPermissionName)) {
+            if (! $this->grantBoardPermission($board, $member, $newPermissionName)) {
                 throw new \Exception("Failed to grant new permission {$newPermissionName}.");
             }
         });
@@ -217,7 +223,7 @@ class BoardMembershipController extends Controller
 
     public function removeMember(Board $board, User $member)
     {
-        if (Auth::id() !== $board->user_id && !Auth::user()->hasBoardPermission($board, 'board_member_manager')) {
+        if (Auth::id() !== $board->user_id && ! Auth::user()->hasBoardPermission($board, 'board_member_manager')) {
             return response()->json(['success' => false, 'message' => 'Không có quyền.'], 403);
         }
         if ($member->id === $board->user_id) {
@@ -235,10 +241,11 @@ class BoardMembershipController extends Controller
 
     public function cancelInvitation(Board $board, BoardInvitation $invitation) // If using BoardInvitations
     {
-        if ((Auth::id() !== $board->user_id && !Auth::user()->hasBoardPermission($board, 'board_member_manager')) || $invitation->board_id !== $board->id) {
+        if ((Auth::id() !== $board->user_id && ! Auth::user()->hasBoardPermission($board, 'board_member_manager')) || $invitation->board_id !== $board->id) {
             abort(403);
         }
         $invitation->delete();
+
         return back()->with('success', 'Lời mời đã được hủy.');
     }
 }

@@ -54,6 +54,7 @@ class Board extends Model
     {
         $board = self::findOrFail($id);
         $board->update($data);
+
         return $board;
     }
 
@@ -61,6 +62,7 @@ class Board extends Model
     public static function deleteBoard(int $id)
     {
         $board = self::findOrFail($id);
+
         return $board->delete();
     }
 
@@ -69,26 +71,25 @@ class Board extends Model
     {
         return self::whereBetween('created_at', [
             Carbon::parse($from)->startOfDay(),
-            Carbon::parse($to)->endOfDay()
+            Carbon::parse($to)->endOfDay(),
         ])->get();
     }
 
-    //lấy column từ id
+    // lấy column từ id
     public static function getBoardData(int $id)
     {
         return self::with(['user', 'columns.tasks'])->findOrFail($id);
     }
 
-
     public function boardPermissionUsers(): HasManyThrough
     {
         // Board -> board_permissions -> permission_users
         return $this->hasManyThrough(
-            PermissionUser::class, 
-            BoardPermission::class, 
-            'board_id',        
-            'id',                
-            'id',                
+            PermissionUser::class,
+            BoardPermission::class,
+            'board_id',
+            'id',
+            'id',
             'permission_user_id'
         );
     }
@@ -99,11 +100,11 @@ class Board extends Model
         $permissionUserPivots = $this->boardPermissionUsers()->with('user', 'permission')->get();
 
         foreach ($permissionUserPivots as $pivot) {
-            if ($pivot->user && $pivot->user->id !== $this->user_id) { 
-                if (!isset($members[$pivot->user->id])) {
+            if ($pivot->user && $pivot->user->id !== $this->user_id) {
+                if (! isset($members[$pivot->user->id])) {
                     $members[$pivot->user->id] = [
                         'user' => $pivot->user,
-                        'roles' => [], 
+                        'roles' => [],
                     ];
                 }
                 if ($pivot->permission) {
@@ -134,6 +135,7 @@ class Board extends Model
             ->toArray();
         $permissionUserIds[] = $board->user_id;
         $userIds = array_unique($permissionUserIds);
+
         return User::whereIn('id', $userIds)->get();
     }
 
@@ -151,11 +153,11 @@ class Board extends Model
 
         return User::whereIn('id', $userIds)
             ->get()
-            ->map(fn($user) => [
+            ->map(fn ($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u=' . urlencode($user->email),
+                'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u='.urlencode($user->email),
             ]);
     }
 
