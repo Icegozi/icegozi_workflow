@@ -3,47 +3,137 @@ set -e
 
 cd /var/www/html
 
-# Ensure an .env file exists
+echo "[entrypoint] Starting initialization..."
+
+# -----------------------------------------------------------------------------
+# Ensure .env exists
+# -----------------------------------------------------------------------------
 if [ ! -f .env ]; then
-    echo "[entrypoint] .env not found, copying from .env.example"
+    echo "[entrypoint] Creating .env from .env.example"
     cp .env.example .env
 fi
 
-# Generate the application key if it is missing
+# -----------------------------------------------------------------------------
+# Fix Git safe directory
+# -----------------------------------------------------------------------------
+git config --global --add safe.directory /var/www/html >/dev/null 2>&1 || true
+
+# -----------------------------------------------------------------------------
+# Prepare runtime cache directory
+# -----------------------------------------------------------------------------
+mkdir -p storage/framework/cache
+
+# -----------------------------------------------------------------------------
+# Composer dependencies (install only when composer.lock changes)
+# -----------------------------------------------------------------------------
+COMPOSER_LOCK_HASH_FILE="storage/framework/cache/.composer.lock.sha256"
+
+CURRENT_COMPOSER_HASH=""
+if [ -f composer.lock ]; then
+    CURRENT_COMPOSER_HASH="$(sha256sum composer.lock | awk '{print $1}')"
+fi
+
+SAVED_COMPOSER_HASH=""
+if [ -f "$COMPOSER_LOCK_HASH_FILE" ]; then
+    SAVED_COMPOSER_HASH="$(cat "$COMPOSER_LOCK_HASH_FILE")"
+fi
+
+if [ ! -f vendor/autoload.php ] || [ "$CURRENT_COMPOSER_HASH" != "$SAVED_COMPOSER_HASH" ]; then
+    echo "[entrypoint] Installing Composer dependencies..."
+
+    composer install --no-interaction --prefer-dist
+
+    echo "$CURRENT_COMPOSER_HASH" > "$COMPOSER_LOCK_HASH_FILE"
+fi
+
+# -----------------------------------------------------------------------------
+# Node dependencies (install only when package-lock.json changes)
+# -----------------------------------------------------------------------------
+NPM_LOCK_HASH_FILE="storage/framework/cache/.package-lock.sha256"
+
+CURRENT_NPM_HASH=""
+if [ -f package-lock.json ]; then
+    CURRENT_NPM_HASH="$(sha256sum package-lock.json | awk '{print $1}')"
+fi
+
+SAVED_NPM_HASH=""
+if [ -f "$NPM_LOCK_HASH_FILE" ]; then
+    SAVED_NPM_HASH="$(cat "$NPM_LOCK_HASH_FILE")"
+fi
+
+if [ ! -x node_modules/.bin/vite ] || [ "$CURRENT_NPM_HASH" != "$SAVED_NPM_HASH" ]; then
+    echo "[entrypoint] Installing NPM dependencies..."
+
+    npm install
+
+    echo "$CURRENT_NPM_HASH" > "$NPM_LOCK_HASH_FILE"
+fi
+
+# -----------------------------------------------------------------------------
+# Generate APP_KEY
+# -----------------------------------------------------------------------------
 if ! grep -q '^APP_KEY=base64:' .env; then
-    echo "[entrypoint] Generating application key"
+    echo "[entrypoint] Generating APP_KEY..."
     php artisan key:generate --force
 fi
 
-# Make sure runtime directories are writable
-chown -R www-data:www-data storage bootstrap/cache || true
+# -----------------------------------------------------------------------------
+# Permissions
+# -----------------------------------------------------------------------------
+mkdir -p storage bootstrap/cache
 
-# Wait for the database to become available before migrating
+chown -R www-data:www-data storage bootstrap/cache || true
+chmod -R 775 storage bootstrap/cache || true
+
+# -----------------------------------------------------------------------------
+# Wait for MySQL
+# -----------------------------------------------------------------------------
 if [ "${DB_CONNECTION:-mysql}" = "mysql" ]; then
-    echo "[entrypoint] Waiting for database ${DB_HOST}:${DB_PORT} ..."
-    until php -r "exit(@fsockopen(getenv('DB_HOST'), (int)getenv('DB_PORT')) ? 0 : 1);" 2>/dev/null; do
-        echo "[entrypoint] Database not ready yet, retrying in 3s..."
+    echo "[entrypoint] Waiting for MySQL (${DB_HOST}:${DB_PORT})..."
+
+    until php -r "exit(@fsockopen(getenv('DB_HOST'), (int)getenv('DB_PORT')) ? 0 : 1);" >/dev/null 2>&1
+    do
         sleep 3
     done
-    echo "[entrypoint] Database is up."
+
+    echo "[entrypoint] MySQL is ready."
 fi
 
-# Run migrations (and seed only when explicitly requested)
+# -----------------------------------------------------------------------------
+# Run migrations
+# -----------------------------------------------------------------------------
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
-    echo "[entrypoint] Running migrations"
+    echo "[entrypoint] Running migrations..."
     php artisan migrate --force
 fi
 
+# -----------------------------------------------------------------------------
+# Run seeders
+# -----------------------------------------------------------------------------
 if [ "${RUN_SEEDERS:-false}" = "true" ]; then
-    echo "[entrypoint] Running seeders"
+    echo "[entrypoint] Running seeders..."
     php artisan db:seed --force
 fi
 
-# Link storage and cache configuration for production performance
-php artisan storage:link || true
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+# -----------------------------------------------------------------------------
+# Storage link
+# -----------------------------------------------------------------------------
+if [ ! -L public/storage ]; then
+    echo "[entrypoint] Creating storage symlink..."
+    php artisan storage:link
+fi
 
-echo "[entrypoint] Starting services"
+# -----------------------------------------------------------------------------
+# Cache only outside local environment
+# -----------------------------------------------------------------------------
+if [ "${APP_ENV:-local}" != "local" ]; then
+    echo "[entrypoint] Caching configuration..."
+
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
+fi
+
+echo "[entrypoint] Initialization completed."
+
 exec "$@"
