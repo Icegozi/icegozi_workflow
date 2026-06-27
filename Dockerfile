@@ -23,11 +23,11 @@ FROM php:8.2-cli-bookworm AS vendor
 
 # Minimal tooling + extensions Composer needs to resolve/install
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git unzip libzip-dev libonig-dev \
+    git unzip libzip-dev libonig-dev \
     && docker-php-ext-install -j"$(nproc)" zip bcmath \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
@@ -38,9 +38,9 @@ WORKDIR /app
 ARG INSTALL_DEV=true
 COPY composer.json composer.lock ./
 RUN if [ "$INSTALL_DEV" = "true" ]; then \
-        composer install --no-interaction --no-progress --prefer-dist --no-scripts --optimize-autoloader; \
+    composer install --no-interaction --no-progress --prefer-dist --no-scripts --optimize-autoloader; \
     else \
-        composer install --no-dev --no-interaction --no-progress --prefer-dist --no-scripts --optimize-autoloader; \
+    composer install --no-dev --no-interaction --no-progress --prefer-dist --no-scripts --optimize-autoloader; \
     fi
 
 
@@ -51,28 +51,28 @@ FROM php:8.2-fpm-bookworm AS app
 
 # System packages and PHP extensions required by Laravel
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        nginx \
-        supervisor \
-        libpng-dev \
-        libjpeg62-turbo-dev \
-        libfreetype6-dev \
-        libzip-dev \
-        libonig-dev \
-        libxml2-dev \
-        zip \
-        unzip \
-        git \
-        default-mysql-client \
+    nginx \
+    supervisor \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libzip-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    git \
+    default-mysql-client \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
-        pdo_mysql \
-        mbstring \
-        bcmath \
-        gd \
-        zip \
-        exif \
-        pcntl \
-        opcache \
+    pdo_mysql \
+    mbstring \
+    bcmath \
+    gd \
+    zip \
+    exif \
+    pcntl \
+    opcache \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
