@@ -1,18 +1,72 @@
-/.phpunit.cache
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE
+# =========================
+.idea
+.vscode
+.fleet
+
+# =========================
+# Dependencies
+# =========================
 /node_modules
+/vendor
+
+# =========================
+# Laravel runtime (CRITICAL)
+# =========================
+/storage/*.key
+/storage/logs
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/views
+
+/public/storage
+/bootstrap/cache/*
+
+# giữ cấu trúc gitignore trong runtime folders
+!/storage/framework/.gitignore
+!/storage/app/.gitignore
+!/bootstrap/cache/.gitignore
+
+# =========================
+# Build output
+# =========================
 /public/build
 /public/hot
-/public/storage
-/storage/*.key
-/vendor
+
+# =========================
+# Environment
+# =========================
 .env
-.env.backup
-.env.production
+.env.*
+!.env.example
+
+# =========================
+# Testing / cache
+# =========================
+.phpunit.cache
+.phpunit.result.cache
+coverage
+
+# =========================
+# Logs / misc
+# =========================
+*.log
+npm-debug.log*
+yarn-error.log*
+*.cache
+*.tmp
+auth.json
+
+# =========================
+# Docker / Homestead
+# =========================
+docker-compose.override.yml
 Homestead.json
 Homestead.yaml
-auth.json
-npm-debug.log
-yarn-error.log
-/.fleet
-/.idea
-/.vscode
