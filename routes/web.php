@@ -73,52 +73,72 @@ Route::middleware(['auth', 'active'])->group(function () {
     // comment
     Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
     // Route::put('/tasks/{task}/comments/{commentId}', [CommentController::class, 'update'])->name('comments.update');
-    Route::delete('/tasks/{task}/comments/{commentId}', [CommentController::class, 'destroy'])->name('comments.destroy');
+    Route::delete('/tasks/{task}/comments/{commentId}', [CommentController::class, 'destroy'])
+        ->name('comments.destroy');
 
     // Attachment
     Route::get('/tasks/{task}/attachments', [AttachmentController::class, 'index'])->name('attachments.index');
     Route::post('/tasks/{task}/attachments', [AttachmentController::class, 'store'])->name('attachments.store');
     Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
-    Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
+    Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])
+        ->name('attachments.download');
 
     // --- Checklist
     Route::get('/tasks/{task}/checklists', [ChecklistController::class, 'index'])->name('checklists.index');
     Route::post('/tasks/{task}/checklists', [ChecklistController::class, 'store'])->name('checklists.store');
     Route::put('/checklists/{checklist}', [ChecklistController::class, 'update'])->name('checklists.update');
     Route::delete('/checklists/{checklist}', [ChecklistController::class, 'destroy'])->name('checklists.destroy');
-    Route::post('/tasks/{task}/checklists/reorder', [ChecklistController::class, 'reorder'])->name('checklists.reorder');
+    Route::post('/tasks/{task}/checklists/reorder', [ChecklistController::class, 'reorder'])
+        ->name('checklists.reorder');
 
     // Board Membership and Invitations
     Route::get('/boards/{board}/settings', [BoardMembershipController::class, 'settings'])->name('boards.settings');
-    Route::post('/boards/{board}/invite', [BoardMembershipController::class, 'inviteMember'])->name('boards.invite')->middleware('throttle:20,1');
-    Route::post('/boards/{board}/members/{member}/update-role', [BoardMembershipController::class, 'updateMemberRole'])->name('boards.members.updateRole');
-    Route::delete('/boards/{board}/members/{member}/remove', [BoardMembershipController::class, 'removeMember'])->name('boards.members.remove');
-    Route::delete('/boards/{board}/invitations/{invitation}/cancel', [BoardMembershipController::class, 'cancelInvitation'])->name('boards.invitations.cancel');
-    Route::get('/invitations/accept/{token}', [App\Http\Controllers\User\BoardMembershipController::class, 'acceptInvitation'])
+    Route::post('/boards/{board}/invite', [BoardMembershipController::class, 'inviteMember'])
+        ->name('boards.invite')
+        ->middleware('throttle:20,1');
+    Route::post('/boards/{board}/members/{member}/update-role', [BoardMembershipController::class, 'updateMemberRole'])
+        ->name('boards.members.updateRole');
+    Route::delete('/boards/{board}/members/{member}/remove', [BoardMembershipController::class, 'removeMember'])
+        ->name('boards.members.remove');
+    Route::delete(
+        '/boards/{board}/invitations/{invitation}/cancel',
+        [BoardMembershipController::class, 'cancelInvitation']
+    )->name('boards.invitations.cancel');
+    Route::get(
+        '/invitations/accept/{token}',
+        [App\Http\Controllers\User\BoardMembershipController::class, 'acceptInvitation']
+    )
         ->name('invitations.accept')
         ->middleware('signed');
 
     // ---Assignee
     Route::post('/tasks/{task}/assignees', [AssigneeController::class, 'store'])->name('tasks.assignees.store');
     Route::put('/tasks/{task}/assignees/{user}', [AssigneeController::class, 'update'])->name('tasks.assignee.update');
-    Route::delete('/tasks/{task}/assignees/{user}', [AssigneeController::class, 'destroy'])->name('tasks.assignees.destroy');
-    Route::get('/boards/{board}/assigned-users', [AssigneeController::class, 'assignedUsers'])->name('boards.assignedUsers');
+    Route::delete('/tasks/{task}/assignees/{user}', [AssigneeController::class, 'destroy'])
+        ->name('tasks.assignees.destroy');
+    Route::get('/boards/{board}/assigned-users', [AssigneeController::class, 'assignedUsers'])
+        ->name('boards.assignedUsers');
 
     // overview
-    Route::get('/board/overview/{board_id}', [OverviewTaskController::class, 'getTaskOverlayData'])->name('board.overview.index');
+    Route::get('/board/overview/{board_id}', [OverviewTaskController::class, 'getTaskOverlayData'])
+        ->name('board.overview.index');
 
     Route::middleware('is_admin')->group(function () {
         Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
-        Route::get('/admin/dashboard/user-registrations', [AdminDashboardController::class, 'getUserRegistrations'])->name('admin.dashboard.user-registrations');
+        Route::get('/admin/dashboard/user-registrations', [AdminDashboardController::class, 'getUserRegistrations'])
+            ->name('admin.dashboard.user-registrations');
 
         Route::prefix('users')->group(function () {
             Route::get('admin/management/user', [UserController::class, 'index'])->name('admin.user.index');
-            Route::get('admin/management/user/sidebar', [UserController::class, 'getUserList'])->name('admin.user.sidebar');
+            Route::get('admin/management/user/sidebar', [UserController::class, 'getUserList'])
+                ->name('admin.user.sidebar');
             Route::get('admin/management/user/create', [UserController::class, 'create'])->name('admin.user.create');
             Route::post('admin/management/user/store', [UserController::class, 'store'])->name('admin.user.store');
             Route::get('admin/management/user/{id}', [UserController::class, 'show'])->name('admin.user.show');
-            Route::put('admin/management/user/{id}/update', [UserController::class, 'update'])->name('admin.user.update');
-            Route::delete('admin/management/user/{id}/delete', [UserController::class, 'destroy'])->name('admin.user.destroy');
+            Route::put('admin/management/user/{id}/update', [UserController::class, 'update'])
+                ->name('admin.user.update');
+            Route::delete('admin/management/user/{id}/delete', [UserController::class, 'destroy'])
+                ->name('admin.user.destroy');
         });
     });
 });

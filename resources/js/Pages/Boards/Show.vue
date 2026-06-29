@@ -5,6 +5,7 @@ import draggable from 'vuedraggable';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import TaskModal from '@/Components/TaskModal.vue';
+import TextInput from '@/Components/TextInput.vue';
 
 const props = defineProps({
     board: { type: Object, required: true },
@@ -153,8 +154,8 @@ const onTaskDeleted = (id) => {
 
                 <div v-if="canEdit" class="mt-2">
                     <template v-if="addingTaskCol === col.id">
-                        <input type="text" class="form-control form-control-sm mb-1" v-model="newTaskTitle"
-                            placeholder="Tiêu đề công việc..." @keyup.enter="saveTask(col)" autofocus>
+                        <TextInput v-model="newTaskTitle" placeholder="Tiêu đề công việc..." class="form-control-sm"
+                            group-class="mb-1" @keyup.enter="saveTask(col)" autofocus />
                         <button class="btn btn-success btn-sm mr-1" @click="saveTask(col)">Thêm</button>
                         <button class="btn btn-secondary btn-sm" @click="addingTaskCol = null">Huỷ</button>
                     </template>
@@ -168,8 +169,8 @@ const onTaskDeleted = (id) => {
             <div v-if="canEdit" class="kanban-column" style="flex:0 0 300px;">
                 <template v-if="addingColumn">
                     <div class="p-2 bg-white rounded">
-                        <input type="text" class="form-control form-control-sm mb-2" v-model="newColumnName"
-                            placeholder="Nhập tên cột..." @keyup.enter="saveColumn" autofocus>
+                        <TextInput v-model="newColumnName" placeholder="Nhập tên cột..." class="form-control-sm"
+                            group-class="mb-2" @keyup.enter="saveColumn" autofocus />
                         <button class="btn btn-success btn-sm mr-1" @click="saveColumn">Lưu</button>
                         <button class="btn btn-secondary btn-sm" @click="addingColumn = false">Huỷ</button>
                     </div>
@@ -185,3 +186,115 @@ const onTaskDeleted = (id) => {
             :board-id="board.id" @close="closeTask" @updated="onTaskUpdated" @deleted="onTaskDeleted" />
     </AuthenticatedLayout>
 </template>
+
+<style scoped>
+.kanban-board {
+    display: flex;
+    overflow-x: auto;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    min-height: calc(100vh - 250px);
+}
+
+.kanban-column {
+    flex: 0 0 300px;
+    background: #fff;
+    border-radius: 10px;
+    margin-right: 20px;
+    padding: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    min-height: 580px;
+    position: relative;
+}
+
+.kanban-card {
+    background: #fdfdfd;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+    padding: 10px;
+    margin: 10px;
+    font-size: small;
+    cursor: pointer;
+}
+
+.kanban-card.done h5 {
+    color: grey;
+}
+
+.kanban-card.dragging {
+    cursor: move;
+    opacity: 0.8;
+    transform: rotate(3deg);
+}
+
+.column-header {
+    cursor: grab;
+}
+
+.column-title {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    flex-grow: 1;
+    margin-bottom: 0;
+    padding: 5px 8px;
+    font-size: small;
+    background-color: #6e6666;
+    color: #ffffff;
+    border-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.column-title:hover {
+    background-color: rgba(255, 0, 0, 0.1);
+    color: rgb(0, 0, 0);
+}
+
+.column-actions .btn {
+    padding: 0.1rem 0.4rem;
+    font-size: 0.8em;
+    line-height: 1.2;
+    margin-left: 4px;
+}
+
+.column-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-grow: 1;
+    min-height: 425px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    background-image: none;
+    width: 100%;
+    margin: 0;
+}
+
+.add-column-placeholder {
+    background-color: #1d941d8d;
+    border: 1px solid #d1d1d1;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    color: #201e1e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    width: 120px;
+    height: 36px;
+    font-weight: 500;
+    font-size: small;
+}
+
+.add-column-placeholder:hover {
+    background-color: #27ac278d;
+    border-color: #b0b0b0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+</style>

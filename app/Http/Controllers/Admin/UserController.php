@@ -12,14 +12,14 @@ use Inertia\Inertia;
 
 class UserController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
         $users = User::paginate(20);
 
         return Inertia::render('Admin/Accounts/Index', compact('users'));
     }
 
-    public function create(Request $request)
+    public function create()
     {
         return Inertia::render('Admin/Accounts/Create');
     }

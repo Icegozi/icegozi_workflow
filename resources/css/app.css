@@ -1,12 +1,17 @@
-/* Bỏ ảnh nền bg-uocmo2.jpg trên mọi khu vực (body, content, cột kanban, sidebar) */
-body,
-.content-wrapper,
-.column-content,
-.bg {
-    background-image: none !important;
+/* ------------------------------------------------------------------
+ * Chỉ giữ vendor + reset tối thiểu ở cấp global.
+ * Toàn bộ CSS custom đã chuyển vào <style scoped> của từng component Vue.
+ * Vite tự minify khi build nên dùng bản non-min cho nguồn.
+ * ------------------------------------------------------------------ */
+@import 'bootstrap/dist/css/bootstrap.css';
+@import './theme/vendor/fontawesome-free/css/all.css';
+@import './theme/vendor/adminlte.css';
+
+html,
+body {
+    height: 100%;
 }
 
-/* Nền phẳng nhẹ thay cho ảnh, giữ giao diện sạch và dễ đọc */
 body {
-    background-color: #f4f6f9 !important;
+    background-color: #f4f6f9;
 }

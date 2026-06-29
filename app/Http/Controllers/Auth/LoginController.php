@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Models\User;
 use Auth;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class LoginController extends Controller
@@ -36,7 +35,7 @@ class LoginController extends Controller
         }
     }
 
-    public function logout(Request $request)
+    public function logout()
     {
         User::logout();
 

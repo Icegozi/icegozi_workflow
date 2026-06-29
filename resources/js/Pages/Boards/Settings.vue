@@ -3,6 +3,8 @@ import { computed } from 'vue';
 import { Head, useForm, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Btn from '@/Components/Btn.vue';
+import TextInput from '@/Components/TextInput.vue';
+import SelectInput from '@/Components/SelectInput.vue';
 
 const props = defineProps({
     board: { type: Object, required: true },
@@ -29,9 +31,9 @@ const submitInvite = () => {
 };
 
 // Đổi vai trò
-const changeRole = (member, e) => {
+const changeRole = (member, newRole) => {
     router.post(route('boards.members.updateRole', [props.board.id, member.id]),
-        { new_role_permission_name: e.target.value }, { preserveScroll: true });
+        { new_role_permission_name: newRole }, { preserveScroll: true });
 };
 
 // Xóa thành viên
@@ -73,16 +75,14 @@ const cancelInvite = (inv) => {
                             <form @submit.prevent="submitInvite">
                                 <div class="form-group">
                                     <label class="small font-weight-bold">Email thành viên</label>
-                                    <input type="email" class="form-control form-control-sm" v-model="inviteForm.email"
-                                        required placeholder="nhap@emailcuaban.com">
+                                    <TextInput type="email" v-model="inviteForm.email" required
+                                        placeholder="nhap@emailcuaban.com" class="form-control-sm" group-class="" />
                                     <div v-if="errors.email" class="text-danger small">{{ errors.email }}</div>
                                 </div>
                                 <div class="form-group">
                                     <label class="small font-weight-bold">Vai trò (Quyền)</label>
-                                    <select class="form-control form-control-sm" v-model="inviteForm.role_permission_name" required>
-                                        <option value="" disabled>-- Chọn vai trò --</option>
-                                        <option v-for="(label, name) in potentialRoles" :key="name" :value="name">{{ label }}</option>
-                                    </select>
+                                    <SelectInput v-model="inviteForm.role_permission_name" :options="potentialRoles"
+                                        placeholder="-- Chọn vai trò --" required class="form-control-sm" />
                                     <div v-if="errors.role_permission_name" class="text-danger small">{{ errors.role_permission_name }}</div>
                                 </div>
                                 <Btn variant="black" outline icon="fas fa-paper-plane" class="btn-sm btn-block"
@@ -152,10 +152,9 @@ const cancelInvite = (inv) => {
                                             </td>
                                             <td>{{ m.email }}</td>
                                             <td>
-                                                <select class="form-control form-control-sm" :value="m.role"
-                                                    :disabled="!canManage" @change="changeRole(m, $event)">
-                                                    <option v-for="(label, name) in potentialRoles" :key="name" :value="name">{{ label }}</option>
-                                                </select>
+                                                <SelectInput :model-value="m.role" :options="potentialRoles"
+                                                    :disabled="!canManage" class="form-control-sm"
+                                                    @update:model-value="(val) => changeRole(m, val)" />
                                             </td>
                                             <td v-if="canManage" class="text-right">
                                                 <button class="btn btn-outline-danger btn-sm" title="Xóa thành viên" @click="removeMember(m)">

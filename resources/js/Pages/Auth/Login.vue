@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import TextInput from '@/Components/TextInput.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 import Btn from '@/Components/Btn.vue';
 
 const page = usePage();
@@ -30,10 +31,7 @@ const errors = computed(() => page.props.errors || {});
 
                         <div class="row">
                             <div class="col-7">
-                                <div class="icheck-primary">
-                                    <input type="checkbox" id="remember" name="remember" value="1">
-                                    <label for="remember">Ghi nhớ đăng nhập</label>
-                                </div>
+                                <Checkbox id="remember" name="remember" value="1" label="Ghi nhớ đăng nhập" />
                             </div>
                             <div class="col-5 text-end">
                                 <Btn variant="black" class="btn-block font-weight-bold">Đăng nhập</Btn>

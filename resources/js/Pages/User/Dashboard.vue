@@ -3,6 +3,8 @@ import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Btn from '@/Components/Btn.vue';
+import Modal from '@/Components/Modal.vue';
+import TextInput from '@/Components/TextInput.vue';
 
 const props = defineProps({
     boards: { type: Array, default: () => [] },
@@ -112,57 +114,56 @@ const toggleMenu = (id) => { openMenuId.value = openMenuId.value === id ? null :
         </div>
 
         <!-- Modal tạo bảng -->
-        <div v-if="showCreate" class="modal-backdrop-custom" @click.self="showCreate = false">
-            <div class="card shadow modal-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold">Tạo bảng mới</h6>
-                    <button type="button" class="close" @click="showCreate = false"><span>&times;</span></button>
+        <Modal v-if="showCreate" title="Tạo bảng mới" max-width="380px" @close="showCreate = false">
+            <form @submit.prevent="submitCreate">
+                <div class="form-group">
+                    <TextInput v-model="createForm.name" placeholder="Nhập tên bảng..."
+                        required maxlength="255" autofocus group-class="" />
+                    <div v-if="createForm.errors.name" class="text-danger small mt-1">{{ createForm.errors.name }}</div>
                 </div>
-                <div class="card-body">
-                    <form @submit.prevent="submitCreate">
-                        <div class="form-group">
-                            <input type="text" class="form-control" v-model="createForm.name"
-                                placeholder="Nhập tên bảng..." required maxlength="255" autofocus>
-                            <div v-if="createForm.errors.name" class="text-danger small mt-1">{{ createForm.errors.name }}</div>
-                        </div>
-                        <div class="text-right">
-                            <Btn type="button" variant="white" class="btn-sm" @click="showCreate = false">Huỷ</Btn>
-                            <Btn variant="black" class="btn-sm px-3" :disabled="createForm.processing">Tạo</Btn>
-                        </div>
-                    </form>
+                <div class="text-right">
+                    <Btn type="button" variant="white" class="btn-sm" @click="showCreate = false">Huỷ</Btn>
+                    <Btn variant="black" class="btn-sm px-3" :disabled="createForm.processing">Tạo</Btn>
                 </div>
-            </div>
-        </div>
+            </form>
+        </Modal>
 
         <!-- Modal đổi tên -->
-        <div v-if="showRename" class="modal-backdrop-custom" @click.self="showRename = false">
-            <div class="card shadow modal-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold">Nhập tên bảng mới</h6>
-                    <button type="button" class="close" @click="showRename = false"><span>&times;</span></button>
+        <Modal v-if="showRename" title="Nhập tên bảng mới" max-width="380px" @close="showRename = false">
+            <form @submit.prevent="submitRename">
+                <div class="form-group">
+                    <TextInput v-model="renameForm.name" placeholder="Nhập tên..."
+                        required maxlength="255" autofocus group-class="" />
+                    <div v-if="renameForm.errors.name" class="text-danger small mt-1">{{ renameForm.errors.name }}</div>
                 </div>
-                <div class="card-body">
-                    <form @submit.prevent="submitRename">
-                        <div class="form-group">
-                            <input type="text" class="form-control" v-model="renameForm.name"
-                                placeholder="Nhập tên..." required maxlength="255" autofocus>
-                            <div v-if="renameForm.errors.name" class="text-danger small mt-1">{{ renameForm.errors.name }}</div>
-                        </div>
-                        <div class="text-right">
-                            <Btn type="button" variant="white" class="btn-sm" @click="showRename = false">Huỷ</Btn>
-                            <Btn variant="black" class="btn-sm px-3" :disabled="renameForm.processing">OK</Btn>
-                        </div>
-                    </form>
+                <div class="text-right">
+                    <Btn type="button" variant="white" class="btn-sm" @click="showRename = false">Huỷ</Btn>
+                    <Btn variant="black" class="btn-sm px-3" :disabled="renameForm.processing">OK</Btn>
                 </div>
-            </div>
-        </div>
+            </form>
+        </Modal>
     </AuthenticatedLayout>
 </template>
 
 <style scoped>
-.modal-backdrop-custom {
-    position: fixed; inset: 0; background: rgba(0,0,0,.5);
-    display: flex; align-items: center; justify-content: center; z-index: 1050;
+/* Thẻ bảng */
+.card-hover {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
-.modal-card { width: 100%; max-width: 380px; }
+
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Menu thao tác trên thẻ bảng */
+.dropdown-item .fa-fw {
+    text-align: center;
+}
+
+.dropdown-item.text-danger:hover,
+.dropdown-item.text-danger:focus {
+    background-color: #f8d7da;
+    color: #721c24;
+}
 </style>

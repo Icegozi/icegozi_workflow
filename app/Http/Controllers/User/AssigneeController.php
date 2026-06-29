@@ -104,7 +104,12 @@ class AssigneeController extends Controller
         $task->taskHistories()->create([
             'user_id' => Auth::id(),
             'action' => 'assignee_removed',
-            'note' => sprintf('%s đã chọn %s phụ trách cho công việc "%s".', Auth::user()->name, $user->name, $task->title),
+            'note' => sprintf(
+                '%s đã chọn %s phụ trách cho công việc "%s".',
+                Auth::user()->name,
+                $user->name,
+                $task->title
+            ),
         ]);
     }
 

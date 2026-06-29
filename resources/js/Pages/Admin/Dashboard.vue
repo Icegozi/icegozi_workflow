@@ -4,6 +4,7 @@ import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import Chart from 'chart.js/auto';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import TextInput from '@/Components/TextInput.vue';
 
 const canvas = ref(null);
 let chart = null;
@@ -56,11 +57,11 @@ watch([from, to], fetchData);
         <div class="form-row mb-3" style="max-width: 480px;">
             <div class="col">
                 <label class="small font-weight-bold">Từ ngày</label>
-                <input type="date" class="form-control" v-model="from" :max="to">
+                <TextInput type="date" v-model="from" :max="to" group-class="" />
             </div>
             <div class="col">
                 <label class="small font-weight-bold">Đến ngày</label>
-                <input type="date" class="form-control" v-model="to" :min="from">
+                <TextInput type="date" v-model="to" :min="from" group-class="" />
             </div>
         </div>
 
@@ -69,3 +70,11 @@ watch([from, to], fetchData);
         </div>
     </AdminLayout>
 </template>
+
+<style scoped>
+canvas {
+    display: block;
+    width: 100% !important;
+    height: auto !important;
+}
+</style>

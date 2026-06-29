@@ -5,7 +5,6 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\Column;
-use App\Models\Task;
 use Auth;
 use DB;
 use Illuminate\Http\Request;
@@ -14,18 +13,6 @@ use Illuminate\Validation\Rule;
 class ColumnController extends Controller
 {
     // Authorization Helper
-    private function authorizeTaskAccess(Task $task, array $requiredPermissions = [])
-    {
-        $user = Auth::user();
-        $board = $task->column->board;
-        foreach ($requiredPermissions as $permission) {
-            if ($user->hasBoardPermission($board, $permission)) {
-                return $board;
-            }
-        }
-        abort(403, 'Bạn không có quyền thực hiện thao tác!');
-    }
-
     private function authorizeBoardAccess(Board $board, array $requiredPermissions = [])
     {
         $user = Auth::user();
@@ -123,7 +110,10 @@ class ColumnController extends Controller
         } catch (\Exception $e) {
             \Log::error("Error updating column {$column->id}: " . $e->getMessage());
 
-            return response()->json(['success' => false, 'message' => 'Không thể cập nhật tên cột. Đã xảy ra lỗi.'], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể cập nhật tên cột. Đã xảy ra lỗi.',
+            ], 500);
         }
     }
 
@@ -210,7 +200,10 @@ class ColumnController extends Controller
             DB::rollBack();
             \Log::error("Error reordering columns for board {$board->id}: " . $e->getMessage());
 
-            return response()->json(['success' => false, 'message' => 'Không thể cập nhật thứ tự cột. Đã xảy ra lỗi.'], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể cập nhật thứ tự cột. Đã xảy ra lỗi.',
+            ], 500);
         }
     }
 }

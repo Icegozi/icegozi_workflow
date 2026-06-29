@@ -44,7 +44,9 @@ class CommentController extends Controller
             });
             $comment->load('user');
 
-            $comment->user_avatar = $comment->user ? ('https://i.pravatar.cc/40?u=' . $comment->user->id) : 'https://i.pravatar.cc/40?u=unknown';
+            $comment->user_avatar = $comment->user
+                ? ('https://i.pravatar.cc/40?u=' . $comment->user->id)
+                : 'https://i.pravatar.cc/40?u=unknown';
 
             return response()->json([
                 'success' => true, 'message' => 'Bình luận đã được thêm.',
@@ -68,7 +70,10 @@ class CommentController extends Controller
             $isAuthor = $comment->user_id === Auth::id();
             $isManager = Auth::user()->hasBoardPermission($board, 'board_member_manager');
             if (! $isAuthor && ! $isManager) {
-                return response()->json(['success' => false, 'message' => 'Bạn không có quyền xóa bình luận này.'], 403);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không có quyền xóa bình luận này.',
+                ], 403);
             }
 
             DB::transaction(function () use ($comment, $task) {

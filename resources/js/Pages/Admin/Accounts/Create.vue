@@ -2,6 +2,9 @@
 import { Head, useForm, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Btn from '@/Components/Btn.vue';
+import TextInput from '@/Components/TextInput.vue';
+import Checkbox from '@/Components/Checkbox.vue';
+import SelectInput from '@/Components/SelectInput.vue';
 
 const form = useForm({
     name: '',
@@ -11,6 +14,8 @@ const form = useForm({
     status: 'active',
     is_admin: false,
 });
+
+const statuses = { active: 'Kích hoạt', inactive: 'Không kích hoạt', banned: 'Bị khóa' };
 
 const submit = () => form.post(route('admin.user.store'));
 </script>
@@ -26,14 +31,14 @@ const submit = () => form.post(route('admin.user.store'));
                     <tr>
                         <th scope="row">Họ và tên</th>
                         <td>
-                            <input type="text" class="form-control" v-model="form.name" required>
+                            <TextInput v-model="form.name" required group-class="mb-0" />
                             <div v-if="form.errors.name" class="text-danger small">{{ form.errors.name }}</div>
                         </td>
                     </tr>
                     <tr>
                         <th scope="row">Email</th>
                         <td>
-                            <input type="email" class="form-control" v-model="form.email" required>
+                            <TextInput type="email" v-model="form.email" required group-class="mb-0" />
                             <div v-if="form.errors.email" class="text-danger small">{{ form.errors.email }}</div>
                         </td>
                     </tr>
@@ -46,32 +51,25 @@ const submit = () => form.post(route('admin.user.store'));
                     <tr>
                         <th scope="row">Mật khẩu</th>
                         <td>
-                            <input type="password" class="form-control" v-model="form.password" placeholder="Nhập mật khẩu" required>
+                            <TextInput type="password" v-model="form.password" placeholder="Nhập mật khẩu" required group-class="mb-0" />
                             <div v-if="form.errors.password" class="text-danger small">{{ form.errors.password }}</div>
                         </td>
                     </tr>
                     <tr>
                         <th scope="row">Xác nhận mật khẩu</th>
-                        <td><input type="password" class="form-control" v-model="form.password_confirmation" placeholder="Xác nhận mật khẩu" required></td>
+                        <td><TextInput type="password" v-model="form.password_confirmation" placeholder="Xác nhận mật khẩu" required group-class="mb-0" /></td>
                     </tr>
                     <tr><th scope="row" colspan="2"><hr></th></tr>
                     <tr>
                         <th scope="row">Trạng thái</th>
                         <td>
-                            <select class="form-control" v-model="form.status" required>
-                                <option value="active">Kích hoạt</option>
-                                <option value="inactive">Không kích hoạt</option>
-                                <option value="banned">Bị khóa</option>
-                            </select>
+                            <SelectInput v-model="form.status" :options="statuses" required />
                         </td>
                     </tr>
                     <tr>
                         <th scope="row">Là quản trị viên</th>
                         <td>
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="isAdmin" v-model="form.is_admin">
-                                <label class="form-check-label" for="isAdmin">Là quản trị viên (Is Admin)</label>
-                            </div>
+                            <Checkbox id="isAdmin" v-model="form.is_admin" label="Là quản trị viên (Is Admin)" />
                         </td>
                     </tr>
                 </tbody>

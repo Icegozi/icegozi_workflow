@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\BoardRequest;
-use App\Models\Board;
 use Auth;
 use Inertia\Inertia;
 
@@ -26,15 +24,15 @@ class DashboardController extends Controller
         return Inertia::render('User/Dashboard', ['boards' => $boards]);
     }
 
-    public function store(BoardRequest $request)
+    public function store()
     {
     }
 
-    public function update(BoardRequest $request, Board $board)
+    public function update()
     {
     }
 
-    public function destroy(Board $board)
+    public function destroy()
     {
     }
 }

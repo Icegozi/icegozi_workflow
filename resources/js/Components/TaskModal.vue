@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import Modal from '@/Components/Modal.vue';
+import TextInput from '@/Components/TextInput.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 
 const props = defineProps({
     taskId: { type: Number, required: true },
@@ -131,21 +134,18 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
 </script>
 
 <template>
-    <div class="modal-backdrop-custom" @click.self="emit('close')">
-        <div class="task-modal card shadow">
-            <div class="modal-header bg-dark text-light">
-                <h5 class="modal-title mb-0">Chi tiết công việc</h5>
-                <button type="button" class="close text-danger" @click="emit('close')"><span>&times;</span></button>
-            </div>
+    <Modal max-width="1000px" align="top" header-class="bg-dark text-light" @close="emit('close')">
+        <template #header>
+            <h5 class="modal-card__title">Chi tiết công việc</h5>
+        </template>
 
-            <div class="modal-body" style="max-height:80vh; overflow-y:auto;">
-                <div v-if="loading" class="text-center p-4"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
-                <div v-else class="row">
+        <div v-if="loading" class="text-center p-4"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
+        <div v-else class="row">
                     <!-- Cột trái -->
                     <div class="col-lg-8">
                         <p class="text-muted mb-1">Trong danh sách: <strong>{{ task.column_name }}</strong></p>
-                        <input type="text" class="form-control form-control-lg font-weight-bold border-0 pl-0 mb-3"
-                            v-model="title" :readonly="!canEdit" placeholder="Tiêu đề...">
+                        <TextInput v-model="title" :readonly="!canEdit" placeholder="Tiêu đề..."
+                            class="form-control-lg font-weight-bold border-0 pl-0" group-class="mb-3" />
 
                         <h6 class="font-weight-bold"><i class="fas fa-user-friends mr-2"></i>NGƯỜI PHỤ TRÁCH</h6>
                         <div class="d-flex align-items-center flex-wrap mb-3">
@@ -175,7 +175,8 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                         <h6 class="font-weight-bold"><i class="fas fa-tasks mr-2"></i>CHECKLIST</h6>
                         <div class="mb-3">
                             <div v-for="item in task.checklists" :key="item.id" class="d-flex align-items-center mb-1">
-                                <input type="checkbox" :checked="item.is_done" :disabled="!canEdit" @change="toggleChecklist(item)" class="mr-2">
+                                <Checkbox bare :model-value="item.is_done" :disabled="!canEdit" class="mr-2"
+                                    @update:model-value="toggleChecklist(item)" />
                                 <span :class="{ 'text-muted text-decoration-line-through': item.is_done }" style="flex:1;">{{ item.title }}</span>
                                 <button v-if="canEdit" class="btn btn-sm btn-link text-danger p-0" @click="deleteChecklist(item)">&times;</button>
                             </div>
@@ -206,7 +207,7 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                         <h6 class="text-muted small font-weight-bold">THÔNG TIN</h6>
                         <div class="form-group">
                             <label class="small">Ngày hết hạn</label>
-                            <input type="date" class="form-control form-control-sm" v-model="dueDate" :disabled="!canEdit">
+                            <TextInput type="date" v-model="dueDate" :disabled="!canEdit" class="form-control-sm" group-class="" />
                         </div>
 
                         <div v-if="canEdit" class="mb-3">
@@ -225,17 +226,5 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+    </Modal>
 </template>
-
-<style scoped>
-.modal-backdrop-custom {
-    position: fixed; inset: 0; background: rgba(0,0,0,.5);
-    display: flex; align-items: flex-start; justify-content: center; z-index: 1060; padding: 30px 10px;
-}
-.task-modal { width: 100%; max-width: 1000px; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; padding: .75rem 1rem; }
-.modal-header .close { background: none; border: none; font-size: 1.5rem; line-height: 1; }
-</style>

@@ -42,33 +42,6 @@ class BoardMembershipController extends Controller
         return true;
     }
 
-    // Helper function to revoke a permission from a user for a board
-    private function revokeBoardPermission(Board $board, User $user, string $permissionName): bool
-    {
-        $permission = Permission::firstWhere('name', $permissionName);
-        if (! $permission) {
-            return false;
-        }
-
-        $permissionUser = PermissionUser::where('user_id', $user->id)
-            ->where('permission_id', $permission->id)
-            ->first();
-        if (! $permissionUser) {
-            return true;
-        } // Already doesn't have it
-
-        // Delete the board_permissions link
-        BoardPermission::where('board_id', $board->id)
-            ->where('permission_user_id', $permissionUser->id)
-            ->delete();
-
-        // Optional: Clean up permission_users if this user no longer has this permission for ANY board
-        // and no other system relies on this specific permission_user_id. This can be complex.
-        // For now, we leave the permission_users entry.
-
-        return true;
-    }
-
     // Helper to revoke ALL board-specific permissions for a user on a board
     private function revokeAllBoardPermissionsForUser(Board $board, User $user)
     {
@@ -140,7 +113,8 @@ class BoardMembershipController extends Controller
 
         $request->validate([
             'email' => 'required|email:rfc,strict',
-            'role_permission_name' => 'required|string|exists:permissions,name', // Ensure role is a valid permission name
+            // Ensure role is a valid permission name
+            'role_permission_name' => 'required|string|exists:permissions,name',
         ]);
 
         $emailToInvite = $request->input('email');
@@ -148,12 +122,9 @@ class BoardMembershipController extends Controller
 
         $invitedUser = User::firstWhere('email', $emailToInvite);
 
-        if ($invitedUser && $invitedUser->id === $board->user_id) {
-            return back()->with('error', 'Người dùng này đã là chủ sở hữu của bảng.');
-        }
-        if ($invitedUser && $invitedUser->hasBoardPermission($board, $permissionNameToGrant)) {
-            // Or even if they have *any* role already.
-            return back()->with('error', 'Người dùng này đã có vai trò tương tự hoặc cao hơn trong bảng.');
+        $existingRoleError = $this->checkInviteeAlreadyHasRole($board, $invitedUser, $permissionNameToGrant);
+        if ($existingRoleError) {
+            return $existingRoleError;
         }
 
         // --- Using BoardInvitations table (Recommended) ---
@@ -162,10 +133,37 @@ class BoardMembershipController extends Controller
         if ($existingInvitation) {
             return back()->with('warning', 'Đã có lời mời đang chờ xử lý cho email này.');
         }
+
+        $invitation = $this->createBoardInvitation($board, $emailToInvite, $permissionNameToGrant);
+
+        return $this->sendInvitationNotification($invitation, $emailToInvite);
+    }
+
+    // Trả về redirect lỗi nếu người được mời là chủ sở hữu hoặc đã có vai trò tương đương/cao hơn; ngược lại null.
+    private function checkInviteeAlreadyHasRole(Board $board, ?User $invitedUser, string $permissionNameToGrant)
+    {
+        if ($invitedUser && $invitedUser->id === $board->user_id) {
+            return back()->with('error', 'Người dùng này đã là chủ sở hữu của bảng.');
+        }
+        if ($invitedUser && $invitedUser->hasBoardPermission($board, $permissionNameToGrant)) {
+            // Or even if they have *any* role already.
+            return back()->with('error', 'Người dùng này đã có vai trò tương tự hoặc cao hơn trong bảng.');
+        }
+
+        return null;
+    }
+
+    // Tạo bản ghi lời mời với token duy nhất.
+    private function createBoardInvitation(
+        Board $board,
+        string $emailToInvite,
+        string $permissionNameToGrant
+    ): BoardInvitation {
         do {
             $token = Str::random(40);
         } while (BoardInvitation::where('token', $token)->exists());
-        $invitation = BoardInvitation::create([
+
+        return BoardInvitation::create([
             'board_id' => $board->id,
             'email' => $emailToInvite,
             'token' => $token,
@@ -173,8 +171,14 @@ class BoardMembershipController extends Controller
             'invited_by' => Auth::id(),
             'expires_at' => now()->addDays(7),
         ]);
+    }
+
+    // Gửi email mời; nếu thất bại thì xóa lời mời và trả về redirect lỗi, ngược lại trả về redirect thành công.
+    private function sendInvitationNotification(BoardInvitation $invitation, string $emailToInvite)
+    {
         try {
-            \Illuminate\Support\Facades\Notification::route('mail', $emailToInvite)->notify(new BoardInvitationNotification($invitation));
+            \Illuminate\Support\Facades\Notification::route('mail', $emailToInvite)
+                ->notify(new BoardInvitationNotification($invitation));
         } catch (\Exception $e) {
             \Log::error('Failed to send invitation: ' . $e->getMessage());
             $invitation->delete();
@@ -191,39 +195,18 @@ class BoardMembershipController extends Controller
             abort(401, 'Liên kết mời không hợp lệ hoặc đã hết hạn.');
         }
 
-        $invitation = BoardInvitation::where('token', $token)->whereNull('accepted_at')->first();
-        if (! $invitation) {
-            abort(404, 'Không tìm thấy lời mời hoặc đã được chấp nhận.');
-        }
-        if ($invitation->expires_at && $invitation->expires_at->isPast()) {
-            $invitation->delete();
-            abort(401, 'Lời mời này đã hết hạn.');
-        }
+        $invitation = $this->resolveValidInvitation($token);
 
-        if (! Auth::check()) {
-            session(['url.intended' => URL::full()]);
-
-            return redirect()->route('login.form')->with('info', 'Vui lòng đăng nhập hoặc đăng ký để chấp nhận lời mời.');
+        $notLoggedIn = $this->ensureAuthenticatedInvitee($invitation);
+        if ($notLoggedIn) {
+            return $notLoggedIn;
         }
         $user = Auth::user();
-        if ($user->email !== $invitation->email) {
-            Auth::logout();
-            session(['url.intended' => URL::full()]);
-
-            return redirect()->route('login.form')->with('error', 'Lời mời này dành cho một tài khoản email khác.');
-        }
 
         // Người mời phải còn quyền quản lý tại thời điểm chấp nhận, tránh tình huống
         // một quản trị viên đã bị gỡ/giáng cấp nhưng lời mời cũ vẫn cấp quyền cao.
         $board = $invitation->board;
-        $inviter = $invitation->inviter;
-        $inviterStillAuthorized = $inviter
-            && ($inviter->id === $board->user_id
-                || $inviter->hasBoardPermission($board, 'board_member_manager'));
-        if (! $inviterStillAuthorized) {
-            $invitation->delete();
-            abort(403, 'Lời mời không còn hợp lệ vì người mời không còn quyền quản lý bảng.');
-        }
+        $this->ensureInviterStillAuthorized($invitation, $board);
 
         DB::transaction(function () use ($invitation, $board, $user) {
             if (! $this->grantBoardPermission($board, $user, $invitation->role_permission_name)) {
@@ -233,7 +216,55 @@ class BoardMembershipController extends Controller
             $invitation->update(['accepted_at' => now()]);
         });
 
-        return redirect()->route('boards.show', $invitation->board_id)->with('success', 'Bạn đã tham gia thành công vào bảng ' . $invitation->board->name);
+        return redirect()->route('boards.show', $invitation->board_id)
+            ->with('success', 'Bạn đã tham gia thành công vào bảng ' . $invitation->board->name);
+    }
+
+    // Lấy lời mời còn hợp lệ theo token; abort nếu không tìm thấy hoặc đã hết hạn.
+    private function resolveValidInvitation($token): BoardInvitation
+    {
+        $invitation = BoardInvitation::where('token', $token)->whereNull('accepted_at')->first();
+        if (! $invitation) {
+            abort(404, 'Không tìm thấy lời mời hoặc đã được chấp nhận.');
+        }
+        if ($invitation->expires_at && $invitation->expires_at->isPast()) {
+            $invitation->delete();
+            abort(401, 'Lời mời này đã hết hạn.');
+        }
+
+        return $invitation;
+    }
+
+    // Đảm bảo người dùng đã đăng nhập và đúng email của lời mời; trả về redirect tới login nếu chưa, ngược lại null.
+    private function ensureAuthenticatedInvitee(BoardInvitation $invitation)
+    {
+        if (! Auth::check()) {
+            session(['url.intended' => URL::full()]);
+
+            return redirect()->route('login.form')
+                ->with('info', 'Vui lòng đăng nhập hoặc đăng ký để chấp nhận lời mời.');
+        }
+        if (Auth::user()->email !== $invitation->email) {
+            Auth::logout();
+            session(['url.intended' => URL::full()]);
+
+            return redirect()->route('login.form')->with('error', 'Lời mời này dành cho một tài khoản email khác.');
+        }
+
+        return null;
+    }
+
+    // Đảm bảo người mời vẫn còn quyền quản lý bảng; abort 403 và xóa lời mời nếu không còn.
+    private function ensureInviterStillAuthorized(BoardInvitation $invitation, Board $board): void
+    {
+        $inviter = $invitation->inviter;
+        $inviterStillAuthorized = $inviter
+            && ($inviter->id === $board->user_id
+                || $inviter->hasBoardPermission($board, 'board_member_manager'));
+        if (! $inviterStillAuthorized) {
+            $invitation->delete();
+            abort(403, 'Lời mời không còn hợp lệ vì người mời không còn quyền quản lý bảng.');
+        }
     }
 
     public function updateMemberRole(Request $request, Board $board, User $member)
@@ -275,7 +306,10 @@ class BoardMembershipController extends Controller
         DB::transaction(function () use ($board, $member) {
             $this->revokeAllBoardPermissionsForUser($board, $member);
             // Also cancel any pending invitations for this user on this board
-            BoardInvitation::where('board_id', $board->id)->where('email', $member->email)->delete(); // If using invitations
+            // If using invitations
+            BoardInvitation::where('board_id', $board->id)
+                ->where('email', $member->email)
+                ->delete();
         });
 
         return redirect()->back()->with('success', 'Thành viên đã được xóa khỏi bảng.');
@@ -283,7 +317,11 @@ class BoardMembershipController extends Controller
 
     public function cancelInvitation(Board $board, BoardInvitation $invitation) // If using BoardInvitations
     {
-        if ((Auth::id() !== $board->user_id && ! Auth::user()->hasBoardPermission($board, 'board_member_manager')) || $invitation->board_id !== $board->id) {
+        if (
+            (Auth::id() !== $board->user_id
+                && ! Auth::user()->hasBoardPermission($board, 'board_member_manager'))
+            || $invitation->board_id !== $board->id
+        ) {
             abort(403);
         }
         $invitation->delete();
