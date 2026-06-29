@@ -68,8 +68,10 @@ class Assignee extends Model
         }
 
         // Tránh tạo trùng nếu người mới đã được giao nhiệm vụ này.
-        if ($oldUserId != $newUserId
-            && self::where('task_id', $taskId)->where('user_id', $newUserId)->exists()) {
+        if (
+            $oldUserId != $newUserId
+            && self::where('task_id', $taskId)->where('user_id', $newUserId)->exists()
+        ) {
             return false;
         }
 

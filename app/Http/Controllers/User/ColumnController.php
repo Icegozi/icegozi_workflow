@@ -5,7 +5,6 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\Column;
-use App\Models\Task;
 use Auth;
 use DB;
 use Illuminate\Http\Request;
@@ -14,18 +13,6 @@ use Illuminate\Validation\Rule;
 class ColumnController extends Controller
 {
     // Authorization Helper
-    private function authorizeTaskAccess(Task $task, array $requiredPermissions = [])
-    {
-        $user = Auth::user();
-        $board = $task->column->board;
-        foreach ($requiredPermissions as $permission) {
-            if ($user->hasBoardPermission($board, $permission)) {
-                return $board;
-            }
-        }
-        abort(403, 'Bạn không có quyền thực hiện thao tác!');
-    }
-
     private function authorizeBoardAccess(Board $board, array $requiredPermissions = [])
     {
         $user = Auth::user();
@@ -80,10 +67,9 @@ class ColumnController extends Controller
                     'url_destroy' => route('columns.destroy', ['board' => $board->id, 'column' => $column->id]),
                 ],
             ], 201);
-
         } catch (\Exception $e) {
             // Log the error
-            \Log::error('Error creating column: '.$e->getMessage());
+            \Log::error('Error creating column: ' . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể tạo cột. Đã xảy ra lỗi.'], 500);
         }
@@ -122,9 +108,12 @@ class ColumnController extends Controller
                 'new_name' => $column->name,
             ]);
         } catch (\Exception $e) {
-            \Log::error("Error updating column {$column->id}: ".$e->getMessage());
+            \Log::error("Error updating column {$column->id}: " . $e->getMessage());
 
-            return response()->json(['success' => false, 'message' => 'Không thể cập nhật tên cột. Đã xảy ra lỗi.'], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể cập nhật tên cột. Đã xảy ra lỗi.',
+            ], 500);
         }
     }
 
@@ -160,7 +149,6 @@ class ColumnController extends Controller
             DB::commit();
 
             return response()->json(['success' => true, 'message' => 'Cột đã được xoá thành công.']);
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -208,12 +196,14 @@ class ColumnController extends Controller
             DB::commit();
 
             return response()->json(['success' => true, 'message' => 'Thứ tự cột đã được cập nhật.']);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Error reordering columns for board {$board->id}: ".$e->getMessage());
+            \Log::error("Error reordering columns for board {$board->id}: " . $e->getMessage());
 
-            return response()->json(['success' => false, 'message' => 'Không thể cập nhật thứ tự cột. Đã xảy ra lỗi.'], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể cập nhật thứ tự cột. Đã xảy ra lỗi.',
+            ], 500);
         }
     }
 }

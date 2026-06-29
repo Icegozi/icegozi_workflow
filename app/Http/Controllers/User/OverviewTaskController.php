@@ -14,7 +14,7 @@ class OverviewTaskController extends Controller
 
     public function __construct()
     {
-        $this->board = new Board;
+        $this->board = new Board();
     }
 
     public function getTaskOverlayData($board_id)

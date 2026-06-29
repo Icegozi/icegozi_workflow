@@ -26,6 +26,8 @@ class BoardInvitationNotification extends Notification
      * Get the notification's delivery channels.
      *
      * @return array<int, string>
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function via(object $notifiable): array
     {
@@ -34,6 +36,8 @@ class BoardInvitationNotification extends Notification
 
     /**
      * Get the mail representation of the notification.
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function toMail(object $notifiable): MailMessage
     {
@@ -50,19 +54,21 @@ class BoardInvitationNotification extends Notification
             ? ucfirst(str_replace('_', ' ', $this->invitation->role_permission_name))
             : 'Member';
 
-        return (new MailMessage)
+        return (new MailMessage())
             ->subject("Lời mời tham gia bảng: {$boardName}")
             ->greeting('Chào bạn,')
             ->line("{$inviterName} đã mời bạn tham gia vào bảng '{$boardName}' với vai trò '{$roleDisplayName}'.")
             ->action('Chấp nhận lời mời', $acceptUrl)
             ->line('Nếu bạn không thực hiện yêu cầu này, bạn có thể bỏ qua email này.')
-            ->salutation("Trân trọng,\n".config('app.name'));
+            ->salutation("Trân trọng,\n" . config('app.name'));
     }
 
     /**
      * Get the array representation of the notification.
      *
      * @return array<string, mixed>
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function toArray(object $notifiable): array
     {

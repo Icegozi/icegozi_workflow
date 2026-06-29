@@ -34,7 +34,7 @@ class Comment extends Model
     public function getUserAvatarUrlAttribute()
     {
         if ($this->user) {
-            return 'https://i.pravatar.cc/32?u='.urlencode($this->user->email);
+            return 'https://i.pravatar.cc/32?u=' . urlencode($this->user->email);
         }
 
         return 'https://via.placeholder.com/32';

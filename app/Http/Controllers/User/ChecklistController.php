@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\Board;
 use App\Models\Checklist;
 use App\Models\Task;
 use Auth;
@@ -24,18 +23,6 @@ class ChecklistController extends Controller
                 return $board;
             }
         }
-        abort(403, 'Bạn không có quyền thực hiện thao tác!');
-    }
-
-    private function authorizeBoardAccess(Board $board, array $requiredPermissions = [])
-    {
-        $user = Auth::user();
-        foreach ($requiredPermissions as $permission) {
-            if ($user->hasBoardPermission($board, $permission)) {
-                return $board;
-            }
-        }
-
         abort(403, 'Bạn không có quyền thực hiện thao tác!');
     }
 
@@ -75,9 +62,13 @@ class ChecklistController extends Controller
                 return $checklist;
             });
 
-            return response()->json(['success' => true, 'message' => 'Mục checklist đã được thêm.', 'checklist' => $checklist], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Mục checklist đã được thêm.',
+                'checklist' => $checklist,
+            ], 201);
         } catch (\Exception $e) {
-            Log::error("Error creating checklist for task {$task->id}: ".$e->getMessage());
+            Log::error("Error creating checklist for task {$task->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể thêm mục checklist.'], 500);
         }
@@ -89,54 +80,75 @@ class ChecklistController extends Controller
         $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
 
         // VALIDATION:
-        $validatedData = $request->validate([
+        $request->validate([
             'title' => 'sometimes|required_without:is_done|string|max:255',
             'is_done' => 'sometimes|required_without:title|boolean', // Ensures 'is_done' is boolean
         ]);
 
         try {
-            $originalTitle = $checklist->title;
-            $originalIsDone = $checklist->is_done;
-            $updatedFieldsMessages = [];
-
-            // Check if 'title' is present in the request and different
-            if ($request->has('title') && $checklist->title !== $request->title) {
-                $checklist->title = $request->title; // Uses validated data if 'title' was part of it
-                $updatedFieldsMessages[] = "tiêu đề từ '{$originalTitle}' thành '{$request->title}'";
-            }
-
-            // Check if 'is_done' is present in the request and different
-            // IMPORTANT: Use $request->boolean('is_done') for proper boolean conversion from request
-            if ($request->has('is_done') && $checklist->is_done !== $request->boolean('is_done')) {
-                $checklist->is_done = $request->boolean('is_done'); // Assign the boolean value
-                $status = $checklist->is_done ? 'hoàn thành' : 'chưa hoàn thành';
-                $titleForMessage = $request->has('title') ? $request->title : $originalTitle;
-                $updatedFieldsMessages[] = "trạng thái mục '{$titleForMessage}' thành {$status}";
-            }
+            $updatedFieldsMessages = $this->applyChecklistChanges($checklist, $request);
 
             if (! empty($updatedFieldsMessages)) {
-                DB::transaction(function () use ($checklist, $task, $updatedFieldsMessages) {
-                    $checklist->save();
-
-                    if ($task) {
-                        $task->taskHistories()->create([
-                            'user_id' => Auth::id(),
-                            'action' => 'updated_checklist_item',
-                            'note' => 'Đã cập nhật mục checklist: '.implode(', ', $updatedFieldsMessages),
-                        ]);
-                    }
-                });
+                $this->persistChecklistUpdate($checklist, $task, $updatedFieldsMessages);
             }
 
             // Return the fresh checklist item (with potentially updated values)
-            return response()->json(['success' => true, 'message' => 'Mục checklist đã được cập nhật.', 'checklist' => $checklist->fresh()]);
-
+            return response()->json([
+                'success' => true,
+                'message' => 'Mục checklist đã được cập nhật.',
+                'checklist' => $checklist->fresh(),
+            ]);
         } catch (\Exception $e) {
             // Log the detailed error
-            Log::error("Error updating checklist {$checklist->id}: ".$e->getMessage().' Stack trace: '.$e->getTraceAsString());
+            Log::error(
+                "Error updating checklist {$checklist->id}: " . $e->getMessage()
+                . ' Stack trace: ' . $e->getTraceAsString()
+            );
 
-            return response()->json(['success' => false, 'message' => 'Không thể cập nhật mục checklist.'], 500); // Generic 500
+            // Generic 500
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể cập nhật mục checklist.',
+            ], 500);
         }
+    }
+
+    private function applyChecklistChanges(Checklist $checklist, Request $request): array
+    {
+        $originalTitle = $checklist->title;
+        $updatedFieldsMessages = [];
+
+        // Check if 'title' is present in the request and different
+        if ($request->has('title') && $checklist->title !== $request->title) {
+            $checklist->title = $request->title; // Uses validated data if 'title' was part of it
+            $updatedFieldsMessages[] = "tiêu đề từ '{$originalTitle}' thành '{$request->title}'";
+        }
+
+        // Check if 'is_done' is present in the request and different
+        // IMPORTANT: Use $request->boolean('is_done') for proper boolean conversion from request
+        if ($request->has('is_done') && $checklist->is_done !== $request->boolean('is_done')) {
+            $checklist->is_done = $request->boolean('is_done'); // Assign the boolean value
+            $status = $checklist->is_done ? 'hoàn thành' : 'chưa hoàn thành';
+            $titleForMessage = $request->has('title') ? $request->title : $originalTitle;
+            $updatedFieldsMessages[] = "trạng thái mục '{$titleForMessage}' thành {$status}";
+        }
+
+        return $updatedFieldsMessages;
+    }
+
+    private function persistChecklistUpdate(Checklist $checklist, ?Task $task, array $updatedFieldsMessages): void
+    {
+        DB::transaction(function () use ($checklist, $task, $updatedFieldsMessages) {
+            $checklist->save();
+
+            if ($task) {
+                $task->taskHistories()->create([
+                    'user_id' => Auth::id(),
+                    'action' => 'updated_checklist_item',
+                    'note' => 'Đã cập nhật mục checklist: ' . implode(', ', $updatedFieldsMessages),
+                ]);
+            }
+        });
     }
 
     public function destroy(Checklist $checklist)
@@ -158,7 +170,7 @@ class ChecklistController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Mục checklist đã được xóa.']);
         } catch (\Exception $e) {
-            Log::error("Error deleting checklist {$checklist->id}: ".$e->getMessage());
+            Log::error("Error deleting checklist {$checklist->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể xóa mục checklist.'], 500);
         }
@@ -190,7 +202,7 @@ class ChecklistController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Thứ tự checklist đã được cập nhật.']);
         } catch (\Exception $e) {
-            Log::error("Error reordering checklists for task {$task->id}: ".$e->getMessage());
+            Log::error("Error reordering checklists for task {$task->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể cập nhật thứ tự checklist.'], 500);
         }

@@ -43,7 +43,7 @@ class AssigneeController extends Controller
     public function store(AssigneeRequest $request, Task $task)
     {
         $board = $this->authorizeTaskAccess($task, ['board_member_manager']);
-        $assignee = new Assignee;
+        $assignee = new Assignee();
         $userId = $request->user_id;
         if (! $this->isBoardMember($board, (int) $userId)) {
             return $this->response(false, 'Người dùng không thuộc bảng này.', $task, 422);
@@ -60,7 +60,7 @@ class AssigneeController extends Controller
     public function update(AssigneeRequest $request, Task $task, User $user)
     {
         $board = $this->authorizeTaskAccess($task, ['board_member_manager']);
-        $assignee = new Assignee;
+        $assignee = new Assignee();
         $newUserId = (int) $request->user_id;
         if (! $this->isBoardMember($board, $newUserId)) {
             return $this->response(false, 'Người dùng không thuộc bảng này.', $task, 422);
@@ -77,7 +77,7 @@ class AssigneeController extends Controller
     public function destroy(Task $task, User $user)
     {
         $this->authorizeTaskAccess($task, ['board_member_manager']);
-        $assignee = new Assignee;
+        $assignee = new Assignee();
         if (! $assignee->isExistsAsignee($user->id, $task->id)) {
             return $this->response(false, 'Người dùng không được giao nhiệm vụ này.', $task, 404);
         }
@@ -104,7 +104,12 @@ class AssigneeController extends Controller
         $task->taskHistories()->create([
             'user_id' => Auth::id(),
             'action' => 'assignee_removed',
-            'note' => sprintf('%s đã chọn %s phụ trách cho công việc "%s".', Auth::user()->name, $user->name, $task->title),
+            'note' => sprintf(
+                '%s đã chọn %s phụ trách cho công việc "%s".',
+                Auth::user()->name,
+                $user->name,
+                $task->title
+            ),
         ]);
     }
 
@@ -116,7 +121,7 @@ class AssigneeController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u='.$user->id,
+            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u=' . $user->id,
         ]);
 
         $task->column_name = $task->column->name ?? '';
@@ -132,7 +137,7 @@ class AssigneeController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/100?u='.$user->id,
+                'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/100?u=' . $user->id,
             ];
         });
 

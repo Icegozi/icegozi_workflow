@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Auth;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,16 +11,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $user = Auth::user();
-        $accessibleBoards = $user->getAllAccessibleBoards();
-        $boards = $accessibleBoards;
-        $boardsWithRoles = $boards->map(function ($board) use ($user) {
-            $board->currentUserRole = $user->getRoleForBoard($board);
-
-            return $board;
-        });
-
-        return view('admin.dashboard', ['boards' => $boardsWithRoles]);
+        return \Inertia\Inertia::render('Admin/Dashboard');
     }
 
     public function getUserRegistrations(Request $request)
@@ -76,7 +66,7 @@ class DashboardController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            logger()->error('Chart data error: '.$e->getMessage());
+            logger()->error('Chart data error: ' . $e->getMessage());
 
             return response()->json(['error' => 'Internal server error'], 500);
         }

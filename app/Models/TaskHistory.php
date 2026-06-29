@@ -53,18 +53,22 @@ class TaskHistory extends Model
         $userName = Auth::user()->name;
 
         if ($action === 'di chuyển' && $oldColumnName && $newColumnName) {
-            $note = "<strong> {$userName} </strong> đã <strong>{$action}</strong> nhiệm vụ <strong>{$task->title}</strong> từ cột <strong>{$oldColumnName}</strong> sang cột <strong>{$newColumnName}</strong>.";
+            $note = "<strong> {$userName} </strong> đã <strong>{$action}</strong> nhiệm vụ "
+                . "<strong>{$task->title}</strong> từ cột <strong>{$oldColumnName}</strong> "
+                . "sang cột <strong>{$newColumnName}</strong>.";
         } else {
-            $note = "Nhiệm vụ <strong>{$task->title}</strong> đã được <strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
+            $note = "Nhiệm vụ <strong>{$task->title}</strong> đã được "
+                . "<strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
         }
 
         if ($action === 'tạo' || $action === 'thêm bình luận') {
-
-            $note = "Nhiệm vụ <strong>{$task->title}</strong> đã được <strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
+            $note = "Nhiệm vụ <strong>{$task->title}</strong> đã được "
+                . "<strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
         }
 
         if ($action === 'xóa bình luận') {
-            $note = "Nhiệm vụ <strong>{$task->title}</strong> đã bị <strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
+            $note = "Nhiệm vụ <strong>{$task->title}</strong> đã bị "
+                . "<strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
         }
 
         self::createHistory($task->id, $userId, $action, $note);

@@ -38,20 +38,22 @@ class CommentController extends Controller
                     'content' => $request->content,
                 ]);
 
-                (new TaskHistory)->logTaskHistory($task, 'thêm bình luận');
+                (new TaskHistory())->logTaskHistory($task, 'thêm bình luận');
 
                 return $newComment;
             });
             $comment->load('user');
 
-            $comment->user_avatar = $comment->user ? ('https://i.pravatar.cc/40?u='.$comment->user->id) : 'https://i.pravatar.cc/40?u=unknown';
+            $comment->user_avatar = $comment->user
+                ? ('https://i.pravatar.cc/40?u=' . $comment->user->id)
+                : 'https://i.pravatar.cc/40?u=unknown';
 
             return response()->json([
                 'success' => true, 'message' => 'Bình luận đã được thêm.',
                 'comment' => $comment,
             ]);
         } catch (\Exception $e) {
-            Log::error("Error adding comment to task {$task->id}: ".$e->getMessage());
+            Log::error("Error adding comment to task {$task->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể thêm bình luận.'], 500);
         }
@@ -68,12 +70,15 @@ class CommentController extends Controller
             $isAuthor = $comment->user_id === Auth::id();
             $isManager = Auth::user()->hasBoardPermission($board, 'board_member_manager');
             if (! $isAuthor && ! $isManager) {
-                return response()->json(['success' => false, 'message' => 'Bạn không có quyền xóa bình luận này.'], 403);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không có quyền xóa bình luận này.',
+                ], 403);
             }
 
             DB::transaction(function () use ($comment, $task) {
                 $comment->delete();
-                (new TaskHistory)->logTaskHistory($task, 'xóa bình luận');
+                (new TaskHistory())->logTaskHistory($task, 'xóa bình luận');
             });
 
             return response()->json([
@@ -81,7 +86,7 @@ class CommentController extends Controller
                 'message' => 'Bình luận đã được xóa.',
             ]);
         } catch (\Exception $e) {
-            Log::error("Error deleting comment for task {$task->id}: ".$e->getMessage());
+            Log::error("Error deleting comment for task {$task->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể xóa bình luận.'], 500);
         }

@@ -38,6 +38,8 @@ class Handler extends ExceptionHandler
 
     /**
      * Register the exception handling callbacks for the application.
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function register(): void
     {
