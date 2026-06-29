@@ -80,9 +80,15 @@ class TaskController extends Controller
                 ],
             ], 201);
         } catch (\Exception $e) {
-            Log::error("Error creating task in column {$column->id}: " . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
+            Log::error(
+                "Error creating task in column {$column->id}: "
+                . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine()
+            );
 
-            return response()->json(['success' => false, 'message' => 'Không thể thêm nhiệm vụ mới. Vui lòng thử lại.'], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể thêm nhiệm vụ mới. Vui lòng thử lại.',
+            ], 500);
         }
     }
 
@@ -91,73 +97,106 @@ class TaskController extends Controller
         $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
         $task->loadDetails();
 
+        $this->applyColumnName($task);
+
+        // Định dạng ngày nếu cần
+        $task->formatted_due_date = $task->due_date ? $task->due_date->format('d/m/Y') : null;
+
+        $this->applyTaskHistories($task);
+        $this->applyComments($task);
+        $this->applyChecklists($task);
+
+        return response()->json([
+            'success' => true,
+            'task' => $task,
+        ]);
+    }
+
+    private function applyColumnName(Task $task): void
+    {
         if ($task->column) {
             $task->column_name = $task->column->name;
         } else {
             $task->column_name = 'N/A';
             Log::warning("Task ID {$task->id} is missing column relation when trying to show details.");
         }
+    }
 
-        // Định dạng ngày nếu cần
-        $task->formatted_due_date = $task->due_date ? $task->due_date->format('d/m/Y') : null;
-
-        if ($task->taskHistories instanceof \Illuminate\Database\Eloquent\Collection) {
-            $task->task_histories = $task->taskHistories()
-                ->orderByDesc('created_at')
-                ->limit(100)
-                ->get();
-            $task->task_histories->transform(function ($history) {
-                $user = $history->user;
-
-                $timestamp = $history->updated_at ?? $history->created_at;
-                $formatted_time = $timestamp ? \Carbon\Carbon::parse($timestamp)->format('Y/m/d H:i:s') : 'Không rõ thời gian';
-
-                return [
-                    'id' => $history->id,
-                    'user_id' => $user?->id,
-                    'user_name' => $user?->name ?? 'Người dùng không xác định',
-                    'user_avatar' => $user ? 'https://i.pravatar.cc/40?u=' . $user->id : 'https://i.pravatar.cc/40?u=unknown',
-                    'action' => $history->action,
-                    'note' => $history->note,
-                    'created_at' => $history->created_at->format('Y/m/d H:i:s'),
-                    'updated_at' => $formatted_time,
-                ];
-            });
-        } else {
+    private function applyTaskHistories(Task $task): void
+    {
+        if (! ($task->taskHistories instanceof \Illuminate\Database\Eloquent\Collection)) {
             $task->task_histories = collect([]);
+
+            return;
         }
 
-        if ($task->comments instanceof \Illuminate\Database\Eloquent\Collection) {
-            $task->comments->transform(function ($comment) {
-                $comment->user_name = $comment->user ? $comment->user->name : 'Người dùng không xác định';
-                $comment->user_avatar = $comment->user ? ('https://i.pravatar.cc/40?u=' . $comment->user->id) : 'https://i.pravatar.cc/40?u=unknown';
-                $comment->time_ago = $comment->created_at ? $comment->created_at->diffForHumans() : 'Không rõ thời gian';
+        $task->task_histories = $task->taskHistories()
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get();
+        $task->task_histories->transform(fn ($history) => $this->mapHistory($history));
+    }
 
-                return $comment;
-            });
-        } else {
+    private function mapHistory($history): array
+    {
+        $user = $history->user;
+
+        $timestamp = $history->updated_at ?? $history->created_at;
+        $formatted_time = $timestamp
+            ? \Carbon\Carbon::parse($timestamp)->format('Y/m/d H:i:s')
+            : 'Không rõ thời gian';
+
+        return [
+            'id' => $history->id,
+            'user_id' => $user?->id,
+            'user_name' => $user?->name ?? 'Người dùng không xác định',
+            'user_avatar' => $user
+                ? 'https://i.pravatar.cc/40?u=' . $user->id
+                : 'https://i.pravatar.cc/40?u=unknown',
+            'action' => $history->action,
+            'note' => $history->note,
+            'created_at' => $history->created_at->format('Y/m/d H:i:s'),
+            'updated_at' => $formatted_time,
+        ];
+    }
+
+    private function applyComments(Task $task): void
+    {
+        if (! ($task->comments instanceof \Illuminate\Database\Eloquent\Collection)) {
             $task->comments = collect([]);
             Log::warning("Task ID {$task->id}: comments was not a collection, possibly null or load issue.");
+
+            return;
         }
 
-        if ($task->checklists instanceof \Illuminate\Database\Eloquent\Collection) {
-            $task->checklists->transform(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'title' => $item->title,
-                    'is_done' => $item->is_done,
-                    'position' => $item->position,
-                    'task_id' => $item->task_id,
-                ];
-            });
-        } else {
+        $task->comments->transform(function ($comment) {
+            $comment->user_name = $comment->user ? $comment->user->name : 'Người dùng không xác định';
+            $comment->user_avatar = $comment->user
+                ? ('https://i.pravatar.cc/40?u=' . $comment->user->id)
+                : 'https://i.pravatar.cc/40?u=unknown';
+            $comment->time_ago = $comment->created_at
+                ? $comment->created_at->diffForHumans()
+                : 'Không rõ thời gian';
+
+            return $comment;
+        });
+    }
+
+    private function applyChecklists(Task $task): void
+    {
+        if (! ($task->checklists instanceof \Illuminate\Database\Eloquent\Collection)) {
             $task->checklists = collect([]);
             Log::warning("Task ID {$task->id}: checklists was not a collection, possibly null or load issue.");
+
+            return;
         }
 
-        return response()->json([
-            'success' => true,
-            'task' => $task,
+        $task->checklists->transform(fn ($item) => [
+            'id' => $item->id,
+            'title' => $item->title,
+            'is_done' => $item->is_done,
+            'position' => $item->position,
+            'task_id' => $item->task_id,
         ]);
     }
 

@@ -1,35 +1,40 @@
 # =============================================================================
 #  icegozi_workflow — Makefile
-#  Laravel 10 · PHP 8.2-FPM · Nginx · Supervisor · MySQL 8 (Docker Compose)
+#  Laravel 10 · PHP 8.2-FPM · Nginx · Supervisor · MySQL 8 · Docker Compose
+#
+#  Kiến trúc:
+#    - Laravel + Inertia + Vue 3 + Vite.
+#    - Mọi thao tác đều thực hiện trong Docker.
+#    - Composer, Node.js và Vite đều chạy trong container app.
 #
 #  Quy ước:
-#    - Mọi lệnh đều đi qua Docker Compose; không cần PHP/Composer/Node trên host.
-#    - `make help` liệt kê toàn bộ target (nguồn duy nhất của sự thật).
-#    - Tham số động: `make artisan c="route:list"`, `make composer c="require ..."`
+#    - make help                     : Hiển thị toàn bộ lệnh.
+#    - make artisan c="route:list"  : Chạy artisan.
+#    - make composer c="update"     : Chạy composer.
+#    - make npm c="run build"       : Chạy npm.
 # =============================================================================
 
-# ----- Cấu hình shell: fail nhanh, fail rõ ----------------------------------
+# ----- Cấu hình shell --------------------------------------------------------
 SHELL := /usr/bin/bash
 .SHELLFLAGS := -euo pipefail -c
 .ONESHELL:
 .DEFAULT_GOAL := help
 
 # ----- Biến cấu hình ---------------------------------------------------------
-COMPOSE      ?= docker compose
-APP_SERVICE  ?= app
-DB_SERVICE   ?= db
+COMPOSE     ?= docker compose
+APP_SERVICE ?= app
+DB_SERVICE  ?= db
 
-# Chạy artisan/composer trong container app (đã có sẵn PHP + extension)
-EXEC         := $(COMPOSE) exec $(APP_SERVICE)
-EXEC_T       := $(COMPOSE) exec -T $(APP_SERVICE)   # -T: không cấp TTY (CI/pipe)
+EXEC   := $(COMPOSE) exec $(APP_SERVICE)
+EXEC_T := $(COMPOSE) exec -T $(APP_SERVICE)
 
-# Nạp biến từ .env nếu tồn tại (cho DB_*, APP_PORT...)
+# Nạp biến từ .env nếu tồn tại
 ifneq (,$(wildcard ./.env))
 include .env
 export
 endif
 
-# ----- Màu sắc cho output ----------------------------------------------------
+# ----- Màu sắc output --------------------------------------------------------
 CYAN  := \033[36m
 GREEN := \033[32m
 YELL  := \033[33m
@@ -39,57 +44,46 @@ RESET := \033[0m
 #  Trợ giúp
 # =============================================================================
 .PHONY: help
-help: ## Hiển thị danh sách target (mặc định)
+help: ## Hiển thị danh sách target
 	@printf "$(CYAN)icegozi_workflow$(RESET) — các lệnh khả dụng:\n\n"
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## .*$$' $(firstword $(MAKEFILE_LIST)) \
 		| sort \
-		| awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-18s$(RESET) %s\n", $$1, $$2}'
-	@printf "\n$(YELL)Ví dụ:$(RESET) make artisan c=\"migrate:status\"\n"
+		| awk 'BEGIN {FS=":.*?## "}; {printf "  $(GREEN)%-18s$(RESET) %s\n", $$1, $$2}'
+	@printf "\n$(YELL)Ví dụ:$(RESET) make artisan c=\"route:list\"\n"
 
 # =============================================================================
 #  Vòng đời môi trường
 # =============================================================================
-.PHONY: init
-init: ## Khởi tạo lần đầu: .env + build + up + key
-	@test -f .env || (cp .env.example .env && printf "$(GREEN)[init]$(RESET) Đã tạo .env từ .env.example\n")
-	@$(MAKE) build
-	@$(MAKE) up
-	@$(MAKE) key
-
 .PHONY: build
-build: ## Build image (multi-stage, có cache)
+build: ## Build Docker image
 	$(COMPOSE) build
 
 .PHONY: rebuild
-rebuild: ## Build lại không dùng cache
-	$(COMPOSE) build --no-cache --pull
+rebuild: ## Build lại image (không dùng cache)
+	$(COMPOSE) build --no-cache
 
 .PHONY: up
-up: ## Khởi động toàn bộ service (nền)
+up: ## Khởi động toàn bộ service
 	$(COMPOSE) up -d
 
 .PHONY: down
-down: ## Dừng và gỡ container (giữ volume)
+down: ## Dừng và gỡ container
 	$(COMPOSE) down
 
 .PHONY: restart
-restart: ## Khởi động lại các service
+restart: ## Khởi động lại service
 	$(COMPOSE) restart
 
 .PHONY: stop
-stop: ## Tạm dừng service (không gỡ)
+stop: ## Dừng service
 	$(COMPOSE) stop
 
 .PHONY: ps
-ps: ## Trạng thái container
+ps: ## Hiển thị trạng thái container
 	$(COMPOSE) ps
 
 .PHONY: logs
-logs: ## Theo dõi log app (Ctrl-C để thoát)
-	$(COMPOSE) logs -f --tail=100 $(APP_SERVICE)
-
-.PHONY: logs-all
-logs-all: ## Theo dõi log toàn bộ service
+logs: ## Theo dõi log
 	$(COMPOSE) logs -f --tail=100
 
 # =============================================================================
@@ -100,127 +94,80 @@ shell: ## Mở bash trong container app
 	$(EXEC) bash
 
 .PHONY: db-shell
-db-shell: ## Mở mysql client trong container db
+db-shell: ## Mở MySQL shell
 	$(COMPOSE) exec $(DB_SERVICE) sh -c 'mysql -u$$MYSQL_USER -p$$MYSQL_PASSWORD $$MYSQL_DATABASE'
 
 # =============================================================================
-#  Laravel / Artisan / Composer / Node
+#  Laravel / Composer / NPM
 # =============================================================================
 .PHONY: artisan
-artisan: ## Chạy artisan tùy ý: make artisan c="route:list"
+artisan: ## Chạy artisan: make artisan c="route:list"
 	$(EXEC) php artisan $(c)
 
 .PHONY: composer
-composer: ## Chạy composer tùy ý: make composer c="install"
+composer: ## Chạy composer: make composer c="update"
 	$(EXEC) composer $(c)
 
-.PHONY: key
-key: ## Sinh APP_KEY nếu thiếu
-	$(EXEC) php artisan key:generate --force
+.PHONY: npm
+npm: ## Chạy npm: make npm c="run build"
+	$(EXEC) npm $(c)
 
-.PHONY: tinker
-tinker: ## Mở Laravel Tinker (REPL)
-	$(EXEC) php artisan tinker
+.PHONY: dev
+dev: ## Chạy Vite dev server
+	$(EXEC) npm run dev
 
 # =============================================================================
-#  Cơ sở dữ liệu
+#  Database
 # =============================================================================
 .PHONY: migrate
 migrate: ## Chạy migration
 	$(EXEC) php artisan migrate --force
 
 .PHONY: migrate-status
-migrate-status: ## Trạng thái migration
+migrate-status: ## Kiểm tra trạng thái migration
 	$(EXEC) php artisan migrate:status
 
 .PHONY: rollback
-rollback: ## Rollback batch migration gần nhất
+rollback: ## Rollback migration gần nhất
 	$(EXEC) php artisan migrate:rollback --force
 
 .PHONY: seed
-seed: ## Chạy seeder
+seed: ## Chạy database seeder
 	$(EXEC) php artisan db:seed --force
 
 .PHONY: fresh
-fresh: ## Drop toàn bộ bảng + migrate lại + seed (⚠ mất dữ liệu)
-	@printf "$(YELL)[fresh]$(RESET) Toàn bộ dữ liệu DB sẽ bị xóa.\n"
+fresh: ## Xóa DB và migrate lại (kèm seed)
+	@printf "$(YELL)[fresh]$(RESET) Toàn bộ dữ liệu sẽ bị xóa.\n"
 	$(EXEC) php artisan migrate:fresh --seed --force
 
 # =============================================================================
-#  Cache / Tối ưu
+#  Cache
 # =============================================================================
+.PHONY: clear
+clear: ## Xóa toàn bộ cache
+	$(EXEC) php artisan optimize:clear
+
 .PHONY: optimize
-optimize: ## Cache config/route/view (production)
+optimize: ## Cache config/route/view
 	$(EXEC) php artisan config:cache
 	$(EXEC) php artisan route:cache
 	$(EXEC) php artisan view:cache
 
-.PHONY: clear
-clear: ## Xóa toàn bộ cache (config/route/view/app)
-	$(EXEC) php artisan optimize:clear
-
 # =============================================================================
-#  Chất lượng mã: test & lint
+#  Test
 # =============================================================================
 .PHONY: test
-test: ## Chạy test suite (PHPUnit) — không TTY
+test: ## Chạy PHPUnit
 	$(EXEC_T) php artisan test
-
-# LƯU Ý: container KHÔNG bind-mount mã nguồn nên pint/phpcbf chạy trong container
-# chỉ sửa bản code đã nướng vào image (mất khi container restart), KHÔNG đụng file host.
-# Vì vậy các tool chất lượng chạy trên HOST (nơi có mã nguồn thật + dev vendor),
-# giống cách CI cài và chạy. Cần `composer install` trên host trước.
-.PHONY: lint
-lint: ## Kiểm tra code style (Laravel Pint, dry-run)
-	$(PHP) ./vendor/bin/pint --test
-
-.PHONY: lint-fix
-lint-fix: ## Tự sửa code style (Laravel Pint)
-	$(PHP) ./vendor/bin/pint
-
-.PHONY: phpcs
-phpcs: ## Kiểm tra chuẩn PSR-12 (PHP_CodeSniffer) trên app/routes/config
-	$(PHP) ./vendor/bin/phpcs --standard=./phpcs.xml
-
-.PHONY: phpcbf
-phpcbf: ## Tự sửa lỗi PSR-12 vá được (PHP_CodeSniffer)
-	$(PHP) ./vendor/bin/phpcbf --standard=./phpcs.xml || true
-
-.PHONY: phpmd
-phpmd: ## Phát hiện "mess" (PHPMD) trên app/
-	$(PHP) ./vendor/bin/phpmd app text ./phpmd.xml
-
-.PHONY: quality
-quality: lint phpcs phpmd ## Chạy toàn bộ kiểm tra chất lượng (Pint + PHPCS + PHPMD)
-
-# =============================================================================
-#  Tài nguyên tĩnh (minify)
-# =============================================================================
-# Chạy bằng PHP trên host để các file .min.* được sinh ngay trong mã nguồn
-# (commit được + build sẵn vào image). Đổi qua PHP khác bằng: make minifyjs PHP=php8.3
-PHP ?= php
-
-.PHONY: minifyjs
-minifyjs: ## Minify toàn bộ JS trong public/assets/js -> *.min.js
-	@printf "$(CYAN)[minify]$(RESET) JS trong public/assets/js\n"
-	$(PHP) scripts/minify-assets.php js
-
-.PHONY: minifycss
-minifycss: ## Minify toàn bộ CSS trong public/assets/css -> *.min.css
-	@printf "$(CYAN)[minify]$(RESET) CSS trong public/assets/css\n"
-	$(PHP) scripts/minify-assets.php css
-
-.PHONY: minify
-minify: minifyjs minifycss ## Minify cả JS và CSS
 
 # =============================================================================
 #  Dọn dẹp
 # =============================================================================
 .PHONY: clean
-clean: ## Gỡ container + volume (⚠ mất dữ liệu DB)
-	@printf "$(YELL)[clean]$(RESET) Gỡ container và volume (gồm dữ liệu DB).\n"
+clean: ## Gỡ container và volume (⚠ mất dữ liệu DB)
+	@printf "$(YELL)[clean]$(RESET) Gỡ container và volume.\n"
 	$(COMPOSE) down -v --remove-orphans
 
 .PHONY: prune
-prune: ## Dọn image/build cache treo của Docker (toàn hệ thống)
+prune: ## Dọn Docker cache
 	docker system prune -f

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attachment;
-use App\Models\Board;
 use App\Models\Task;
 use Exception;
 use Illuminate\Http\Request;
@@ -29,24 +28,13 @@ class AttachmentController extends Controller
         abort(403, 'Bạn không có quyền thực hiện thao tác!');
     }
 
-    private function authorizeBoardAccess(Board $board, array $requiredPermissions = [])
-    {
-        $user = Auth::user();
-        foreach ($requiredPermissions as $permission) {
-            if ($user->hasBoardPermission($board, $permission)) {
-                return $board;
-            }
-        }
-
-        abort(403, 'Bạn không có quyền thực hiện thao tác!');
-    }
-
     public function store(Request $request, Task $task)
     {
         $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
         $request->validate([
             'attachments' => 'required|array',
-            'attachments.*' => 'file|max:10240|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,gif,bmp,webp,zip,rar,7z,txt,csv',
+            'attachments.*' => 'file|max:10240|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,'
+                . 'png,jpg,jpeg,gif,bmp,webp,zip,rar,7z,txt,csv',
         ]);
 
         $uploadedAttachmentsData = [];
@@ -58,12 +46,19 @@ class AttachmentController extends Controller
                 foreach ($request->file('attachments') as $file) {
                     try {
                         $originalName = $file->getClientOriginalName();
-                        $filename = Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '-' . time() . '-' . Str::random(5) . '.' . $file->getClientOriginalExtension();
-                        $path = $file->storeAs('attachments/task_' . $task->id, $filename, 'public'); // Lưu vào disk 'public'
+                        $filename = Str::slug(pathinfo($originalName, PATHINFO_FILENAME))
+                            . '-' . time()
+                            . '-' . Str::random(5)
+                            . '.' . $file->getClientOriginalExtension();
+                        // Lưu vào disk 'public'
+                        $path = $file->storeAs('attachments/task_' . $task->id, $filename, 'public');
 
                         if (! $path) {
                             $errorMessages[] = "Không thể lưu file: {$originalName}.";
-                            Log::error("Attachment store failed for file: {$originalName} on task {$task->id}. Path not returned.");
+                            Log::error(
+                                "Attachment store failed for file: {$originalName} "
+                                . "on task {$task->id}. Path not returned."
+                            );
 
                             continue;
                         }
@@ -95,7 +90,11 @@ class AttachmentController extends Controller
 
                         $successMessages[] = "File '{$originalName}' đã được tải lên.";
                     } catch (Exception $e) {
-                        Log::error("Attachment upload failed for file: {$originalName} on task {$task->id}. Error: " . $e->getMessage(), ['exception' => $e]);
+                        Log::error(
+                            "Attachment upload failed for file: {$originalName} "
+                            . "on task {$task->id}. Error: " . $e->getMessage(),
+                            ['exception' => $e]
+                        );
                         $errorMessages[] = "Lỗi khi tải lên file '{$originalName}'.";
                     }
                 }
@@ -109,7 +108,8 @@ class AttachmentController extends Controller
             if (! empty($uploadedAttachmentsData)) {
                 return response()->json([
                     'success' => true,
-                    'message' => implode("\n", $successMessages) . (! empty($errorMessages) ? "\nLỗi: " . implode("\n", $errorMessages) : ''),
+                    'message' => implode("\n", $successMessages)
+                        . (! empty($errorMessages) ? "\nLỗi: " . implode("\n", $errorMessages) : ''),
                     'attachments' => $uploadedAttachmentsData,
                 ]);
             } else {
@@ -188,14 +188,20 @@ class AttachmentController extends Controller
         $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
         try {
             if (! Storage::disk('public')->exists($attachment->file_path)) {
-                Log::error("File not found for download: Attachment ID {$attachment->id}, Path: {$attachment->file_path}");
+                Log::error(
+                    "File not found for download: Attachment ID {$attachment->id}, "
+                    . "Path: {$attachment->file_path}"
+                );
 
                 return response()->json(['success' => false, 'message' => 'Không tìm thấy tệp tin.'], 404);
             }
 
             return Storage::disk('public')->download($attachment->file_path, $attachment->file_name);
         } catch (Exception $e) {
-            Log::error("Download attachment failed for attachment {$attachment->id}: " . $e->getMessage(), ['exception' => $e]);
+            Log::error(
+                "Download attachment failed for attachment {$attachment->id}: " . $e->getMessage(),
+                ['exception' => $e]
+            );
 
             return response()->json([
                 'success' => false,

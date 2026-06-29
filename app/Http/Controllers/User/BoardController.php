@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\BoardRequest;
 use App\Models\Board;
 use App\Models\Column;
-use App\Models\User;
 use Auth;
 
 class BoardController extends Controller
@@ -29,7 +28,6 @@ class BoardController extends Controller
         $validated = $request->validated();
         $column = new Column();
         $boards = new Board();
-        $users = new User();
 
         $data = [
             'user_id' => Auth::id(),
@@ -38,21 +36,8 @@ class BoardController extends Controller
         ];
         $board = $boards->createBoard($data);
         $column->createDefaultColumns($board->id);
-        $currentUserRole = $users->getRoleForBoard($board);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Bảng đã được tạo thành công!',
-            'board' => [
-                'id' => $board->id,
-                'name' => $board->name,
-                'currentUserRole' => $currentUserRole,
-                'created_at_formatted' => $board->created_at->format('d/m/Y'),
-                'url_show' => route('boards.show', $board->id),
-                'url_update' => route('boards.update', $board->id),
-                'url_destroy' => route('boards.destroy', $board->id),
-            ],
-        ], 201);
+        return redirect()->route('user.dashboard')->with('success', 'Bảng đã được tạo thành công!');
     }
 
     public function show(Board $board)
@@ -62,15 +47,42 @@ class BoardController extends Controller
             'columns' => function ($query) {
                 $query->orderBy('position', 'asc');
             },
-
             'columns.tasks' => function ($query) {
-                $query->with('assignees')
-                    ->orderBy('position', 'asc');
+                $query->with('assignees')->orderBy('position', 'asc');
             },
-
         ]);
 
-        return view('user.boards.show', compact('board'));
+        $user = Auth::user();
+        $canEdit = $user->hasBoardPermission($board, 'board_editor')
+            || $user->hasBoardPermission($board, 'board_member_manager');
+        $canManage = $user->hasBoardPermission($board, 'board_member_manager');
+
+        return \Inertia\Inertia::render('Boards/Show', [
+            'board' => [
+                'id' => $board->id,
+                'name' => $board->name,
+                'columns' => $board->columns->map(fn ($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'position' => $c->position,
+                    'tasks' => $c->tasks->map(fn ($t) => [
+                        'id' => $t->id,
+                        'title' => $t->title,
+                        'column_id' => $t->column_id,
+                        'position' => $t->position,
+                        'due_date' => $t->due_date ? $t->due_date->toDateString() : null,
+                        'formatted_due_date' => $t->due_date ? $t->due_date->format('d/m/Y') : null,
+                        'assignees' => $t->assignees->map(fn ($u) => [
+                            'id' => $u->id,
+                            'name' => $u->name,
+                            'email' => $u->email,
+                        ])->values(),
+                    ])->values(),
+                ])->values(),
+            ],
+            'canEdit' => $canEdit,
+            'canManage' => $canManage,
+        ]);
     }
 
     public function update(BoardRequest $request, Board $board)
@@ -81,12 +93,7 @@ class BoardController extends Controller
 
         $board->update(['name' => $validated['name']]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Tên bảng đã được cập nhật.',
-            'new_name' => $board->name,
-            'updated_at_formatted' => $board->updated_at->format('d/m/Y H:i:s'),
-        ]);
+        return redirect()->back()->with('success', 'Tên bảng đã được cập nhật.');
     }
 
     public function destroy(Board $board)
@@ -95,9 +102,6 @@ class BoardController extends Controller
 
         $board->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Bảng đã được xoá thành công.',
-        ]);
+        return redirect()->route('user.dashboard')->with('success', 'Bảng đã được xoá thành công.');
     }
 }

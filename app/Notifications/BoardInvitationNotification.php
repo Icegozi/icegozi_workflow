@@ -26,6 +26,8 @@ class BoardInvitationNotification extends Notification
      * Get the notification's delivery channels.
      *
      * @return array<int, string>
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function via(object $notifiable): array
     {
@@ -34,6 +36,8 @@ class BoardInvitationNotification extends Notification
 
     /**
      * Get the mail representation of the notification.
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function toMail(object $notifiable): MailMessage
     {
@@ -63,6 +67,8 @@ class BoardInvitationNotification extends Notification
      * Get the array representation of the notification.
      *
      * @return array<string, mixed>
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function toArray(object $notifiable): array
     {

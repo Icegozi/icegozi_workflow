@@ -2,16 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\TaskRelationships;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 
 class Task extends Model
 {
     use HasFactory;
+    use TaskRelationships;
 
     protected $fillable = [
         'title',
@@ -26,42 +25,6 @@ class Task extends Model
     protected $casts = [
         'due_date' => 'date',
     ];
-
-    public function column(): BelongsTo
-    {
-        return $this->belongsTo(Column::class);
-    }
-
-    public function attachments(): HasMany
-    {
-        return $this->hasMany(Attachment::class);
-    }
-
-    public function comments(): HasMany
-    {
-        return $this->hasMany(Comment::class)->latest();
-    }
-
-    public function taskHistories(): HasMany
-    {
-        return $this->hasMany(TaskHistory::class)->latest();
-    }
-
-    public function assignees(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'assignees', 'task_id', 'user_id')->withTimestamps();
-    }
-
-    public function checklists(): HasMany
-    {
-        return $this->hasMany(Checklist::class)->orderBy('position');
-    }
-
-    public function board()
-    {
-        // Null-safe: task có thể tạm thời không có column hợp lệ.
-        return optional($this->column)->board;
-    }
 
     public function createForColumn(Column $column, array $data): Task
     {
@@ -136,8 +99,8 @@ class Task extends Model
         if ($oldColumnId != $newColumnId) {
             $this->taskHistories()->create([
                 'user_id' => $userId,
-                'action' => 'di chuyển',
-                'note' => "Thẻ công việc di chuyển từ '{$oldColumn->name}' sang '{$newColumn->name}'",
+                'action' => 'di chuyển',
+                'note' => "Thẻ công việc di chuyển từ '{$oldColumn->name}' sang '{$newColumn->name}'",
             ]);
         }
 

@@ -1,0 +1,17 @@
+/* ------------------------------------------------------------------
+ * Chỉ giữ vendor + reset tối thiểu ở cấp global.
+ * Toàn bộ CSS custom đã chuyển vào <style scoped> của từng component Vue.
+ * Vite tự minify khi build nên dùng bản non-min cho nguồn.
+ * ------------------------------------------------------------------ */
+@import 'bootstrap/dist/css/bootstrap.css';
+@import './theme/vendor/fontawesome-free/css/all.css';
+@import './theme/vendor/adminlte.css';
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    background-color: #f4f6f9;
+}

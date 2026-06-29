@@ -1,102 +1,57 @@
 # syntax=docker/dockerfile:1
 
-# ---------------------------------------------------------------------------
-# Stage 1: Build frontend assets with Vite
-# ---------------------------------------------------------------------------
-FROM node:20-alpine AS assets
+FROM php:8.2-fpm-bookworm
 
-WORKDIR /app
-
-# Install node dependencies (cached unless lockfiles change)
-COPY package.json package-lock.json ./
-RUN npm ci
-
-# Build the Vite assets into public/build
-COPY . .
-RUN npm run build
-
-
-# ---------------------------------------------------------------------------
-# Stage 2: PHP dependencies via Composer (PHP 8.2 to match locked deps)
-# ---------------------------------------------------------------------------
-FROM php:8.2-cli-bookworm AS vendor
-
-# Minimal tooling + extensions Composer needs to resolve/install
+# Install system packages, PHP extensions and Node.js
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git unzip libzip-dev libonig-dev \
-    && docker-php-ext-install -j"$(nproc)" zip bcmath \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-WORKDIR /app
-
-# Install PHP dependencies (no scripts; artisan not fully available yet).
-# INSTALL_DEV=true (mặc định) cài cả dev-deps để có sẵn các tool chất lượng
-# (pint, phpcs, phpmd, phpunit) trong image phục vụ `make lint/phpcs/phpmd/test`.
-# Khi build production gọn: --build-arg INSTALL_DEV=false
-ARG INSTALL_DEV=true
-COPY composer.json composer.lock ./
-RUN if [ "$INSTALL_DEV" = "true" ]; then \
-        composer install --no-interaction --no-progress --prefer-dist --no-scripts --optimize-autoloader; \
-    else \
-        composer install --no-dev --no-interaction --no-progress --prefer-dist --no-scripts --optimize-autoloader; \
-    fi
-
-
-# ---------------------------------------------------------------------------
-# Stage 3: Runtime image (PHP-FPM + Nginx via Supervisor)
-# ---------------------------------------------------------------------------
-FROM php:8.2-fpm-bookworm AS app
-
-# System packages and PHP extensions required by Laravel
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        nginx \
-        supervisor \
-        libpng-dev \
-        libjpeg62-turbo-dev \
-        libfreetype6-dev \
-        libzip-dev \
-        libonig-dev \
-        libxml2-dev \
-        zip \
-        unzip \
-        git \
-        default-mysql-client \
+    nginx \
+    supervisor \
+    curl \
+    git \
+    unzip \
+    zip \
+    default-mysql-client \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libzip-dev \
+    libonig-dev \
+    libxml2-dev \
+    ca-certificates \
+    gnupg \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
-        pdo_mysql \
-        mbstring \
-        bcmath \
-        gd \
-        zip \
-        exif \
-        pcntl \
-        opcache \
+    pdo_mysql \
+    mbstring \
+    bcmath \
+    gd \
+    zip \
+    exif \
+    pcntl \
+    opcache \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
 WORKDIR /var/www/html
 
-# Copy application source
+# Copy source code
 COPY . .
-
-# Bring in built assets and vendor dependencies from earlier stages
-COPY --from=assets /app/public/build ./public/build
-COPY --from=vendor /app/vendor ./vendor
 
 # PHP / Nginx / Supervisor configuration
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/zzz-app.ini
 COPY docker/nginx/default.conf /etc/nginx/sites-available/default
 COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Laravel needs writable storage and cache directories
-RUN chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 80
 
 ENTRYPOINT ["entrypoint.sh"]
+
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
