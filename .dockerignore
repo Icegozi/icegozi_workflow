@@ -8,9 +8,13 @@ public/hot
 public/storage
 storage/*.key
 storage/logs/*
-storage/framework/cache/data/*
+!storage/logs/.gitignore
+storage/framework/cache/*
+!storage/framework/cache/.gitignore
 storage/framework/sessions/*
+!storage/framework/sessions/.gitignore
 storage/framework/views/*
+!storage/framework/views/.gitignore
 bootstrap/cache/*.php
 .env
 .env.*
@@ -22,7 +26,5 @@ yarn-error.log
 .idea
 .vscode
 .fleet
-Dockerfile
-docker-compose.yml
 README.md
 tests
