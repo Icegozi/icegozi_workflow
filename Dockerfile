@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2-dev \
     ca-certificates \
     gnupg \
+    passwd \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
     pdo_mysql \
@@ -36,6 +37,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+ARG PUID=1000
+ARG PGID=1000
+RUN groupmod -o -g "${PGID}" www-data \
+    && usermod -o -u "${PUID}" -g "${PGID}" www-data
 
 WORKDIR /var/www/html
 
