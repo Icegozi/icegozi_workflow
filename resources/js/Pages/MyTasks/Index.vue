@@ -99,8 +99,8 @@ const openTask = (t) => router.visit(route('tasks.edit', t.code));
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    background: #fff;
-    border: 1px solid #eceef1;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
     border-radius: 12px;
     padding: 12px 16px;
     cursor: pointer;
@@ -121,7 +121,7 @@ const openTask = (t) => router.visit(route('tasks.edit', t.code));
 
 .mt-title {
     font-weight: 600;
-    color: #172b4d;
+    color: var(--app-text);
 }
 
 .mt-title.done {
@@ -160,7 +160,7 @@ const openTask = (t) => router.visit(route('tasks.edit', t.code));
     padding: 2px 9px;
     border-radius: 20px;
     border: 1px solid currentColor;
-    background: #fff;
+    background: var(--app-surface);
     white-space: nowrap;
 }
 

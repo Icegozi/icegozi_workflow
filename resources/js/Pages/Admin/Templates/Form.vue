@@ -120,7 +120,7 @@ const submit = () => {
 
 <style scoped>
 .status-pick {
-    background: #fff;
+    background: var(--app-surface);
     border: 1px solid #ccc;
     border-radius: 20px;
     padding: 3px 12px;

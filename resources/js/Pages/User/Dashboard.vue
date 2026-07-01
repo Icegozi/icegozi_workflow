@@ -198,7 +198,7 @@ const toggleMenu = (id) => { openMenuId.value = openMenuId.value === id ? null :
 
 .template-card {
     text-align: left;
-    background: #fff;
+    background: var(--app-surface);
     border: 1px solid #e4e6ea;
     border-radius: 10px;
     padding: 10px 12px;

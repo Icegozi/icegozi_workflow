@@ -56,6 +56,14 @@ input[type="range"] {
     box-shadow: 0 0 0 0.2rem rgba(102, 51, 0, 0.25);
 }
 
+/* Icon addon của input-group hoà cùng ô nhập (thay nền xám mặc định của Bootstrap)
+   để Email/Mật khẩu... nhất quán với các trường khác ở cả sáng lẫn tối. */
+.input-group-text {
+    background-color: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-text-muted);
+}
+
 /* ------------------------------------------------------------------
  * Brand overrides — gom các thành phần Bootstrap "primary"/link/
  * pagination/badge về tông accent (nâu). Các màu ngữ nghĩa
@@ -147,6 +155,136 @@ a:hover {
 
 .border-accent {
     border-color: var(--app-accent) !important;
+}
+
+/* ------------------------------------------------------------------
+ * Dark mode overrides — các thành phần Bootstrap mặc định hardcode màu
+ * sáng (card/form/table/modal/dropdown/bg-light...). Ánh xạ về biến theme
+ * để giao diện đổi màu nhất quán khi bật chế độ tối.
+ * ------------------------------------------------------------------ */
+[data-theme="dark"] body {
+    color: var(--app-text);
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .list-group-item,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .card-header,
+[data-theme="dark"] .card-footer {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .custom-select,
+[data-theme="dark"] textarea.form-control,
+[data-theme="dark"] .input-group-text {
+    background-color: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .input-group-text {
+    color: var(--app-text-muted);
+}
+
+[data-theme="dark"] .form-control:disabled,
+[data-theme="dark"] .form-control[readonly] {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: var(--app-text-muted);
+}
+
+[data-theme="dark"] .table {
+    color: var(--app-text);
+}
+
+[data-theme="dark"] .table td,
+[data-theme="dark"] .table th {
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--app-text);
+}
+
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--app-text);
+}
+
+[data-theme="dark"] .bg-light {
+    background-color: var(--app-bg) !important;
+    color: var(--app-text);
+}
+
+[data-theme="dark"] .bg-white {
+    background-color: var(--app-surface) !important;
+}
+
+[data-theme="dark"] .text-dark {
+    color: var(--app-text) !important;
+}
+
+[data-theme="dark"] .btn-light {
+    background-color: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .btn-light:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Nút "đen" (btn-dark / btn-outline-dark) sẽ chìm trên nền tối -> đảo sang sáng */
+[data-theme="dark"] .btn-outline-dark {
+    color: var(--app-text);
+    border-color: var(--app-text);
+}
+
+[data-theme="dark"] .btn-outline-dark:hover,
+[data-theme="dark"] .btn-outline-dark:focus,
+[data-theme="dark"] .btn-outline-dark:not(:disabled):not(.disabled):active {
+    background-color: var(--app-text);
+    border-color: var(--app-text);
+    color: var(--app-bg);
+}
+
+[data-theme="dark"] .btn-dark {
+    background-color: var(--app-text);
+    border-color: var(--app-text);
+    color: var(--app-bg);
+}
+
+[data-theme="dark"] .btn-dark:hover,
+[data-theme="dark"] .btn-dark:focus,
+[data-theme="dark"] .btn-dark:not(:disabled):not(.disabled):active {
+    background-color: #ffffff;
+    border-color: #ffffff;
+    color: #15171a;
+}
+
+[data-theme="dark"] .close {
+    color: var(--app-text);
+    text-shadow: none;
+}
+
+[data-theme="dark"] hr {
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .badge-light {
+    background-color: var(--app-bg);
+    color: var(--app-text);
 }
 
 /* Nền chung của layout người dùng & admin: sáng, ánh đỏ rất mờ */

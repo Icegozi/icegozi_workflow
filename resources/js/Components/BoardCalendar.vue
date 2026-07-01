@@ -119,8 +119,8 @@ const onDrop = (key, evt) => {
 
 <style scoped>
 .board-calendar {
-    background: #fff;
-    border: 1px solid #eceef1;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
     border-radius: 12px;
     padding: 12px;
 }
@@ -165,8 +165,8 @@ const onDrop = (key, evt) => {
 
 .cal-cell {
     min-height: 110px;
-    background: #f7f8fa;
-    border: 1px solid #eceef1;
+    background: var(--app-bg);
+    border: 1px solid var(--app-border);
     border-radius: 8px;
     padding: 4px;
     display: flex;
@@ -201,8 +201,8 @@ const onDrop = (key, evt) => {
 }
 
 .cal-task {
-    background: #fff;
-    border: 1px solid #edeef0;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
     border-left: 3px solid #c1c7d0;
     border-radius: 6px;
     padding: 3px 6px;
@@ -235,7 +235,7 @@ const onDrop = (key, evt) => {
 
 .cal-task-title {
     display: block;
-    color: #172b4d;
+    color: var(--app-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

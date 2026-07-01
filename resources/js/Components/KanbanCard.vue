@@ -128,7 +128,7 @@ const hasMeta = computed(() => {
 
 <style scoped>
 .kanban-card {
-    background: #ffffff;
+    background: var(--app-surface);
     border: 1px solid #f1f2f4;
     border-radius: 16px;
     padding: 16px;
@@ -200,7 +200,7 @@ const hasMeta = computed(() => {
     padding: 3px 9px;
     border-radius: 20px;
     border: 1px solid currentColor;
-    background: #fff;
+    background: var(--app-surface);
     line-height: 1.2;
 }
 
@@ -225,7 +225,7 @@ const hasMeta = computed(() => {
 .card-title {
     font-size: 0.95rem;
     font-weight: 600;
-    color: #172b4d;
+    color: var(--app-text);
     line-height: 1.4;
     margin: 0;
     word-break: break-word;

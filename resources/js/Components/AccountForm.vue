@@ -121,17 +121,16 @@ const statuses = { active: 'Kích hoạt', inactive: 'Không kích hoạt', bann
     margin-bottom: 12px;
 }
 
-/* Khu vực checkbox Admin */
+/* Khu vực switch Admin — dùng cùng nền/viền như input để đồng bộ */
 .admin-toggle {
-    background: rgba(127, 127, 127, 0.06);
+    background: var(--app-surface);
     border: 1px solid var(--app-border, #e4e6ea);
-    border-radius: 8px;
+    border-radius: 0.25rem;
     padding: 8px 12px;
-    /* Căn giữa checkbox theo chiều dọc để đồng bộ với input bên cạnh */
+    /* Căn giữa switch theo chiều dọc, cao bằng input bên cạnh */
     display: flex;
     align-items: center;
-    height: 100%; 
-    min-height: 42px; 
+    height: calc(1.5em + 0.75rem + 2px);
 }
 
 /* Lưới thông tin hệ thống */

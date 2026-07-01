@@ -9,21 +9,7 @@ import Footer from '@/Components/Footer.vue';
 <template>
     <div class="wrapper d-flex flex-column min-vh-100">
         <!-- Topbar -->
-        <Topbar>
-            <li class="nav-item d-none d-sm-inline-block">
-                <Link :href="route('admin.dashboard')" class="nav-link">Thống kê</Link>
-            </li>
-            <NavDropdown label="Quản lý tài khoản">
-                <Link :href="route('admin.user.index')" class="dropdown-item">Danh sách</Link>
-                <Link :href="route('admin.user.create')" class="dropdown-item">Thêm tài khoản</Link>
-            </NavDropdown>
-            <li class="nav-item d-none d-sm-inline-block">
-                <Link :href="route('admin.template.index')" class="nav-link">Mẫu bảng</Link>
-            </li>
-            <li class="nav-item d-none d-sm-inline-block">
-                <Link :href="route('admin.status.index')" class="nav-link">Trạng thái</Link>
-            </li>
-        </Topbar>
+        <Topbar></Topbar>
 
         <div class="d-flex flex-grow-1" id="admin-bg">
             <!-- Sidebar -->

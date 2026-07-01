@@ -68,7 +68,7 @@ const submitTask = () => {
     width: clamp(250px, 85vw, 290px);
     /* Cao theo nội dung (không giới hạn, không cuộn trong cột) */
     min-height: 120px;
-    background: #ebecf0;
+    background: var(--app-bg);
     border-radius: 10px;
     padding: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
