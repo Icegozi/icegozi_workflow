@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Notification;
 use App\Models\Task;
 use App\Models\TaskHistory;
 use Illuminate\Http\Request;
@@ -28,8 +29,12 @@ class CommentController extends Controller
 
     public function store(Request $request, Task $task)
     {
-        $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
-        $request->validate(['content' => 'required|string|max:5000']);
+        $board = $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
+        $request->validate([
+            'content' => 'required|string|max:5000',
+            'mentions' => 'nullable|array',
+            'mentions.*' => 'integer',
+        ]);
 
         try {
             $comment = DB::transaction(function () use ($task, $request) {
@@ -44,6 +49,8 @@ class CommentController extends Controller
             });
             $comment->load('user');
 
+            $this->notifyMentions($task, $board, (array) $request->input('mentions', []));
+
             $comment->user_avatar = $comment->user
                 ? ('https://i.pravatar.cc/40?u=' . $comment->user->id)
                 : 'https://i.pravatar.cc/40?u=unknown';
@@ -56,6 +63,32 @@ class CommentController extends Controller
             Log::error("Error adding comment to task {$task->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể thêm bình luận.'], 500);
+        }
+    }
+
+    /** Tạo thông báo cho những thành viên được nhắc (@) trong bình luận. */
+    private function notifyMentions(Task $task, $board, array $mentionIds): void
+    {
+        $mentionIds = array_filter(array_map('intval', $mentionIds));
+        if (empty($mentionIds)) {
+            return;
+        }
+
+        $me = Auth::id();
+        $meName = Auth::user()->name;
+
+        // Chỉ nhắc thành viên hợp lệ của bảng (đã gồm chủ bảng), bỏ chính mình.
+        $memberIds = collect((new \App\Models\Board())->getAssignedUsersByBoardId($board->id))
+            ->pluck('id')->all();
+
+        $code = Task::buildCode($board->name, $task->id);
+        $url = route('tasks.edit', $code, false);
+        $msg = "<strong>{$meName}</strong> đã nhắc bạn trong <strong>{$code}</strong> — {$task->title}.";
+
+        foreach (array_unique($mentionIds) as $uid) {
+            if ($uid !== $me && in_array($uid, $memberIds, true)) {
+                Notification::notifyUser($uid, $msg, $url, $task->id);
+            }
         }
     }
 

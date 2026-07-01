@@ -5,6 +5,7 @@ import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import KanbanColumn from '@/Components/KanbanColumn.vue';
 import TaskModal from '@/Components/TaskModal.vue';
+import Modal from '@/Components/Modal.vue';
 import TextInput from '@/Components/TextInput.vue';
 
 const props = defineProps({
@@ -136,6 +137,23 @@ const clearFilters = () => { filters.q = ''; filters.priority = ''; filters.assi
 const modalTaskId = ref(null);
 const openTask = (task) => { modalTaskId.value = task.id; };
 const closeTask = () => { modalTaskId.value = null; };
+
+// ---- Nhật ký hoạt động ----
+const showActivity = ref(false);
+const activities = ref([]);
+const loadingActivity = ref(false);
+const openActivity = async () => {
+    showActivity.value = true;
+    loadingActivity.value = true;
+    try {
+        const { data } = await axios.get(route('boards.activity', props.board.id));
+        activities.value = data.activities || [];
+    } catch (e) {
+        activities.value = [];
+    } finally {
+        loadingActivity.value = false;
+    }
+};
 </script>
 
 <template>
@@ -143,9 +161,14 @@ const closeTask = () => { modalTaskId.value = null; };
     <AuthenticatedLayout>
         <div class="board-header p-3 mb-2 border-bottom d-flex justify-content-between align-items-center flex-wrap">
             <h3 class="mb-0">{{ board.name }}</h3>
-            <Link :href="route('my-tasks.index')" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-user-check mr-1"></i>Task của tôi
-            </Link>
+            <div class="d-flex" style="gap:8px;">
+                <button class="btn btn-sm btn-outline-secondary" @click="openActivity">
+                    <i class="fas fa-clock-rotate-left mr-1"></i>Hoạt động
+                </button>
+                <Link :href="route('my-tasks.index')" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-user-check mr-1"></i>Task của tôi
+                </Link>
+            </div>
         </div>
 
         <!-- Thanh tìm kiếm & lọc -->
@@ -208,6 +231,22 @@ const closeTask = () => { modalTaskId.value = null; };
 
         <TaskModal v-if="modalTaskId" :task-id="modalTaskId" :can-edit="canEdit" :can-manage="canManage"
             :board-id="board.id" @close="closeTask" />
+
+        <!-- Nhật ký hoạt động -->
+        <Modal v-if="showActivity" max-width="560px" align="top" header-class="bg-dark text-light" @close="showActivity = false">
+            <template #header><h5 class="mb-0"><i class="fas fa-clock-rotate-left mr-2"></i>Hoạt động của bảng</h5></template>
+            <div v-if="loadingActivity" class="text-center p-4"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
+            <div v-else>
+                <div v-for="a in activities" :key="a.id" class="d-flex mb-3">
+                    <img :src="a.user_avatar" class="rounded-circle mr-2" width="32" height="32" style="height:32px;">
+                    <div class="flex-grow-1">
+                        <div v-html="a.note" style="font-size:.85rem;"></div>
+                        <div class="text-muted" style="font-size:.72rem;">{{ a.time_ago }}</div>
+                    </div>
+                </div>
+                <div v-if="!activities.length" class="text-muted text-center py-4">Chưa có hoạt động nào.</div>
+            </div>
+        </Modal>
     </AuthenticatedLayout>
 </template>
 

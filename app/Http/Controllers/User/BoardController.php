@@ -118,6 +118,28 @@ class BoardController extends Controller
         ]);
     }
 
+    /** Nhật ký hoạt động cấp board: gom TaskHistory của mọi task trong bảng. */
+    public function activity(Board $board)
+    {
+        $this->authorizeBoardAccess($board, ['board_viewer', 'board_editor', 'board_member_manager']);
+
+        $items = \App\Models\TaskHistory::with('user')
+            ->whereHas('task.column', fn ($q) => $q->where('board_id', $board->id))
+            ->latest()
+            ->limit(100)
+            ->get()
+            ->map(fn ($h) => [
+                'id' => $h->id,
+                'action' => $h->action,
+                'note' => $h->note,   // đã là HTML dựng sẵn
+                'user_name' => $h->user?->name ?? 'Không rõ',
+                'user_avatar' => 'https://i.pravatar.cc/40?u=' . ($h->user_id ?? 'x'),
+                'time_ago' => $h->created_at?->diffForHumans(),
+            ]);
+
+        return response()->json(['success' => true, 'activities' => $items]);
+    }
+
     public function update(BoardRequest $request, Board $board)
     {
         $this->authorizeBoardAccess($board, ['board_editor', 'board_member_manager']);

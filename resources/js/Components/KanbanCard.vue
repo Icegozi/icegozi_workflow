@@ -55,7 +55,7 @@ const hasMeta = computed(() => {
 <template>
     <div
         class="kanban-card"
-        :class="{ 'is-done': task.status?.is_completed }"
+        :class="{ 'is-done': task.status?.is_completed, 'is-overdue': dueState === 'overdue' && !task.status?.is_completed }"
         @click="emit('open')"
     >
         <!-- Mã công việc (kiểu ICE-0042) -->
@@ -331,6 +331,11 @@ const hasMeta = computed(() => {
 .meta-icon strong {
     font-weight: 600;
     font-size: 0.75rem;
+}
+
+/* Nhấn mạnh thẻ quá hạn */
+.is-overdue {
+    border-left: 4px solid #ff545a;
 }
 
 /* Hiệu ứng mờ khi Done */

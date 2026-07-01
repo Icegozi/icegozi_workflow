@@ -14,6 +14,7 @@ use App\Http\Controllers\User\CommentController;
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
 use App\Http\Controllers\User\LabelController;
 use App\Http\Controllers\User\MyTaskController;
+use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\OverviewTaskController;
 use App\Http\Controllers\User\TaskController;
 use Illuminate\Support\Facades\Route;
@@ -82,6 +83,16 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // --- "Task của tôi" (cross-board) ---
     Route::get('/my-tasks', [MyTaskController::class, 'index'])->name('my-tasks.index');
+
+    // --- Thông báo (in-app) ---
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])
+        ->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])
+        ->name('notifications.readAll');
+
+    // --- Nhật ký hoạt động của bảng ---
+    Route::get('/boards/{board}/activity', [BoardController::class, 'activity'])->name('boards.activity');
 
     // comment
     Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');

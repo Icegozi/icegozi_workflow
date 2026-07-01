@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -64,8 +64,41 @@ const loadMembers = async () => {
 
 onMounted(async () => {
     await loadTask();
-    if (props.canManage) loadMembers();
+    loadMembers();   // cần cho cả gợi ý @mention, không chỉ khi canManage
 });
+
+// ---- @mention trong bình luận ----
+const mentionOpen = ref(false);
+const mentionQuery = ref('');
+const selectedMentions = ref([]);   // [{id, name}]
+const mentionMatches = computed(() => {
+    const q = mentionQuery.value.toLowerCase();
+    return boardMembers.value
+        .filter((m) => m.name.toLowerCase().includes(q))
+        .slice(0, 6);
+});
+
+const onCommentInput = () => {
+    const text = newComment.value;
+    const at = text.lastIndexOf('@');
+    // Đang gõ token @... (sau @ không có khoảng trắng) thì mở gợi ý
+    if (at >= 0 && !/\s/.test(text.slice(at + 1))) {
+        mentionQuery.value = text.slice(at + 1);
+        mentionOpen.value = true;
+    } else {
+        mentionOpen.value = false;
+    }
+};
+
+const pickMention = (member) => {
+    const text = newComment.value;
+    const at = text.lastIndexOf('@');
+    newComment.value = text.slice(0, at) + '@' + member.name + ' ';
+    if (!selectedMentions.value.some((m) => m.id === member.id)) {
+        selectedMentions.value.push({ id: member.id, name: member.name });
+    }
+    mentionOpen.value = false;
+};
 
 const backToBoard = () => router.visit(route('boards.show', props.boardId));
 
@@ -101,9 +134,15 @@ const deleteTask = async () => {
 const addComment = async () => {
     const content = newComment.value.trim();
     if (!content) return;
+    // Chỉ gửi mention còn xuất hiện dạng "@Tên" trong nội dung
+    const mentions = selectedMentions.value
+        .filter((m) => content.includes('@' + m.name))
+        .map((m) => m.id);
     try {
-        await axios.post(route('comments.store', props.taskId), { content });
+        await axios.post(route('comments.store', props.taskId), { content, mentions });
         newComment.value = '';
+        selectedMentions.value = [];
+        mentionOpen.value = false;
         await loadTask();
     } catch (e) { alert(e.response?.data?.message || 'Không thể thêm bình luận.'); }
 };
@@ -276,9 +315,19 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
 
                 <hr>
                 <h6 class="font-weight-bold"><i class="fas fa-comments mr-2"></i>BÌNH LUẬN</h6>
-                <div class="input-group mb-3">
-                    <textarea class="form-control" rows="1" v-model="newComment" placeholder="Viết bình luận..."></textarea>
-                    <div class="input-group-append"><button class="btn btn-outline-primary" @click="addComment"><i class="fas fa-paper-plane"></i></button></div>
+                <div class="position-relative mb-3">
+                    <div class="input-group">
+                        <textarea class="form-control" rows="1" v-model="newComment" @input="onCommentInput"
+                            placeholder="Viết bình luận... gõ @ để nhắc thành viên"></textarea>
+                        <div class="input-group-append"><button class="btn btn-outline-primary" @click="addComment"><i class="fas fa-paper-plane"></i></button></div>
+                    </div>
+                    <div v-if="mentionOpen && mentionMatches.length" class="card shadow position-absolute w-100" style="z-index:20;">
+                        <a v-for="m in mentionMatches" :key="m.id" href="#"
+                            class="list-group-item list-group-item-action py-1 d-flex align-items-center"
+                            @click.prevent="pickMention(m)">
+                            <img :src="avatar(m.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ m.name }}
+                        </a>
+                    </div>
                 </div>
                 <div v-for="c in task.comments" :key="c.id" class="d-flex mb-2">
                     <img :src="c.user_avatar || avatar(c.user_name, 40)" class="rounded-circle mr-2" width="32" height="32">
