@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\BoardRequest;
 use App\Models\Board;
 use App\Models\Column;
+use App\Models\Task;
 use Auth;
 
 class BoardController extends Controller
@@ -47,8 +48,9 @@ class BoardController extends Controller
             'columns' => function ($query) {
                 $query->orderBy('position', 'asc');
             },
+            'labels',
             'columns.tasks' => function ($query) {
-                $query->with('assignees')
+                $query->with(['assignees', 'status', 'labels'])
                     ->withCount([
                         'comments',
                         'attachments',
@@ -68,17 +70,35 @@ class BoardController extends Controller
             'board' => [
                 'id' => $board->id,
                 'name' => $board->name,
+                'labels' => $board->labels->map(fn ($l) => [
+                    'id' => $l->id,
+                    'name' => $l->name,
+                    'color' => $l->color,
+                ])->values(),
                 'columns' => $board->columns->map(fn ($c) => [
                     'id' => $c->id,
                     'name' => $c->name,
                     'position' => $c->position,
                     'tasks' => $c->tasks->map(fn ($t) => [
                         'id' => $t->id,
+                        'code' => Task::buildCode($board->name, $t->id),
                         'title' => $t->title,
                         'column_id' => $t->column_id,
                         'position' => $t->position,
                         'priority' => $t->priority,
                         'has_description' => filled($t->description),
+                        'status' => $t->status ? [
+                            'id' => $t->status->id,
+                            'key' => $t->status->key,
+                            'name' => $t->status->name,
+                            'color' => $t->status->color,
+                            'is_completed' => (bool) $t->status->is_completed,
+                        ] : null,
+                        'labels' => $t->labels->map(fn ($l) => [
+                            'id' => $l->id,
+                            'name' => $l->name,
+                            'color' => $l->color,
+                        ])->values(),
                         'due_date' => $t->due_date ? $t->due_date->toDateString() : null,
                         'formatted_due_date' => $t->due_date ? $t->due_date->format('d/m/Y') : null,
                         'comments_count' => $t->comments_count,

@@ -8,6 +8,7 @@ const props = defineProps({
     col: { type: Object, required: true },
     canEdit: { type: Boolean, default: false },
     canManage: { type: Boolean, default: false },
+    match: { type: Function, default: null },
 });
 
 const emit = defineEmits(['rename', 'delete', 'task-change', 'add-task', 'open-task']);
@@ -42,7 +43,7 @@ const submitTask = () => {
         <draggable v-model="col.tasks" :group="'tasks'" item-key="id" :disabled="!canEdit"
             class="column-content" @change="(e) => emit('task-change', e)">
             <template #item="{ element: task }">
-                <KanbanCard :task="task" @open="emit('open-task', task)" />
+                <KanbanCard v-show="!match || match(task)" :task="task" @open="emit('open-task', task)" />
             </template>
         </draggable>
 

@@ -6,6 +6,7 @@ use App\Models\Concerns\TaskRelationships;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class Task extends Model
 {
@@ -15,7 +16,7 @@ class Task extends Model
     protected $fillable = [
         'title',
         'description',
-        'status',
+        'status_id',
         'priority',
         'column_id',
         'due_date',
@@ -26,6 +27,30 @@ class Task extends Model
         'due_date' => 'date',
     ];
 
+    /**
+     * Mã hiển thị kiểu "ICE-0042": tiền tố lấy từ tên board + id có đệm số 0.
+     * Chỉ để hiển thị / dựng URL; id thật vẫn suy ngược được qua idFromCode().
+     */
+    public static function buildCode(?string $boardName, int $id): string
+    {
+        $clean = preg_replace('/[^A-Za-z0-9]/', '', (string) $boardName);
+        $prefix = $clean !== '' ? Str::upper(Str::substr($clean, 0, 3)) : 'TSK';
+
+        return $prefix . '-' . str_pad((string) $id, 4, '0', STR_PAD_LEFT);
+    }
+
+    /** Suy ngược id từ mã (phần số sau dấu '-' cuối). */
+    public static function idFromCode(string $code): int
+    {
+        return (int) Str::afterLast($code, '-');
+    }
+
+    /** Mã của task hiện tại (cần đã nạp quan hệ column.board hoặc chấp nhận lazy-load). */
+    public function code(): string
+    {
+        return self::buildCode($this->column?->board?->name, $this->id);
+    }
+
     public function createForColumn(Column $column, array $data): Task
     {
         $maxPosition = $column->tasks()->max('position');
@@ -33,7 +58,7 @@ class Task extends Model
 
         $data['position'] = $position;
         $data['column_id'] = $column->id;
-        $data['status'] = $data['status'] ?? 'todo';
+        $data['status_id'] = $data['status_id'] ?? Status::default()?->id;
         $data['priority'] = $data['priority'] ?? 'normal';
 
         return self::create($data);
@@ -43,6 +68,8 @@ class Task extends Model
     {
         return $this->load([
             'column',
+            'status',
+            'labels',
             'assignees',
             'attachments',
             'comments.user',

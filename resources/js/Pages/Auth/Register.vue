@@ -20,7 +20,9 @@ const errors = computed(() => page.props.errors || {});
         <div class="register-box">
             <div class="card card-outline card-secondary">
                 <div class="card-header text-center">
-                    <a href="#" class="h1"><b>My</b>App</a>
+                    <Link href="/" class="h1 text-decoration-none text-black mb-0">
+                        My<span class="text-danger">App</span>
+                    </Link>
                 </div>
                 <div class="card-body">
                     <p class="login-box-msg">Tạo tài khoản mới</p>

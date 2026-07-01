@@ -17,7 +17,9 @@ const errors = computed(() => page.props.errors || {});
         <div class="login-box">
             <div class="card card-outline card-secondary">
                 <div class="card-header text-center">
-                    <a href="#" class="h1"><b>My</b>App</a>
+                    <Link href="/" class="h1 text-decoration-none text-black mb-0">
+                        My<span class="text-danger">App</span>
+                    </Link>
                 </div>
                 <div class="card-body login-card-body">
                     <p class="login-box-msg">Đăng nhập để bắt đầu phiên làm việc</p>
@@ -49,3 +51,8 @@ const errors = computed(() => page.props.errors || {});
         </div>
     </GuestLayout>
 </template>
+<style>   
+.app-sidebar .sidebar-brand span {
+    color: var(--sb-accent);
+}
+</style>

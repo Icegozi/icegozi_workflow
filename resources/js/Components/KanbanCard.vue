@@ -53,22 +53,32 @@ const hasMeta = computed(() => {
 </script>
 
 <template>
-    <div 
-        class="kanban-card" 
-        :class="{ 'is-done': task.status === 'done' }"
+    <div
+        class="kanban-card"
+        :class="{ 'is-done': task.status?.is_completed }"
         @click="emit('open')"
     >
-        <!-- Header: Priority & Assignees -->
+        <!-- Mã công việc (kiểu ICE-0042) -->
+        <div v-if="task.code" class="card-code">{{ task.code }}</div>
+
+        <!-- Header: Priority + Status (trái) & Assignees (phải) -->
         <div class="card-header">
-            <div 
-                v-if="priority" 
-                class="priority-pill" 
-                :style="{ color: priority.color, backgroundColor: priority.bg }"
-            >
-                <span class="dot" :style="{ backgroundColor: priority.color }"></span>
-                {{ priority.label }}
+            <div class="card-tags">
+                <div
+                    v-if="priority"
+                    class="priority-pill"
+                    :style="{ color: priority.color, backgroundColor: priority.bg }"
+                >
+                    <span class="dot" :style="{ backgroundColor: priority.color }"></span>
+                    {{ priority.label }}
+                </div>
+
+                <span v-if="task.status" class="status-badge"
+                    :style="{ color: task.status.color, borderColor: task.status.color }">
+                    {{ task.status.name }}
+                </span>
             </div>
-            
+
             <div v-if="visibleAssignees.length" class="card-assignees">
                 <img v-for="a in visibleAssignees" :key="a.id"
                     :src="`https://i.pravatar.cc/32?u=${encodeURIComponent(a.email)}`"
@@ -77,6 +87,14 @@ const hasMeta = computed(() => {
                     +{{ extraAssignees }}
                 </span>
             </div>
+        </div>
+
+        <!-- Nhãn màu -->
+        <div v-if="task.labels && task.labels.length" class="card-labels">
+            <span v-for="l in task.labels" :key="l.id" class="label-chip"
+                :style="{ backgroundColor: l.color }" :title="l.name || ''">
+                {{ l.name }}
+            </span>
         </div>
 
         <!-- Body: Title -->
@@ -129,11 +147,61 @@ const hasMeta = computed(() => {
     border-color: #e4e6ea;
 }
 
+/* Mã công việc */
+.card-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #7a869a;
+}
+
+/* Nhãn màu */
+.card-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.label-chip {
+    display: inline-flex;
+    align-items: center;
+    min-width: 28px;
+    height: 18px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1;
+    white-space: nowrap;
+}
+
 /* Card Header */
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
+}
+
+.card-tags {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 1px solid currentColor;
+    background: #fff;
+    line-height: 1.2;
 }
 
 /* Tùy biến Priority mượt mà hơn */

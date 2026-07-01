@@ -5,6 +5,7 @@ import { useTheme } from '@/composables/useTheme';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user || null);
+const isAdmin = computed(() => !!user.value?.is_admin);
 
 const { theme, toggle: toggleTheme } = useTheme();
 
@@ -24,7 +25,7 @@ const logout = () => {
 
         <!-- Người dùng + đăng xuất (dùng chung) -->
         <ul class="navbar-nav ml-auto">
-            <li class="nav-item">
+            <li v-if="isAdmin" class="nav-item">
                 <a class="nav-link d-flex align-items-center" href="#" @click.prevent="toggleTheme"
                     :title="theme === 'dark' ? 'Chuyển sáng' : 'Chuyển tối'">
                     <i :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>

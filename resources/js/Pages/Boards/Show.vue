@@ -1,6 +1,6 @@
 <script setup>
-import { ref, reactive } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { ref, reactive, computed } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import KanbanColumn from '@/Components/KanbanColumn.vue';
@@ -64,7 +64,8 @@ const saveTask = async (col, title) => {
             id: data.task.id, title: data.task.title, column_id: col.id,
             position: data.task.position, due_date: data.task.due_date,
             formatted_due_date: data.task.formatted_due_date, assignees: data.task.assignees || [],
-            priority: data.task.priority || 'normal', has_description: false,
+            priority: data.task.priority || 'normal', status: data.task.status || null,
+            has_description: false,
             comments_count: 0, attachments_count: 0, checklist_total: 0, checklist_done: 0,
         });
     } catch (e) {
@@ -88,41 +89,101 @@ const onTaskChange = async (col, evt) => {
     }
 };
 
-// ---- Modal chi tiết ----
+// ---- Tìm kiếm & lọc (client-side) ----
+const filters = reactive({ q: '', priority: '', assignee: '', label: '', due: '' });
+
+const allAssignees = computed(() => {
+    const map = new Map();
+    for (const col of columns) {
+        for (const t of col.tasks) {
+            for (const a of t.assignees || []) if (!map.has(a.id)) map.set(a.id, a);
+        }
+    }
+    return [...map.values()];
+});
+const boardLabels = computed(() => props.board.labels || []);
+
+const dueStateOf = (task) => {
+    if (!task.due_date) return 'none';
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const due = new Date(task.due_date); due.setHours(0, 0, 0, 0);
+    const diff = Math.round((due - today) / 86400000);
+    if (diff < 0) return 'overdue';
+    if (diff <= 2) return 'soon';
+    return 'future';
+};
+
+const hasActiveFilter = computed(() =>
+    !!(filters.q || filters.priority || filters.assignee || filters.label || filters.due)
+);
+
+const taskMatches = (task) => {
+    if (filters.q) {
+        const q = filters.q.toLowerCase();
+        const hay = `${task.title || ''} ${task.code || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+    }
+    if (filters.priority && task.priority !== filters.priority) return false;
+    if (filters.assignee && !(task.assignees || []).some((a) => a.id === Number(filters.assignee))) return false;
+    if (filters.label && !(task.labels || []).some((l) => l.id === Number(filters.label))) return false;
+    if (filters.due && dueStateOf(task) !== filters.due) return false;
+    return true;
+};
+
+const clearFilters = () => { filters.q = ''; filters.priority = ''; filters.assignee = ''; filters.label = ''; filters.due = ''; };
+
+// ---- Modal chi tiết (chỉ xem) ----
 const modalTaskId = ref(null);
 const openTask = (task) => { modalTaskId.value = task.id; };
 const closeTask = () => { modalTaskId.value = null; };
-const onTaskUpdated = (payload) => {
-    for (const col of columns) {
-        const t = col.tasks.find((x) => x.id === payload.id);
-        if (t) {
-            if (payload.title !== undefined) t.title = payload.title;
-            if (payload.due_date !== undefined) {
-                t.due_date = payload.due_date;
-                t.formatted_due_date = payload.formatted_due_date;
-            }
-        }
-    }
-};
-const onTaskDeleted = (id) => {
-    for (const col of columns) {
-        const idx = col.tasks.findIndex((t) => t.id === id);
-        if (idx !== -1) col.tasks.splice(idx, 1);
-    }
-    closeTask();
-};
 </script>
 
 <template>
     <Head :title="`${board.name} - Kanban`" />
     <AuthenticatedLayout>
-        <div class="board-header p-3 mb-2 border-bottom">
+        <div class="board-header p-3 mb-2 border-bottom d-flex justify-content-between align-items-center flex-wrap">
             <h3 class="mb-0">{{ board.name }}</h3>
+            <Link :href="route('my-tasks.index')" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-user-check mr-1"></i>Task của tôi
+            </Link>
+        </div>
+
+        <!-- Thanh tìm kiếm & lọc -->
+        <div class="filter-bar d-flex flex-wrap align-items-center px-3 mb-2" style="gap:8px;">
+            <div class="input-group input-group-sm" style="width:220px;">
+                <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
+                <input type="text" class="form-control" v-model="filters.q" placeholder="Tìm tiêu đề / mã...">
+            </div>
+            <select class="form-control form-control-sm" style="width:auto;" v-model="filters.priority">
+                <option value="">Mọi ưu tiên</option>
+                <option value="urgent">Khẩn cấp</option>
+                <option value="high">Cao</option>
+                <option value="normal">Bình thường</option>
+                <option value="low">Thấp</option>
+            </select>
+            <select class="form-control form-control-sm" style="width:auto;" v-model="filters.assignee">
+                <option value="">Mọi người</option>
+                <option v-for="a in allAssignees" :key="a.id" :value="a.id">{{ a.name }}</option>
+            </select>
+            <select v-if="boardLabels.length" class="form-control form-control-sm" style="width:auto;" v-model="filters.label">
+                <option value="">Mọi nhãn</option>
+                <option v-for="l in boardLabels" :key="l.id" :value="l.id">{{ l.name || 'Nhãn' }}</option>
+            </select>
+            <select class="form-control form-control-sm" style="width:auto;" v-model="filters.due">
+                <option value="">Mọi hạn</option>
+                <option value="overdue">Quá hạn</option>
+                <option value="soon">Sắp tới (≤2 ngày)</option>
+                <option value="future">Còn hạn</option>
+                <option value="none">Không có hạn</option>
+            </select>
+            <button v-if="hasActiveFilter" class="btn btn-sm btn-link text-danger" @click="clearFilters">
+                <i class="fas fa-times mr-1"></i>Xoá lọc
+            </button>
         </div>
 
         <div class="kanban-board" id="kanbanBoard">
             <KanbanColumn v-for="col in columns" :key="col.id" :col="col"
-                :can-edit="canEdit" :can-manage="canManage"
+                :can-edit="canEdit" :can-manage="canManage" :match="taskMatches"
                 @rename="() => renameColumn(col)"
                 @delete="() => deleteColumn(col)"
                 @task-change="(e) => onTaskChange(col, e)"
@@ -146,7 +207,7 @@ const onTaskDeleted = (id) => {
         </div>
 
         <TaskModal v-if="modalTaskId" :task-id="modalTaskId" :can-edit="canEdit" :can-manage="canManage"
-            :board-id="board.id" @close="closeTask" @updated="onTaskUpdated" @deleted="onTaskDeleted" />
+            :board-id="board.id" @close="closeTask" />
     </AuthenticatedLayout>
 </template>
 

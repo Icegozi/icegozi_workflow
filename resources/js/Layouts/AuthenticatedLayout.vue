@@ -23,6 +23,11 @@ const ownedBoards = computed(() => page.props.ownedBoards || []);
                         <i class="fas fa-columns fa-fw"></i> Bảng của tôi
                     </Link>
                 </li>
+                <li class="nav-item">
+                    <Link :href="route('my-tasks.index')" class="nav-link">
+                        <i class="fas fa-user-check fa-fw"></i> Task của tôi
+                    </Link>
+                </li>
                 <NavDropdown label="Mời thành viên" menu-style="max-height: 500px; overflow-y: auto;">
                     <template v-if="ownedBoards.length">
                         <Link v-for="b in ownedBoards" :key="b.id" class="dropdown-item"

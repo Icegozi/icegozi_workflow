@@ -12,6 +12,8 @@ use App\Http\Controllers\User\ChecklistController;
 use App\Http\Controllers\User\ColumnController;
 use App\Http\Controllers\User\CommentController;
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
+use App\Http\Controllers\User\LabelController;
+use App\Http\Controllers\User\MyTaskController;
 use App\Http\Controllers\User\OverviewTaskController;
 use App\Http\Controllers\User\TaskController;
 use Illuminate\Support\Facades\Route;
@@ -65,10 +67,21 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // --- Task Routes ---
     Route::post('/columns/{column}/tasks', [TaskController::class, 'store'])->name('tasks.store');
+    Route::get('/tasks/{taskCode}/edit', [TaskController::class, 'edit'])->name('tasks.edit');
     Route::get('/tasks/{task}', [TaskController::class, 'show'])->name('tasks.show');
     Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
     Route::post('/tasks/update-position', [TaskController::class, 'updatePosition'])->name('tasks.updatePosition');
+
+    // --- Label Routes ---
+    Route::get('/boards/{board}/labels', [LabelController::class, 'index'])->name('labels.index');
+    Route::post('/boards/{board}/labels', [LabelController::class, 'store'])->name('labels.store');
+    Route::delete('/labels/{label}', [LabelController::class, 'destroy'])->name('labels.destroy');
+    Route::post('/tasks/{task}/labels', [LabelController::class, 'attach'])->name('tasks.labels.attach');
+    Route::delete('/tasks/{task}/labels/{label}', [LabelController::class, 'detach'])->name('tasks.labels.detach');
+
+    // --- "Task của tôi" (cross-board) ---
+    Route::get('/my-tasks', [MyTaskController::class, 'index'])->name('my-tasks.index');
 
     // comment
     Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
