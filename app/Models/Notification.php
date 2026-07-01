@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\QueryException;
 
 class Notification extends Model
 {
@@ -16,6 +17,7 @@ class Notification extends Model
         'user_id',
         'task_id',
         'url',
+        'dedupe_key',
     ];
 
     protected $casts = [
@@ -43,22 +45,26 @@ class Notification extends Model
         ?int $taskId = null,
         bool $dedupeToday = false
     ): ?self {
-        if ($dedupeToday) {
-            $exists = static::where('user_id', $userId)
-                ->where('message', $message)
-                ->whereDate('created_at', now()->toDateString())
-                ->exists();
-            if ($exists) {
-                return null;
-            }
-        }
-
-        return static::create([
+        $attributes = [
             'user_id' => $userId,
             'message' => $message,
             'url' => $url,
             'task_id' => $taskId,
             'is_read' => false,
-        ]);
+        ];
+
+        if (! $dedupeToday) {
+            return static::create($attributes);
+        }
+
+        // Chống trùng nguyên tử: dựa vào unique(user_id, dedupe_key).
+        // Key = ngày:hash(message) -> mỗi (user, nội dung) chỉ 1 thông báo/ngày.
+        // Race song song: bản insert thứ 2 vi phạm unique -> nuốt lỗi, trả null.
+        $attributes['dedupe_key'] = now()->toDateString() . ':' . md5($message);
+        try {
+            return static::create($attributes);
+        } catch (QueryException $e) {
+            return null;
+        }
     }
 }

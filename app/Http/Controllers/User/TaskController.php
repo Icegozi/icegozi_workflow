@@ -29,6 +29,22 @@ class TaskController extends Controller
         abort(403, 'Bạn không có quyền thực hiện thao tác!');
     }
 
+    /**
+     * Chặn gán status không thuộc tập status của board.
+     * Board chưa cấu hình tập status -> chấp nhận mọi status global (tương thích ngược).
+     */
+    private function assertStatusAllowed(Board $board, $statusId): void
+    {
+        if (! $statusId) {
+            return;
+        }
+        $allowed = $board->statuses()->pluck('statuses.id');
+        if ($allowed->isEmpty()) {
+            return;
+        }
+        abort_unless($allowed->contains((int) $statusId), 422, 'Trạng thái không thuộc bảng này.');
+    }
+
     /** Shape gọn của trạng thái để trả về JSON. */
     private function statusPayload($status): ?array
     {
@@ -61,6 +77,7 @@ class TaskController extends Controller
     {
         $board = $column->board;
         $this->authorizeBoardAccess($board, ['board_editor', 'board_member_manager']);
+        $this->assertStatusAllowed($board, $request->input('status_id'));
 
         try {
             $data = $request->validated();
@@ -252,7 +269,8 @@ class TaskController extends Controller
      */
     public function update(TaskRequest $request, Task $task)
     {
-        $this->authorizeTaskAccess($task, ['board_member_manager', 'board_editor']);
+        $board = $this->authorizeTaskAccess($task, ['board_member_manager', 'board_editor']);
+        $this->assertStatusAllowed($board, $request->input('status_id'));
 
         try {
             $task->updateDetails($request->validated());

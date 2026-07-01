@@ -49,7 +49,12 @@ class CommentController extends Controller
             });
             $comment->load('user');
 
-            $this->notifyMentions($task, $board, (array) $request->input('mentions', []));
+            // Thông báo mention không được làm hỏng việc thêm bình luận (đã commit).
+            try {
+                $this->notifyMentions($task, $board, (array) $request->input('mentions', []));
+            } catch (\Throwable $e) {
+                Log::warning("notifyMentions failed for task {$task->id}: " . $e->getMessage());
+            }
 
             $comment->user_avatar = $comment->user
                 ? ('https://i.pravatar.cc/40?u=' . $comment->user->id)
@@ -75,7 +80,7 @@ class CommentController extends Controller
         }
 
         $me = Auth::id();
-        $meName = Auth::user()->name;
+        $meName = e(Auth::user()->name);
 
         // Chỉ nhắc thành viên hợp lệ của bảng (đã gồm chủ bảng), bỏ chính mình.
         $memberIds = collect((new \App\Models\Board())->getAssignedUsersByBoardId($board->id))
@@ -83,7 +88,8 @@ class CommentController extends Controller
 
         $code = Task::buildCode($board->name, $task->id);
         $url = route('tasks.edit', $code, false);
-        $msg = "<strong>{$meName}</strong> đã nhắc bạn trong <strong>{$code}</strong> — {$task->title}.";
+        // Escape tiêu đề (message render bằng v-html ở chuông thông báo).
+        $msg = "<strong>{$meName}</strong> đã nhắc bạn trong <strong>{$code}</strong> — " . e($task->title) . '.';
 
         foreach (array_unique($mentionIds) as $uid) {
             if ($uid !== $me && in_array($uid, $memberIds, true)) {

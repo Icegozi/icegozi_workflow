@@ -87,7 +87,7 @@ class Task extends Model
             foreach ($data as $field => $newValue) {
                 $oldValue = $originalData[$field] ?? null;
                 if ($oldValue != $newValue) {
-                    $changes[] = "{$field}: '{$oldValue}' → '{$newValue}'";
+                    $changes[] = $this->describeChange($field, $oldValue, $newValue);
                 }
             }
 
@@ -103,12 +103,33 @@ class Task extends Model
         return $updated;
     }
 
+    /**
+     * Mô tả thay đổi một trường cho lịch sử: escape dữ liệu (note render bằng v-html),
+     * đổi tên trường thân thiện và hiển thị tên trạng thái thay vì id.
+     */
+    private function describeChange(string $field, $old, $new): string
+    {
+        $labels = [
+            'title' => 'tiêu đề', 'description' => 'mô tả',
+            'priority' => 'độ ưu tiên', 'due_date' => 'hạn', 'status_id' => 'trạng thái',
+        ];
+        $label = $labels[$field] ?? $field;
+
+        if ($field === 'status_id') {
+            $names = Status::whereIn('id', array_filter([$old, $new]))->pluck('name', 'id');
+            $old = $old ? ($names[$old] ?? $old) : '—';
+            $new = $new ? ($names[$new] ?? $new) : '—';
+        }
+
+        return e($label) . ": '" . e((string) $old) . "' → '" . e((string) $new) . "'";
+    }
+
     public function deleteWithHistory(): bool
     {
         $this->taskHistories()->create([
             'user_id' => Auth::id(),
             'action' => 'deleted',
-            'note' => "Task '{$this->title}' was deleted.",
+            'note' => "Task '" . e($this->title) . "' was deleted.",
         ]);
 
         return $this->delete();

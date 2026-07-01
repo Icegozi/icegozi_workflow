@@ -50,25 +50,30 @@ class TaskHistory extends Model
             $task = Task::findOrFail($task['id']);
         }
         $userId = Auth::id();
-        $userName = Auth::user()->name;
+        // Escape dữ liệu người dùng nhập vì note được render bằng v-html (chống stored XSS)
+        $userName = e(Auth::user()->name);
+        $title = e($task->title);
+        $act = e($action);
+        $oldCol = e($oldColumnName);
+        $newCol = e($newColumnName);
 
         if ($action === 'di chuyển' && $oldColumnName && $newColumnName) {
-            $note = "<strong> {$userName} </strong> đã <strong>{$action}</strong> nhiệm vụ "
-                . "<strong>{$task->title}</strong> từ cột <strong>{$oldColumnName}</strong> "
-                . "sang cột <strong>{$newColumnName}</strong>.";
+            $note = "<strong> {$userName} </strong> đã <strong>{$act}</strong> nhiệm vụ "
+                . "<strong>{$title}</strong> từ cột <strong>{$oldCol}</strong> "
+                . "sang cột <strong>{$newCol}</strong>.";
         } else {
-            $note = "Nhiệm vụ <strong>{$task->title}</strong> đã được "
-                . "<strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
+            $note = "Nhiệm vụ <strong>{$title}</strong> đã được "
+                . "<strong>{$act}</strong> bởi <strong>{$userName}</strong>.";
         }
 
         if ($action === 'tạo' || $action === 'thêm bình luận') {
-            $note = "Nhiệm vụ <strong>{$task->title}</strong> đã được "
-                . "<strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
+            $note = "Nhiệm vụ <strong>{$title}</strong> đã được "
+                . "<strong>{$act}</strong> bởi <strong>{$userName}</strong>.";
         }
 
         if ($action === 'xóa bình luận') {
-            $note = "Nhiệm vụ <strong>{$task->title}</strong> đã bị "
-                . "<strong>{$action}</strong> bởi <strong>{$userName}</strong>.";
+            $note = "Nhiệm vụ <strong>{$title}</strong> đã bị "
+                . "<strong>{$act}</strong> bởi <strong>{$userName}</strong>.";
         }
 
         self::createHistory($task->id, $userId, $action, $note);

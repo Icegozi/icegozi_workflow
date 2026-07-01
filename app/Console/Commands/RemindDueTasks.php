@@ -18,8 +18,10 @@ class RemindDueTasks extends Command
         $today = Carbon::today();
         $created = 0;
 
-        // Task còn hạn (không rỗng), chưa hoàn thành, có người phụ trách.
+        // Task có hạn tới hôm qua..ngày mai (giới hạn để không quét toàn hệ thống),
+        // chưa hoàn thành, có người phụ trách.
         $tasks = Task::whereNotNull('due_date')
+            ->whereDate('due_date', '<=', $today->copy()->addDay())
             ->whereHas('assignees')
             ->with(['assignees', 'status', 'column.board'])
             ->get();
@@ -30,7 +32,7 @@ class RemindDueTasks extends Command
             }
 
             $due = Carbon::parse($task->due_date)->startOfDay();
-            $diff = $today->diffInDays($due, false);   // <0 quá hạn, 0 hôm nay, 1 ngày mai
+            $diff = (int) $today->diffInDays($due, false);   // <0 quá hạn, 0 hôm nay, 1 ngày mai
 
             if ($diff > 1) {
                 continue;   // chỉ nhắc khi quá hạn / hôm nay / ngày mai
@@ -41,7 +43,8 @@ class RemindDueTasks extends Command
             $url = route('tasks.edit', $code, false);
             $dueStr = $due->format('d/m/Y');
 
-            $prefix = "<strong>{$code}</strong> — <strong>{$task->title}</strong>";
+            // Escape tiêu đề (message render bằng v-html ở chuông thông báo).
+            $prefix = "<strong>{$code}</strong> — <strong>" . e($task->title) . '</strong>';
             if ($diff < 0) {
                 $msg = "⚠️ Công việc {$prefix} đã <strong>quá hạn</strong> ({$dueStr}).";
             } elseif ($diff === 0) {

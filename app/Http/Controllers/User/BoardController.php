@@ -63,7 +63,8 @@ class BoardController extends Controller
     /** Nhân bản một bảng: copy cột, nhãn và (tuỳ chọn) task + checklist. */
     public function duplicate(Board $board)
     {
-        $this->authorizeBoardAccess($board, ['board_viewer', 'board_editor', 'board_member_manager']);
+        // Chỉ editor/manager (hoặc chủ board) mới được nhân bản — tránh viewer clone toàn bộ dữ liệu.
+        $this->authorizeBoardAccess($board, ['board_editor', 'board_member_manager']);
         $withTasks = request()->boolean('with_tasks', true);
 
         $board->load(['columns', 'labels', 'statuses', 'columns.tasks.checklists', 'columns.tasks.labels']);
@@ -332,16 +333,26 @@ class BoardController extends Controller
         $n = (int) request('days', 14);
         $n = in_array($n, [7, 14, 30, 90], true) ? $n : 14;
         $today = Carbon::today();
-        $days = collect(range($n - 1, 0))->map(fn ($i) => $today->copy()->subDays($i));
+        $keys = collect(range($n - 1, 0))->map(fn ($i) => $today->copy()->subDays($i)->format('Y-m-d'));
+
+        // Gom đếm theo ngày 1 lần (O(tasks)) thay vì lồng filter theo từng ngày.
+        $createdMap = [];
+        $completedMap = [];
+        foreach ($tasks as $t) {
+            if ($t->created_at) {
+                $k = $t->created_at->format('Y-m-d');
+                $createdMap[$k] = ($createdMap[$k] ?? 0) + 1;
+            }
+            if ($this->isDone($t) && $t->updated_at) {
+                $k = $t->updated_at->format('Y-m-d');
+                $completedMap[$k] = ($completedMap[$k] ?? 0) + 1;
+            }
+        }
 
         return [
-            'labels' => $days->map(fn ($d) => $d->format('d/m'))->all(),
-            'created' => $days->map(fn ($d) => $tasks->filter(
-                fn ($t) => $t->created_at && $t->created_at->isSameDay($d)
-            )->count())->all(),
-            'completed' => $days->map(fn ($d) => $tasks->filter(
-                fn ($t) => $this->isDone($t) && $t->updated_at && $t->updated_at->isSameDay($d)
-            )->count())->all(),
+            'labels' => $keys->map(fn ($k) => Carbon::parse($k)->format('d/m'))->all(),
+            'created' => $keys->map(fn ($k) => $createdMap[$k] ?? 0)->all(),
+            'completed' => $keys->map(fn ($k) => $completedMap[$k] ?? 0)->all(),
         ];
     }
 

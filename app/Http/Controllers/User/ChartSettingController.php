@@ -26,7 +26,12 @@ class ChartSettingController extends Controller
 
         $data = $request->validate([
             'settings' => 'required|array',
+            'settings.range' => 'sometimes|integer|min:1|max:366',
+            'settings.charts' => 'sometimes|array|max:50',
         ]);
+
+        // Chặn payload phình to (settings chỉ là cấu hình UI nhỏ).
+        abort_if(strlen(json_encode($data['settings'])) > 8000, 422, 'Thiết lập quá lớn.');
 
         ChartSetting::updateOrCreate(
             ['user_id' => Auth::id(), 'scope' => $scope],

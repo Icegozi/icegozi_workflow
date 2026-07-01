@@ -33,3 +33,14 @@ const normalized = computed(() => {
         <option v-for="opt in normalized" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
     </select>
 </template>
+
+<style scoped>
+/* Option dài không làm tràn/vỡ layout: ràng bề rộng + cắt text (…) ở phần hiển thị. */
+select {
+    width: 100%;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+</style>

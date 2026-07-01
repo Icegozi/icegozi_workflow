@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import axios from 'axios';
 
 // Gộp sâu: đổ giá trị server đè lên default (giữ default cho khoá server thiếu — vd chart mới thêm sau).
@@ -33,7 +33,11 @@ export function useChartSettings(scope, defaults) {
             }
         })
         .catch(() => { /* dùng default */ })
-        .finally(() => { loaded.value = true; ready = true; });
+        .finally(() => {
+            loaded.value = true;
+            // Bật lưu SAU khi watch xử lý xong lần gán dữ liệu server -> tránh PUT thừa lúc load.
+            nextTick(() => { ready = true; });
+        });
 
     watch(settings, () => {
         if (!ready) return;
