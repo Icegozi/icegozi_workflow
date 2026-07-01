@@ -9,6 +9,19 @@
 
     <title inertia>{{ config('app.name', 'MyApp') }}</title>
 
+    {{-- Áp theme (dark/light) sớm để tránh nháy màu khi tải trang --}}
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('app-theme');
+                if (t !== 'dark' && t !== 'light') {
+                    t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                document.documentElement.setAttribute('data-theme', t);
+            } catch (e) {}
+        })();
+    </script>
+
     @routes
     @vite(['resources/css/app.css', 'resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
     @inertiaHead

@@ -22,9 +22,21 @@ import Footer from '@/Components/Footer.vue';
         <div class="d-flex flex-grow-1" id="admin-bg">
             <!-- Sidebar -->
             <Sidebar bg-class="bg-light">
-                <li class="nav-item"><Link :href="route('admin.dashboard')" class="nav-link">Thống kê</Link></li>
-                <li class="nav-item"><Link :href="route('admin.user.index')" class="nav-link">Danh sách tài khoản</Link></li>
-                <li class="nav-item"><Link :href="route('admin.user.create')" class="nav-link">Thêm tài khoản</Link></li>
+                <li class="nav-item">
+                    <Link :href="route('admin.dashboard')" class="nav-link">
+                        <i class="fas fa-chart-line fa-fw"></i> Thống kê
+                    </Link>
+                </li>
+                <li class="nav-item">
+                    <Link :href="route('admin.user.index')" class="nav-link">
+                        <i class="fas fa-users fa-fw"></i> Danh sách tài khoản
+                    </Link>
+                </li>
+                <li class="nav-item">
+                    <Link :href="route('admin.user.create')" class="nav-link">
+                        <i class="fas fa-user-plus fa-fw"></i> Thêm tài khoản
+                    </Link>
+                </li>
             </Sidebar>
 
             <!-- Content -->

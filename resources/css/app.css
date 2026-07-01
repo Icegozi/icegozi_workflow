@@ -13,5 +13,47 @@ body {
 }
 
 body {
-    background-color: #f4f6f9;
+    background-color: var(--app-bg);
+}
+
+/* ------------------------------------------------------------------
+ * Bảng màu dùng chung (topbar, footer, sidebar, nền chung).
+ * Mặc định: sáng. Thêm [data-theme="dark"] trên <html> để chuyển tối.
+ * Điểm nhấn đỏ #ff545a giữ nguyên ở cả hai chế độ.
+ * ------------------------------------------------------------------ */
+:root {
+    --app-bg: #f4f6f9;          /* nền chung sáng */
+    --app-surface: #ffffff;     /* topbar / footer / thẻ nội dung */
+    --app-accent: #ff545a;      /* đỏ thương hiệu */
+    --app-accent-2: #ff7a7f;
+    --app-text: #212529;        /* chữ đậm trên nền sáng */
+    --app-text-muted: #6c757d;
+    --app-border: #e9ecef;
+}
+
+/* Chế độ tối */
+:root[data-theme="dark"] {
+    --app-bg: #15171a;
+    --app-surface: #1d2024;
+    --app-text: #e6e8eb;
+    --app-text-muted: #9aa0a6;
+    --app-border: #2c3036;
+}
+
+/* Nền chung của layout người dùng & admin: sáng, ánh đỏ rất mờ */
+.client-bg,
+#admin-bg {
+    background-color: var(--app-bg);
+    background-image: radial-gradient(circle at 100% 0%, rgba(255, 84, 90, 0.05), transparent 40%);
+    background-attachment: fixed;
+}
+
+/* Vùng nội dung: thẻ bo góc, đổ bóng nhẹ */
+.cute-border {
+    background: var(--app-surface);
+    color: var(--app-text);
+    border: 1px solid var(--app-border);
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    padding: 1.25rem;
 }

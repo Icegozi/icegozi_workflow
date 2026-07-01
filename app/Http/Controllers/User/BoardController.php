@@ -48,7 +48,14 @@ class BoardController extends Controller
                 $query->orderBy('position', 'asc');
             },
             'columns.tasks' => function ($query) {
-                $query->with('assignees')->orderBy('position', 'asc');
+                $query->with('assignees')
+                    ->withCount([
+                        'comments',
+                        'attachments',
+                        'checklists',
+                        'checklists as checklists_done_count' => fn ($q) => $q->where('is_done', true),
+                    ])
+                    ->orderBy('position', 'asc');
             },
         ]);
 
@@ -70,8 +77,14 @@ class BoardController extends Controller
                         'title' => $t->title,
                         'column_id' => $t->column_id,
                         'position' => $t->position,
+                        'priority' => $t->priority,
+                        'has_description' => filled($t->description),
                         'due_date' => $t->due_date ? $t->due_date->toDateString() : null,
                         'formatted_due_date' => $t->due_date ? $t->due_date->format('d/m/Y') : null,
+                        'comments_count' => $t->comments_count,
+                        'attachments_count' => $t->attachments_count,
+                        'checklist_total' => $t->checklists_count,
+                        'checklist_done' => $t->checklists_done_count,
                         'assignees' => $t->assignees->map(fn ($u) => [
                             'id' => $u->id,
                             'name' => $u->name,
