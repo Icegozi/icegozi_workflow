@@ -19,13 +19,14 @@ body {
 /* ------------------------------------------------------------------
  * Bảng màu dùng chung (topbar, footer, sidebar, nền chung).
  * Mặc định: sáng. Thêm [data-theme="dark"] trên <html> để chuyển tối.
- * Điểm nhấn đỏ #ff545a giữ nguyên ở cả hai chế độ.
+ * Điểm nhấn nâu #663300 giữ nguyên ở cả hai chế độ.
  * ------------------------------------------------------------------ */
 :root {
     --app-bg: #f4f6f9;          /* nền chung sáng */
     --app-surface: #ffffff;     /* topbar / footer / thẻ nội dung */
-    --app-accent: #ff545a;      /* đỏ thương hiệu */
-    --app-accent-2: #ff7a7f;
+    --app-accent: #663300;      /* nâu thương hiệu */
+    --app-accent-2: #a5763f;    /* nâu nhạt (gradient) */
+    --app-accent-dark: #4d2600; /* nâu đậm (hover/active) */
     --app-text: #212529;        /* chữ đậm trên nền sáng */
     --app-text-muted: #6c757d;
     --app-border: #e9ecef;
@@ -40,11 +41,119 @@ body {
     --app-border: #2c3036;
 }
 
+/* Đồng nhất màu điểm nhấn cho control biểu mẫu toàn hệ thống
+   (checkbox/radio native — gồm cả checklist "bare" — dùng nâu thương hiệu) */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+    accent-color: var(--app-accent);
+}
+
+.form-control:focus,
+.custom-select:focus,
+.form-check-input:focus {
+    border-color: var(--app-accent);
+    box-shadow: 0 0 0 0.2rem rgba(102, 51, 0, 0.25);
+}
+
+/* ------------------------------------------------------------------
+ * Brand overrides — gom các thành phần Bootstrap "primary"/link/
+ * pagination/badge về tông accent (nâu). Các màu ngữ nghĩa
+ * (success/danger/warning/info) GIỮ NGUYÊN.
+ * ------------------------------------------------------------------ */
+
+/* Liên kết thường (không áp cho .btn/.nav-link/.dropdown-item — chúng tự set màu) */
+a {
+    color: var(--app-accent);
+}
+
+a:hover {
+    color: var(--app-accent-dark);
+}
+
+/* Nút primary */
+.btn-primary {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:not(:disabled):not(.disabled):active,
+.btn-primary:not(:disabled):not(.disabled).active {
+    background-color: var(--app-accent-dark);
+    border-color: var(--app-accent-dark);
+}
+
+/* Nút outline primary */
+.btn-outline-primary {
+    color: var(--app-accent);
+    border-color: var(--app-accent);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:not(:disabled):not(.disabled):active {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
+    color: #fff;
+}
+
+/* Nút link / tiện ích text-primary */
+.btn-link {
+    color: var(--app-accent);
+}
+
+.btn-link:hover {
+    color: var(--app-accent-dark);
+}
+
+.text-primary {
+    color: var(--app-accent) !important;
+}
+
+/* Vùng focus ring của nút primary */
+.btn-primary:focus,
+.btn-outline-primary:focus,
+.btn-primary.focus,
+.btn-outline-primary.focus {
+    box-shadow: 0 0 0 0.2rem rgba(102, 51, 0, 0.35);
+}
+
+/* Badge primary */
+.badge-primary {
+    background-color: var(--app-accent);
+}
+
+/* Phân trang */
+.page-link {
+    color: var(--app-accent);
+}
+
+.page-item.active .page-link {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
+    color: #fff;
+}
+
+/* Tiện ích thương hiệu dùng chung */
+.bg-accent {
+    background-color: var(--app-accent) !important;
+    color: #fff;
+}
+
+.text-accent {
+    color: var(--app-accent) !important;
+}
+
+.border-accent {
+    border-color: var(--app-accent) !important;
+}
+
 /* Nền chung của layout người dùng & admin: sáng, ánh đỏ rất mờ */
 .client-bg,
 #admin-bg {
     background-color: var(--app-bg);
-    background-image: radial-gradient(circle at 100% 0%, rgba(255, 84, 90, 0.05), transparent 40%);
+    background-image: radial-gradient(circle at 100% 0%, rgba(102, 51, 0, 0.05), transparent 40%);
     background-attachment: fixed;
 }
 

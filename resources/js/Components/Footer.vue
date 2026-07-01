@@ -26,7 +26,7 @@
     padding: 20px 0;
     font-size: 14px;
     line-height: 1.6;
-    border-top: 2px solid var(--app-accent, #ff545a);
+    border-top: 2px solid var(--app-accent, #663300);
 }
 
 .footer .container {
@@ -67,7 +67,7 @@
 }
 
 .footer-social span:hover {
-    color: #ff545a;
+    color: #663300;
 }
 
 .footer-social a {
@@ -85,7 +85,7 @@
 }
 
 .footer-social a:hover {
-    background-color: #ff545a;
+    background-color: #663300;
     color: #fff;
 }
 </style>

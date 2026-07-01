@@ -4,6 +4,8 @@ import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import KanbanColumn from '@/Components/KanbanColumn.vue';
+import BoardCalendar from '@/Components/BoardCalendar.vue';
+import BoardAnalytics from '@/Components/BoardAnalytics.vue';
 import TaskModal from '@/Components/TaskModal.vue';
 import Modal from '@/Components/Modal.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -90,6 +92,31 @@ const onTaskChange = async (col, evt) => {
     }
 };
 
+// ---- Chế độ xem: bảng Kanban | Lịch ----
+const viewMode = ref('board');
+const allTasks = computed(() => columns.flatMap((c) => c.tasks));
+
+const fmtDMY = (isoDate) => {
+    if (!isoDate) return null;
+    const [y, m, d] = isoDate.split('-');
+    return `${d}/${m}/${y}`;
+};
+
+// Đổi hạn từ lịch (kéo-thả). Cập nhật lạc quan rồi gọi API.
+const rescheduleTask = async ({ task, dueDate }) => {
+    const prevDate = task.due_date;
+    const prevFmt = task.formatted_due_date;
+    task.due_date = dueDate;
+    task.formatted_due_date = fmtDMY(dueDate);
+    try {
+        await axios.put(route('tasks.update', task.id), { title: task.title, due_date: dueDate });
+    } catch (e) {
+        task.due_date = prevDate;
+        task.formatted_due_date = prevFmt;
+        alert(e.response?.data?.message || 'Không thể đổi hạn công việc.');
+    }
+};
+
 // ---- Tìm kiếm & lọc (client-side) ----
 const filters = reactive({ q: '', priority: '', assignee: '', label: '', due: '' });
 
@@ -161,7 +188,15 @@ const openActivity = async () => {
     <AuthenticatedLayout>
         <div class="board-header p-3 mb-2 border-bottom d-flex justify-content-between align-items-center flex-wrap">
             <h3 class="mb-0">{{ board.name }}</h3>
-            <div class="d-flex" style="gap:8px;">
+            <div class="d-flex align-items-center" style="gap:8px;">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn" :class="viewMode === 'board' ? 'btn-dark' : 'btn-outline-secondary'"
+                        @click="viewMode = 'board'"><i class="fas fa-columns mr-1"></i>Bảng</button>
+                    <button class="btn" :class="viewMode === 'calendar' ? 'btn-dark' : 'btn-outline-secondary'"
+                        @click="viewMode = 'calendar'"><i class="far fa-calendar-alt mr-1"></i>Lịch</button>
+                    <button class="btn" :class="viewMode === 'analytics' ? 'btn-dark' : 'btn-outline-secondary'"
+                        @click="viewMode = 'analytics'"><i class="fas fa-chart-pie mr-1"></i>Phân tích</button>
+                </div>
                 <button class="btn btn-sm btn-outline-secondary" @click="openActivity">
                     <i class="fas fa-clock-rotate-left mr-1"></i>Hoạt động
                 </button>
@@ -171,8 +206,8 @@ const openActivity = async () => {
             </div>
         </div>
 
-        <!-- Thanh tìm kiếm & lọc -->
-        <div class="filter-bar d-flex flex-wrap align-items-center px-3 mb-2" style="gap:8px;">
+        <!-- Thanh tìm kiếm & lọc (chỉ ở chế độ Bảng) -->
+        <div v-if="viewMode === 'board'" class="filter-bar d-flex flex-wrap align-items-center px-3 mb-2" style="gap:8px;">
             <div class="input-group input-group-sm" style="width:220px;">
                 <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
                 <input type="text" class="form-control" v-model="filters.q" placeholder="Tìm tiêu đề / mã...">
@@ -204,7 +239,7 @@ const openActivity = async () => {
             </button>
         </div>
 
-        <div class="kanban-board" id="kanbanBoard">
+        <div v-if="viewMode === 'board'" class="kanban-board" id="kanbanBoard">
             <KanbanColumn v-for="col in columns" :key="col.id" :col="col"
                 :can-edit="canEdit" :can-manage="canManage" :match="taskMatches"
                 @rename="() => renameColumn(col)"
@@ -228,6 +263,15 @@ const openActivity = async () => {
                 </div>
             </div>
         </div>
+
+        <!-- Chế độ Lịch -->
+        <div v-else-if="viewMode === 'calendar'" class="px-2">
+            <BoardCalendar :tasks="allTasks" :can-edit="canEdit"
+                @open="openTask" @reschedule="rescheduleTask" />
+        </div>
+
+        <!-- Chế độ Phân tích -->
+        <BoardAnalytics v-else :key="`analytics-${board.id}`" :board-id="board.id" />
 
         <TaskModal v-if="modalTaskId" :task-id="modalTaskId" :can-edit="canEdit" :can-manage="canManage"
             :board-id="board.id" @close="closeTask" />

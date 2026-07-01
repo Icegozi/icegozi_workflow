@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\StatusController as AdminStatusController;
+use App\Http\Controllers\Admin\TemplateController as AdminTemplateController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -8,6 +10,7 @@ use App\Http\Controllers\User\AssigneeController;
 use App\Http\Controllers\User\AttachmentController;
 use App\Http\Controllers\User\BoardController;
 use App\Http\Controllers\User\BoardMembershipController;
+use App\Http\Controllers\User\ChartSettingController;
 use App\Http\Controllers\User\ChecklistController;
 use App\Http\Controllers\User\ColumnController;
 use App\Http\Controllers\User\CommentController;
@@ -59,6 +62,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     ]);
 
     Route::post('/boards', [BoardController::class, 'store'])->name('boards.store');
+    Route::post('/boards/{board}/duplicate', [BoardController::class, 'duplicate'])->name('boards.duplicate');
 
     // Column Routes
     Route::post('/boards/{board}/columns', [ColumnController::class, 'store'])->name('columns.store');
@@ -93,6 +97,13 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // --- Nhật ký hoạt động của bảng ---
     Route::get('/boards/{board}/activity', [BoardController::class, 'activity'])->name('boards.activity');
+
+    // --- Số liệu phân tích của bảng ---
+    Route::get('/boards/{board}/analytics', [BoardController::class, 'analytics'])->name('boards.analytics');
+
+    // --- Thiết lập biểu đồ (theo user) ---
+    Route::get('/chart-settings/{scope}', [ChartSettingController::class, 'show'])->name('chart-settings.show');
+    Route::put('/chart-settings/{scope}', [ChartSettingController::class, 'update'])->name('chart-settings.update');
 
     // comment
     Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
@@ -149,8 +160,8 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::middleware('is_admin')->group(function () {
         Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
-        Route::get('/admin/dashboard/user-registrations', [AdminDashboardController::class, 'getUserRegistrations'])
-            ->name('admin.dashboard.user-registrations');
+        Route::get('/admin/dashboard/growth', [AdminDashboardController::class, 'getGrowth'])
+            ->name('admin.dashboard.growth');
 
         Route::prefix('users')->group(function () {
             Route::get('admin/management/user', [UserController::class, 'index'])->name('admin.user.index');
@@ -163,6 +174,26 @@ Route::middleware(['auth', 'active'])->group(function () {
                 ->name('admin.user.update');
             Route::delete('admin/management/user/{id}/delete', [UserController::class, 'destroy'])
                 ->name('admin.user.destroy');
+        });
+
+        // Quản lý mẫu bảng
+        Route::prefix('admin/management/template')->group(function () {
+            Route::get('/', [AdminTemplateController::class, 'index'])->name('admin.template.index');
+            Route::get('/create', [AdminTemplateController::class, 'create'])->name('admin.template.create');
+            Route::post('/', [AdminTemplateController::class, 'store'])->name('admin.template.store');
+            Route::get('/{template}/edit', [AdminTemplateController::class, 'edit'])->name('admin.template.edit');
+            Route::put('/{template}', [AdminTemplateController::class, 'update'])->name('admin.template.update');
+            Route::delete('/{template}', [AdminTemplateController::class, 'destroy'])->name('admin.template.destroy');
+        });
+
+        // Quản lý trạng thái (global)
+        Route::prefix('admin/management/status')->group(function () {
+            Route::get('/', [AdminStatusController::class, 'index'])->name('admin.status.index');
+            Route::get('/create', [AdminStatusController::class, 'create'])->name('admin.status.create');
+            Route::post('/', [AdminStatusController::class, 'store'])->name('admin.status.store');
+            Route::get('/{status}/edit', [AdminStatusController::class, 'edit'])->name('admin.status.edit');
+            Route::put('/{status}', [AdminStatusController::class, 'update'])->name('admin.status.update');
+            Route::delete('/{status}', [AdminStatusController::class, 'destroy'])->name('admin.status.destroy');
         });
     });
 });

@@ -7,8 +7,10 @@ use App\Models\BoardPermission;
 use App\Models\Column;
 use App\Models\Label;
 use App\Models\PermissionUser;
+use App\Models\Status;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
@@ -33,6 +35,12 @@ trait BoardRelationships
     public function labels(): HasMany
     {
         return $this->hasMany(Label::class);
+    }
+
+    /** Tập con trạng thái global mà bảng này áp dụng (seed từ mẫu). */
+    public function statuses(): BelongsToMany
+    {
+        return $this->belongsToMany(Status::class, 'board_status')->withTimestamps();
     }
 
     public function invitations(): HasMany

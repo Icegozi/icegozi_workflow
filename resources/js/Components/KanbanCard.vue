@@ -335,7 +335,7 @@ const hasMeta = computed(() => {
 
 /* Nhấn mạnh thẻ quá hạn */
 .is-overdue {
-    border-left: 4px solid #ff545a;
+    border-left: 4px solid #663300;
 }
 
 /* Hiệu ứng mờ khi Done */

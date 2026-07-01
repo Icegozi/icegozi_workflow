@@ -87,9 +87,9 @@ defineProps({
 
 .app-sidebar .nav-link.active,
 .app-sidebar .nav-link.active:hover {
-    background: linear-gradient(135deg, var(--sb-accent), #ff7a7f);
+    background: linear-gradient(135deg, var(--sb-accent), #a5763f);
     color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(255, 84, 90, 0.35);
+    box-shadow: 0 4px 12px rgba(102, 51, 0, 0.35);
 }
 
 /* Dropdown: trải dọc ngay trong sidebar thay vì nổi đè lên */

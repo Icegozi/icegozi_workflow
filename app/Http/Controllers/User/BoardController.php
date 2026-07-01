@@ -5,9 +5,12 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BoardRequest;
 use App\Models\Board;
+use App\Models\BoardTemplate;
 use App\Models\Column;
 use App\Models\Task;
 use Auth;
+use Carbon\Carbon;
+use DB;
 
 class BoardController extends Controller
 {
@@ -27,18 +30,102 @@ class BoardController extends Controller
     public function store(BoardRequest $request)
     {
         $validated = $request->validated();
-        $column = new Column();
-        $boards = new Board();
+        $template = $request->input('template_id')
+            ? BoardTemplate::find($request->input('template_id'))
+            : null;
 
-        $data = [
-            'user_id' => Auth::id(),
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-        ];
-        $board = $boards->createBoard($data);
-        $column->createDefaultColumns($board->id);
+        // Fallback tối thiểu nếu không chọn mẫu (hoặc mẫu đã bị xoá).
+        $columns = $template?->columns ?: ['Việc cần làm', 'Đang làm', 'Hoàn thành'];
+        $labels = $template?->labels ?: [];
+        $statusIds = $template?->status_ids ?: [];
+
+        DB::transaction(function () use ($validated, $columns, $labels, $statusIds) {
+            $board = Board::create([
+                'user_id' => Auth::id(),
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            foreach (array_values($columns) as $index => $columnName) {
+                Column::create(['name' => $columnName, 'position' => $index, 'board_id' => $board->id]);
+            }
+            foreach ($labels as $label) {
+                $board->labels()->create(['name' => $label['name'] ?? null, 'color' => $label['color'] ?? '#6c757d']);
+            }
+            if ($statusIds) {
+                $board->statuses()->sync($statusIds);
+            }
+        });
 
         return redirect()->route('user.dashboard')->with('success', 'Bảng đã được tạo thành công!');
+    }
+
+    /** Nhân bản một bảng: copy cột, nhãn và (tuỳ chọn) task + checklist. */
+    public function duplicate(Board $board)
+    {
+        $this->authorizeBoardAccess($board, ['board_viewer', 'board_editor', 'board_member_manager']);
+        $withTasks = request()->boolean('with_tasks', true);
+
+        $board->load(['columns', 'labels', 'statuses', 'columns.tasks.checklists', 'columns.tasks.labels']);
+
+        DB::transaction(function () use ($board, $withTasks) {
+            $newBoard = Board::create([
+                'user_id' => Auth::id(),
+                'name' => $board->name . ' (bản sao)',
+                'description' => $board->description,
+            ]);
+
+            // Sao chép tập trạng thái áp dụng của bảng
+            $newBoard->statuses()->sync($board->statuses->pluck('id')->all());
+
+            // Nhãn: map nhãn cũ -> nhãn mới để gắn lại cho task
+            $labelMap = [];
+            foreach ($board->labels as $label) {
+                $new = $newBoard->labels()->create(['name' => $label->name, 'color' => $label->color]);
+                $labelMap[$label->id] = $new->id;
+            }
+
+            foreach ($board->columns as $column) {
+                $newColumn = Column::create([
+                    'name' => $column->name,
+                    'position' => $column->position,
+                    'board_id' => $newBoard->id,
+                ]);
+
+                if (! $withTasks) {
+                    continue;
+                }
+
+                foreach ($column->tasks as $task) {
+                    $newTask = Task::create([
+                        'title' => $task->title,
+                        'description' => $task->description,
+                        'priority' => $task->priority,
+                        'status_id' => $task->status_id,
+                        'column_id' => $newColumn->id,
+                        'position' => $task->position,
+                        'due_date' => $task->due_date,
+                    ]);
+
+                    $newLabelIds = $task->labels->pluck('id')
+                        ->map(fn ($id) => $labelMap[$id] ?? null)
+                        ->filter()->all();
+                    if ($newLabelIds) {
+                        $newTask->labels()->sync($newLabelIds);
+                    }
+
+                    foreach ($task->checklists as $item) {
+                        $newTask->checklists()->create([
+                            'title' => $item->title,
+                            'is_done' => $item->is_done,
+                            'position' => $item->position,
+                        ]);
+                    }
+                }
+            }
+        });
+
+        return redirect()->route('user.dashboard')->with('success', 'Đã nhân bản bảng thành công!');
     }
 
     public function show(Board $board)
@@ -138,6 +225,124 @@ class BoardController extends Controller
             ]);
 
         return response()->json(['success' => true, 'activities' => $items]);
+    }
+
+    /** Số liệu phân tích cấp board cho các biểu đồ. */
+    public function analytics(Board $board)
+    {
+        $this->authorizeBoardAccess($board, ['board_viewer', 'board_editor', 'board_member_manager']);
+
+        $tasks = Task::whereHas('column', fn ($q) => $q->where('board_id', $board->id))
+            ->with(['status', 'assignees'])
+            ->get();
+
+        $overdue = $tasks->filter(fn ($t) => $this->isOverdue($t));
+
+        return response()->json([
+            'success' => true,
+            'totals' => [
+                'tasks' => $tasks->count(),
+                'done' => $tasks->filter(fn ($t) => $this->isDone($t))->count(),
+                'overdue' => $overdue->count(),
+                'members' => count($board->getMembersWithRoles()) + 1,
+            ],
+            'byStatus' => $this->aggByStatus($tasks),
+            'byPriority' => $this->aggByPriority($tasks),
+            'workload' => $this->aggWorkload($tasks),
+            'overdueByAssignee' => $this->aggOverdueByAssignee($overdue),
+            'timeline' => $this->aggTimeline($tasks),
+        ]);
+    }
+
+    private function isDone(Task $task): bool
+    {
+        return (bool) $task->status?->is_completed;
+    }
+
+    private function isOverdue(Task $task): bool
+    {
+        return $task->due_date && ! $this->isDone($task)
+            && Carbon::parse($task->due_date)->startOfDay()->lt(Carbon::today());
+    }
+
+    /** @param \Illuminate\Support\Collection $tasks */
+    private function aggByStatus($tasks): array
+    {
+        return $tasks->groupBy(fn ($t) => $t->status?->name ?? 'Chưa đặt')
+            ->map(fn ($group, $name) => [
+                'name' => $name,
+                'color' => $group->first()->status?->color ?? '#c1c7d0',
+                'count' => $group->count(),
+            ])->values()->all();
+    }
+
+    /** @param \Illuminate\Support\Collection $tasks */
+    private function aggByPriority($tasks): array
+    {
+        $meta = [
+            'urgent' => ['Khẩn cấp', '#e5484d'],
+            'high' => ['Cao', '#f76808'],
+            'normal' => ['Bình thường', '#006adc'],
+            'low' => ['Thấp', '#18794e'],
+        ];
+
+        return collect($meta)->map(fn ($m, $key) => [
+            'label' => $m[0],
+            'color' => $m[1],
+            'count' => $tasks->where('priority', $key)->count(),
+        ])->values()->all();
+    }
+
+    /** @param \Illuminate\Support\Collection $tasks */
+    private function aggWorkload($tasks): array
+    {
+        $workload = [];
+        foreach ($tasks as $t) {
+            foreach ($t->assignees as $u) {
+                $workload[$u->id] ??= ['name' => $u->name, 'done' => 0, 'pending' => 0];
+                $this->isDone($t) ? $workload[$u->id]['done']++ : $workload[$u->id]['pending']++;
+            }
+        }
+
+        return array_values($workload);
+    }
+
+    /** @param \Illuminate\Support\Collection $overdueTasks */
+    private function aggOverdueByAssignee($overdueTasks): array
+    {
+        $result = [];
+        $bump = function ($key, $name) use (&$result) {
+            $result[$key] = ['name' => $name, 'count' => ($result[$key]['count'] ?? 0) + 1];
+        };
+        foreach ($overdueTasks as $t) {
+            if ($t->assignees->isEmpty()) {
+                $bump('__none', 'Chưa giao');
+            }
+            foreach ($t->assignees as $u) {
+                $bump($u->id, $u->name);
+            }
+        }
+
+        return array_values($result);
+    }
+
+    /** @param \Illuminate\Support\Collection $tasks */
+    private function aggTimeline($tasks): array
+    {
+        $n = (int) request('days', 14);
+        $n = in_array($n, [7, 14, 30, 90], true) ? $n : 14;
+        $today = Carbon::today();
+        $days = collect(range($n - 1, 0))->map(fn ($i) => $today->copy()->subDays($i));
+
+        return [
+            'labels' => $days->map(fn ($d) => $d->format('d/m'))->all(),
+            'created' => $days->map(fn ($d) => $tasks->filter(
+                fn ($t) => $t->created_at && $t->created_at->isSameDay($d)
+            )->count())->all(),
+            'completed' => $days->map(fn ($d) => $tasks->filter(
+                fn ($t) => $this->isDone($t) && $t->updated_at && $t->updated_at->isSameDay($d)
+            )->count())->all(),
+        ];
     }
 
     public function update(BoardRequest $request, Board $board)

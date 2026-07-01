@@ -388,7 +388,7 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
     font-size: 0.85rem;
     font-weight: 700;
     letter-spacing: 0.5px;
-    background: var(--app-accent, #ff545a);
+    background: var(--app-accent, #663300);
     color: #fff;
     padding: 3px 10px;
     border-radius: 6px;

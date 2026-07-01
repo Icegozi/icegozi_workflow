@@ -226,6 +226,15 @@ class TaskController extends Controller
         $task = Task::findOrFail(Task::idFromCode($taskCode));
         $board = $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
 
+        // Ưu tiên tập trạng thái riêng của bảng; nếu bảng chưa gán thì dùng toàn bộ status global.
+        $statuses = $board->statuses()
+            ->orderBy('statuses.position')
+            ->get(['statuses.id', 'statuses.key', 'statuses.name', 'statuses.color', 'statuses.is_completed']);
+        if ($statuses->isEmpty()) {
+            $statuses = \App\Models\Status::orderBy('position')
+                ->get(['id', 'key', 'name', 'color', 'is_completed']);
+        }
+
         return \Inertia\Inertia::render('Tasks/Edit', [
             'taskId' => $task->id,
             'boardId' => $board->id,
@@ -233,8 +242,7 @@ class TaskController extends Controller
             'code' => Task::buildCode($board->name, $task->id),
             'canEdit' => true,
             'canManage' => Auth::user()->hasBoardPermission($board, 'board_member_manager'),
-            'statuses' => \App\Models\Status::orderBy('position')
-                ->get(['id', 'key', 'name', 'color', 'is_completed']),
+            'statuses' => $statuses,
             'boardLabels' => $board->labels()->orderBy('name')->get(['id', 'name', 'color']),
         ]);
     }

@@ -8,6 +8,7 @@ import TextInput from '@/Components/TextInput.vue';
 
 const props = defineProps({
     boards: { type: Array, default: () => [] },
+    templates: { type: Array, default: () => [] },
 });
 
 const roleLabels = {
@@ -19,13 +20,24 @@ const roleLabel = (role) => roleLabels[role] || 'người sở hữu';
 
 // --- Tạo bảng mới ---
 const showCreate = ref(false);
-const createForm = useForm({ name: '', description: '' });
-const openCreate = () => { createForm.reset(); createForm.clearErrors(); showCreate.value = true; };
+const createForm = useForm({ name: '', description: '', template_id: null });
+const openCreate = () => {
+    createForm.reset();
+    createForm.clearErrors();
+    createForm.template_id = props.templates[0]?.key ?? null;
+    showCreate.value = true;
+};
 const submitCreate = () => {
     createForm.post(route('boards.store'), {
         preserveScroll: true,
         onSuccess: () => { showCreate.value = false; },
     });
+};
+
+// --- Nhân bản bảng ---
+const duplicate = (board) => {
+    if (!confirm(`Nhân bản bảng "${board.name}" (kèm toàn bộ công việc)?`)) return;
+    router.post(route('boards.duplicate', board.id), { with_tasks: true }, { preserveScroll: true });
 };
 
 // --- Đổi tên bảng ---
@@ -89,6 +101,9 @@ const toggleMenu = (id) => { openMenuId.value = openMenuId.value === id ? null :
                                             <a class="dropdown-item" href="#" @click.prevent="openRename(board); toggleMenu(board.id)">
                                                 <i class="fas fa-pencil-alt fa-fw mr-2 text-muted"></i>Sửa tên
                                             </a>
+                                            <a class="dropdown-item" href="#" @click.prevent="duplicate(board); toggleMenu(board.id)">
+                                                <i class="fas fa-copy fa-fw mr-2 text-muted"></i>Nhân bản
+                                            </a>
                                             <div class="dropdown-divider"></div>
                                             <a class="dropdown-item text-danger" href="#" @click.prevent="destroy(board); toggleMenu(board.id)">
                                                 <i class="fas fa-trash-alt fa-fw mr-2"></i> Xoá
@@ -114,13 +129,31 @@ const toggleMenu = (id) => { openMenuId.value = openMenuId.value === id ? null :
         </div>
 
         <!-- Modal tạo bảng -->
-        <Modal v-if="showCreate" title="Tạo bảng mới" max-width="380px" @close="showCreate = false">
+        <Modal v-if="showCreate" title="Tạo bảng mới" max-width="620px" @close="showCreate = false">
             <form @submit.prevent="submitCreate">
                 <div class="form-group">
+                    <label class="small font-weight-bold">Tên bảng</label>
                     <TextInput v-model="createForm.name" placeholder="Nhập tên bảng..."
                         required maxlength="255" autofocus group-class="" />
                     <div v-if="createForm.errors.name" class="text-danger small mt-1">{{ createForm.errors.name }}</div>
                 </div>
+
+                <label class="small font-weight-bold">Chọn mẫu</label>
+                <div class="template-grid mb-3">
+                    <button v-for="tpl in templates" :key="tpl.key" type="button"
+                        class="template-card" :class="{ active: createForm.template_id === tpl.key }"
+                        @click="createForm.template_id = tpl.key">
+                        <div class="template-head">
+                            <i class="fas" :class="tpl.icon"></i>
+                            <span class="template-name">{{ tpl.name }}</span>
+                        </div>
+                        <div class="template-desc">{{ tpl.description }}</div>
+                        <div class="template-cols">
+                            <span v-for="c in tpl.columns" :key="c" class="template-col">{{ c }}</span>
+                        </div>
+                    </button>
+                </div>
+
                 <div class="text-right">
                     <Btn type="button" variant="white" class="btn-sm" @click="showCreate = false">Huỷ</Btn>
                     <Btn variant="black" class="btn-sm px-3" :disabled="createForm.processing">Tạo</Btn>
@@ -154,6 +187,66 @@ const toggleMenu = (id) => { openMenuId.value = openMenuId.value === id ? null :
 .card-hover:hover {
     transform: translateY(-5px);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Lưới chọn mẫu bảng */
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.template-card {
+    text-align: left;
+    background: #fff;
+    border: 1px solid #e4e6ea;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.template-card:hover {
+    border-color: #c1c7d0;
+}
+
+.template-card.active {
+    border-color: var(--app-accent, #663300);
+    box-shadow: 0 0 0 2px rgba(102, 51, 0, 0.25);
+}
+
+.template-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: #172b4d;
+}
+
+.template-desc {
+    font-size: 0.75rem;
+    color: #7a869a;
+    margin: 4px 0 6px;
+}
+
+.template-cols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.template-col {
+    font-size: 0.66rem;
+    background: #f1f2f4;
+    color: #44546f;
+    border-radius: 4px;
+    padding: 1px 6px;
+}
+
+@media (max-width: 575.98px) {
+    .template-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Menu thao tác trên thẻ bảng */

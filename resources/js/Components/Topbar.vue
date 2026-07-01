@@ -124,7 +124,7 @@ const logout = () => {
     height: 16px;
     padding: 0 4px;
     border-radius: 8px;
-    background: var(--app-accent, #ff545a);
+    background: var(--app-accent, #663300);
     color: #fff;
     font-size: 0.62rem;
     font-weight: 700;
@@ -165,7 +165,7 @@ const logout = () => {
 }
 
 .main-header .notif-item.unread {
-    background: rgba(255, 84, 90, 0.08);
+    background: rgba(102, 51, 0, 0.08);
 }
 
 .main-header .notif-msg {
@@ -177,7 +177,7 @@ const logout = () => {
     background-color: var(--app-surface, #ffffff);
     color: var(--app-text, #212529);
     padding: 0.5rem 1rem;
-    border-bottom: 2px solid var(--app-accent, #ff545a) !important;
+    border-bottom: 2px solid var(--app-accent, #663300) !important;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
     display: flex;
     align-items: center;
@@ -218,7 +218,7 @@ const logout = () => {
 }
 
 .main-header .nav-link:hover {
-    color: var(--app-accent, #ff545a);
+    color: var(--app-accent, #663300);
     background-color: rgba(0, 0, 0, 0.05);
     border-radius: 5px;
 }

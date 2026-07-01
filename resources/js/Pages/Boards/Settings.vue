@@ -5,6 +5,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import TextInput from '@/Components/TextInput.vue';
 import SelectInput from '@/Components/SelectInput.vue';
+import DataTable from '@/Components/DataTable.vue';
 
 const props = defineProps({
     board: { type: Object, required: true },
@@ -14,6 +15,12 @@ const props = defineProps({
     potentialRoles: { type: Object, default: () => ({}) },
     canManage: { type: Boolean, default: false },
 });
+
+const memberColumns = [
+    { key: 'name', label: 'Thành viên' },
+    { key: 'email', label: 'Email' },
+    { key: 'role', label: 'Vai trò', width: '30%' },
+];
 
 const page = usePage();
 const flash = computed(() => page.props.flash || {});
@@ -127,49 +134,35 @@ const cancelInvite = (inv) => {
                             <h6 class="m-0 font-weight-bold text-white"><i class="fas fa-users mr-2"></i>Thành viên hiện tại</h6>
                         </div>
                         <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover table-sm" style="font-size:.9rem;">
-                                    <thead>
-                                        <tr>
-                                            <th>Thành viên</th><th>Email</th><th style="width:30%;">Vai trò</th>
-                                            <th v-if="canManage" class="text-right" style="width:10%;">Hành động</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td>
-                                                <img :src="avatar(owner.email)" class="rounded-circle mr-2" width="24" height="24" alt="">
-                                                <strong>{{ owner.name }}</strong>
-                                            </td>
-                                            <td>{{ owner.email }}</td>
-                                            <td><span class="badge badge-success px-2 py-1">Chủ sở hữu</span></td>
-                                            <td v-if="canManage" class="text-right"></td>
-                                        </tr>
-                                        <tr v-for="m in members" :key="m.id">
-                                            <td>
-                                                <img :src="avatar(m.email)" class="rounded-circle mr-2" width="24" height="24" alt="">
-                                                {{ m.name }}
-                                            </td>
-                                            <td>{{ m.email }}</td>
-                                            <td>
-                                                <SelectInput :model-value="m.role" :options="potentialRoles"
-                                                    :disabled="!canManage" class="form-control-sm"
-                                                    @update:model-value="(val) => changeRole(m, val)" />
-                                            </td>
-                                            <td v-if="canManage" class="text-right">
-                                                <button class="btn btn-outline-danger btn-sm" title="Xóa thành viên" @click="removeMember(m)">
-                                                    <i class="fas fa-user-times"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr v-if="!members.length">
-                                            <td :colspan="canManage ? 4 : 3" class="text-center text-muted pt-3 pb-3">
-                                                <i class="fas fa-info-circle mr-1"></i> Chưa có thành viên nào (ngoài chủ sở hữu).
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                            <DataTable :columns="memberColumns" :rows="members" :show-actions="canManage"
+                                empty-text="Chưa có thành viên nào (ngoài chủ sở hữu).">
+                                <!-- Chủ sở hữu luôn đứng đầu -->
+                                <template #prepend>
+                                    <tr>
+                                        <td>
+                                            <img :src="avatar(owner.email)" class="rounded-circle mr-2" width="24" height="24" alt="">
+                                            <strong>{{ owner.name }}</strong>
+                                        </td>
+                                        <td>{{ owner.email }}</td>
+                                        <td><span class="badge badge-success px-2 py-1">Chủ sở hữu</span></td>
+                                        <td v-if="canManage"></td>
+                                    </tr>
+                                </template>
+                                <template #cell-name="{ row }">
+                                    <img :src="avatar(row.email)" class="rounded-circle mr-2" width="24" height="24" alt="">
+                                    {{ row.name }}
+                                </template>
+                                <template #cell-role="{ row }">
+                                    <SelectInput :model-value="row.role" :options="potentialRoles"
+                                        :disabled="!canManage" class="form-control-sm"
+                                        @update:model-value="(val) => changeRole(row, val)" />
+                                </template>
+                                <template #actions="{ row }">
+                                    <button class="btn btn-outline-danger btn-sm" title="Xóa thành viên" @click="removeMember(row)">
+                                        <i class="fas fa-user-times"></i>
+                                    </button>
+                                </template>
+                            </DataTable>
                         </div>
                     </div>
                 </div>

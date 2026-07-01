@@ -38,6 +38,6 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick));
 
 .main-header .dropdown-item:hover {
     background-color: #f1f1f1;
-    color: #ff545a;
+    color: #663300;
 }
 </style>

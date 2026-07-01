@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\BoardTemplate;
 use Auth;
 use Inertia\Inertia;
 
@@ -21,7 +22,18 @@ class DashboardController extends Controller
             ];
         })->values();
 
-        return Inertia::render('User/Dashboard', ['boards' => $boards]);
+        $templates = BoardTemplate::orderBy('position')->get()->map(fn ($t) => [
+            'key' => $t->id,
+            'name' => $t->name,
+            'icon' => $t->icon,
+            'description' => $t->description,
+            'columns' => $t->columns,
+        ]);
+
+        return Inertia::render('User/Dashboard', [
+            'boards' => $boards,
+            'templates' => $templates,
+        ]);
     }
 
     public function store()
