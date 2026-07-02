@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import KanbanColumn from '@/Components/KanbanColumn.vue';
@@ -9,6 +9,7 @@ import BoardAnalytics from '@/Components/BoardAnalytics.vue';
 import TaskModal from '@/Components/TaskModal.vue';
 import Modal from '@/Components/Modal.vue';
 import TextInput from '@/Components/TextInput.vue';
+import Btn from '@/Components/Btn.vue';
 
 const props = defineProps({
     board: { type: Object, required: true },
@@ -19,9 +20,10 @@ const props = defineProps({
 // State cục bộ (reactive) cho columns/tasks
 const columns = reactive(props.board.columns.map((c) => ({ ...c, tasks: [...c.tasks] })));
 
-// ---- Thêm cột ----
-const addingColumn = ref(false);
+// ---- Thêm cột (hiển thị form trong modal) ----
+const showAddColumn = ref(false);
 const newColumnName = ref('');
+const openAddColumn = () => { newColumnName.value = ''; showAddColumn.value = true; };
 const saveColumn = async () => {
     const name = newColumnName.value.trim();
     if (!name) return;
@@ -29,7 +31,7 @@ const saveColumn = async () => {
         const { data } = await axios.post(route('columns.store', props.board.id), { name });
         columns.push({ id: data.column.id, name: data.column.name, position: data.column.position, tasks: [] });
         newColumnName.value = '';
-        addingColumn.value = false;
+        showAddColumn.value = false;
     } catch (e) {
         alert(e.response?.data?.message || 'Không thể tạo cột.');
     }
@@ -165,6 +167,31 @@ const modalTaskId = ref(null);
 const openTask = (task) => { modalTaskId.value = task.id; };
 const closeTask = () => { modalTaskId.value = null; };
 
+// ---- Modal "Task của tôi" (chỉ trong bảng này) ----
+const page = usePage();
+const currentUserId = computed(() => page.props.auth?.user?.id ?? null);
+const showMyTasks = ref(false);
+const MY_PRIORITY = {
+    urgent: { label: 'Khẩn cấp', color: '#e5484d' },
+    high: { label: 'Cao', color: '#f76808' },
+    normal: { label: 'Bình thường', color: '#006adc' },
+    low: { label: 'Thấp', color: '#18794e' },
+};
+const myTasks = computed(() => {
+    const uid = currentUserId.value;
+    if (!uid) return [];
+    const out = [];
+    for (const col of columns) {
+        for (const t of col.tasks) {
+            if ((t.assignees || []).some((a) => a.id === uid)) {
+                out.push({ ...t, column_name: col.name });
+            }
+        }
+    }
+    return out;
+});
+const openMyTask = (task) => { showMyTasks.value = false; openTask(task); };
+
 // ---- Nhật ký hoạt động ----
 const showActivity = ref(false);
 const activities = ref([]);
@@ -191,18 +218,25 @@ const openActivity = async () => {
             <div class="d-flex align-items-center" style="gap:8px;">
                 <div class="btn-group btn-group-sm" role="group">
                     <button class="btn" :class="viewMode === 'board' ? 'btn-dark' : 'btn-outline-secondary'"
-                        @click="viewMode = 'board'"><i class="fas fa-columns mr-1"></i>Bảng</button>
+                        @click="viewMode = 'board'"><i class="fas fa-columns mr-1"></i> Bảng</button>
                     <button class="btn" :class="viewMode === 'calendar' ? 'btn-dark' : 'btn-outline-secondary'"
-                        @click="viewMode = 'calendar'"><i class="far fa-calendar-alt mr-1"></i>Lịch</button>
+                        @click="viewMode = 'calendar'"><i class="far fa-calendar-alt mr-1"></i> Lịch</button>
                     <button class="btn" :class="viewMode === 'analytics' ? 'btn-dark' : 'btn-outline-secondary'"
-                        @click="viewMode = 'analytics'"><i class="fas fa-chart-pie mr-1"></i>Phân tích</button>
+                        @click="viewMode = 'analytics'"><i class="fas fa-chart-pie mr-1"></i> Phân tích</button>
                 </div>
                 <button class="btn btn-sm btn-outline-secondary" @click="openActivity">
-                    <i class="fas fa-clock-rotate-left mr-1"></i>Hoạt động
+                    <i class="fas fa-clock-rotate-left mr-1"></i> Hoạt động
                 </button>
-                <Link :href="route('my-tasks.index')" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-user-check mr-1"></i>Task của tôi
-                </Link>
+                <button class="btn btn-sm btn-outline-secondary" @click="showMyTasks = true">
+                    <i class="fas fa-user-check mr-1"></i> Task của tôi
+                    <span v-if="myTasks.length" class="badge badge-secondary ml-1">{{ myTasks.length }}</span>
+                </button>
+                <Btn :href="route('boards.settings', board.id)" :disabled="!canManage"
+                    variant="secondary" outline icon="fas fa-users" class="btn-sm"
+                    :title="canManage ? 'Quản lý thành viên' : 'Chỉ người quản lý mới được mời thành viên'">
+                    Thành viên</Btn>
+                <Btn v-if="canEdit && viewMode === 'board'" type="button" variant="success"
+                    icon="fas fa-plus" class="btn-sm" @click="openAddColumn">Thêm cột</Btn>
             </div>
         </div>
 
@@ -213,7 +247,7 @@ const openActivity = async () => {
                 <input type="text" class="form-control" v-model="filters.q" placeholder="Tìm tiêu đề / mã...">
             </div>
             <select class="form-control form-control-sm" style="width:auto;" v-model="filters.priority">
-                <option value="">Mọi ưu tiên</option>
+                <option value="">Tất cả</option>
                 <option value="urgent">Khẩn cấp</option>
                 <option value="high">Cao</option>
                 <option value="normal">Bình thường</option>
@@ -224,11 +258,11 @@ const openActivity = async () => {
                 <option v-for="a in allAssignees" :key="a.id" :value="a.id">{{ a.name }}</option>
             </select>
             <select v-if="boardLabels.length" class="form-control form-control-sm" style="width:auto;" v-model="filters.label">
-                <option value="">Mọi nhãn</option>
+                <option value="">Tất cả</option>
                 <option v-for="l in boardLabels" :key="l.id" :value="l.id">{{ l.name || 'Nhãn' }}</option>
             </select>
             <select class="form-control form-control-sm" style="width:auto;" v-model="filters.due">
-                <option value="">Mọi hạn</option>
+                <option value="">Tất cả</option>
                 <option value="overdue">Quá hạn</option>
                 <option value="soon">Sắp tới (≤2 ngày)</option>
                 <option value="future">Còn hạn</option>
@@ -247,21 +281,6 @@ const openActivity = async () => {
                 @task-change="(e) => onTaskChange(col, e)"
                 @add-task="(title) => saveTask(col, title)"
                 @open-task="openTask" />
-
-            <!-- Thêm cột -->
-            <div v-if="canEdit" class="add-column">
-                <template v-if="addingColumn">
-                    <div class="p-2 bg-white rounded">
-                        <TextInput v-model="newColumnName" placeholder="Nhập tên cột..." class="form-control-sm"
-                            group-class="mb-2" @keyup.enter="saveColumn" autofocus />
-                        <button class="btn btn-success btn-sm mr-1" @click="saveColumn">Lưu</button>
-                        <button class="btn btn-secondary btn-sm" @click="addingColumn = false">Huỷ</button>
-                    </div>
-                </template>
-                <div v-else class="add-column-placeholder text-dark p-2" @click="addingColumn = true">
-                    <i class="fas fa-plus"></i> THÊM CỘT
-                </div>
-            </div>
         </div>
 
         <!-- Chế độ Lịch -->
@@ -276,8 +295,55 @@ const openActivity = async () => {
         <TaskModal v-if="modalTaskId" :task-id="modalTaskId" :can-edit="canEdit" :can-manage="canManage"
             :board-id="board.id" @close="closeTask" />
 
+        <!-- Thêm cột mới -->
+        <Modal v-if="showAddColumn" title="Thêm cột mới" max-width="420px" align="center" @close="showAddColumn = false">
+            <form @submit.prevent="saveColumn">
+                <div class="form-group">
+                    <label class="small font-weight-bold">Tên cột</label>
+                    <TextInput v-model="newColumnName" placeholder="Nhập tên cột..." autofocus group-class="mb-0" />
+                </div>
+                <div class="text-right">
+                    <Btn type="button" variant="white" class="btn-sm mr-2" @click="showAddColumn = false">Huỷ</Btn>
+                    <Btn variant="black" class="btn-sm px-3">Tạo cột</Btn>
+                </div>
+            </form>
+        </Modal>
+
+        <!-- Task của tôi trong bảng này -->
+        <Modal v-if="showMyTasks" max-width="620px" align="center" @close="showMyTasks = false">
+            <template #header>
+                <h5 class="mb-0"><i class="fas fa-user-check mr-2"></i>Task của tôi trong bảng</h5>
+            </template>
+            <div v-if="!myTasks.length" class="text-center text-muted py-4">
+                <i class="fas fa-mug-hot fa-2x mb-2 d-block"></i>
+                Bạn chưa được giao công việc nào trong bảng này.
+            </div>
+            <div v-else class="my-task-list">
+                <button v-for="t in myTasks" :key="t.id" type="button" class="my-task" @click="openMyTask(t)">
+                    <div class="my-task__main">
+                        <div class="d-flex align-items-center flex-wrap" style="gap:6px;">
+                            <span class="my-code">{{ t.code }}</span>
+                            <span v-for="l in t.labels" :key="l.id" class="my-label"
+                                :style="{ backgroundColor: l.color }">{{ l.name }}</span>
+                        </div>
+                        <div class="my-title" :class="{ done: t.status?.is_completed }">{{ t.title }}</div>
+                        <div class="text-muted small"><i class="fas fa-columns mr-1"></i>{{ t.column_name }}</div>
+                    </div>
+                    <div class="my-task__meta">
+                        <span v-if="t.status" class="status-mini"
+                            :style="{ color: t.status.color, borderColor: t.status.color }">{{ t.status.name }}</span>
+                        <span v-if="MY_PRIORITY[t.priority]" class="prio-dot"
+                            :style="{ backgroundColor: MY_PRIORITY[t.priority].color }"
+                            :title="MY_PRIORITY[t.priority].label"></span>
+                        <span v-if="t.formatted_due_date" class="my-due">
+                            <i class="far fa-clock mr-1"></i>{{ t.formatted_due_date }}</span>
+                    </div>
+                </button>
+            </div>
+        </Modal>
+
         <!-- Nhật ký hoạt động -->
-        <Modal v-if="showActivity" max-width="560px" align="top" header-class="bg-dark text-light" @close="showActivity = false">
+        <Modal v-if="showActivity" max-width="560px" align="center" header-class="bg-dark text-light" @close="showActivity = false">
             <template #header><h5 class="mb-0"><i class="fas fa-clock-rotate-left mr-2"></i>Hoạt động của bảng</h5></template>
             <div v-if="loadingActivity" class="text-center p-4"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
             <div v-else>
@@ -295,6 +361,99 @@ const openActivity = async () => {
 </template>
 
 <style scoped>
+.my-task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.my-task {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.my-task:hover {
+    box-shadow: 0 4px 12px rgba(9, 30, 66, 0.08);
+    border-color: var(--app-accent);
+    transform: translateY(-1px);
+}
+
+.my-task__main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.my-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #7a869a;
+}
+
+.my-label {
+    display: inline-flex;
+    align-items: center;
+    height: 16px;
+    padding: 0 6px;
+    border-radius: 5px;
+    font-size: 0.64rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.my-title {
+    font-weight: 600;
+    color: var(--app-text);
+    word-break: break-word;
+}
+
+.my-title.done {
+    text-decoration: line-through;
+    color: var(--app-text-muted);
+}
+
+.my-task__meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.status-mini {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 20px;
+    border: 1px solid currentColor;
+    background: var(--app-surface);
+    white-space: nowrap;
+}
+
+.prio-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.my-due {
+    font-size: 0.75rem;
+    color: var(--app-text-muted);
+    white-space: nowrap;
+}
+
 .kanban-board {
     display: flex;
     /* Vượt quá bề ngang thì cột xuống dòng (không cuộn ngang) */
@@ -305,42 +464,9 @@ const openActivity = async () => {
     padding-bottom: 10px;
 }
 
-/* Ô "Thêm cột" cùng bề rộng với một cột */
-.add-column {
-    flex: 0 0 auto;
-    width: clamp(250px, 85vw, 290px);
-}
-
-.add-column-placeholder {
-    background-color: #1d941d8d;
-    border: 1px solid #d1d1d1;
-    border-radius: 6px;
-    cursor: pointer;
-    text-align: center;
-    color: #201e1e;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-    width: 100%;
-    height: 40px;
-    font-weight: 500;
-    font-size: small;
-}
-
-.add-column-placeholder:hover {
-    background-color: #27ac278d;
-    border-color: #b0b0b0;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
 @media (max-width: 575.98px) {
     .kanban-board {
         gap: 12px;
-    }
-
-    .add-column {
-        width: 86vw;
     }
 }
 </style>

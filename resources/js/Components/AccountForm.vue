@@ -1,5 +1,4 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
 import Btn from '@/Components/Btn.vue';
 import TextInput from '@/Components/TextInput.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -97,9 +96,9 @@ const statuses = { active: 'Kích hoạt', inactive: 'Không kích hoạt', bann
             <Btn variant="black" outline class="mr-2 mb-2 mb-sm-0" :disabled="props.form.processing">
                 {{ submitLabel }}
             </Btn>
-            <Link v-if="cancelHref" :href="cancelHref" class="btn btn-danger mb-2 mb-sm-0">
+            <Btn v-if="cancelHref" :href="cancelHref" variant="danger" class="mb-2 mb-sm-0">
                 Hủy
-            </Link>
+            </Btn>
         </div>
     </form>
 </template>

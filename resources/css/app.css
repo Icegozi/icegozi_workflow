@@ -1,8 +1,3 @@
-/* ------------------------------------------------------------------
- * Chỉ giữ vendor + reset tối thiểu ở cấp global.
- * Toàn bộ CSS custom đã chuyển vào <style scoped> của từng component Vue.
- * Vite tự minify khi build nên dùng bản non-min cho nguồn.
- * ------------------------------------------------------------------ */
 @import 'bootstrap/dist/css/bootstrap.css';
 @import './theme/vendor/fontawesome-free/css/all.css';
 @import './theme/vendor/adminlte.css';
@@ -16,11 +11,6 @@ body {
     background-color: var(--app-bg);
 }
 
-/* ------------------------------------------------------------------
- * Bảng màu dùng chung (topbar, footer, sidebar, nền chung).
- * Mặc định: sáng. Thêm [data-theme="dark"] trên <html> để chuyển tối.
- * Điểm nhấn nâu #663300 giữ nguyên ở cả hai chế độ.
- * ------------------------------------------------------------------ */
 :root {
     --app-bg: #f4f6f9;          /* nền chung sáng */
     --app-surface: #ffffff;     /* topbar / footer / thẻ nội dung */
@@ -32,7 +22,6 @@ body {
     --app-border: #e9ecef;
 }
 
-/* Chế độ tối */
 :root[data-theme="dark"] {
     --app-bg: #15171a;
     --app-surface: #1d2024;
@@ -41,8 +30,6 @@ body {
     --app-border: #2c3036;
 }
 
-/* Đồng nhất màu điểm nhấn cho control biểu mẫu toàn hệ thống
-   (checkbox/radio native — gồm cả checklist "bare" — dùng nâu thương hiệu) */
 input[type="checkbox"],
 input[type="radio"],
 input[type="range"] {
@@ -56,21 +43,76 @@ input[type="range"] {
     box-shadow: 0 0 0 0.2rem rgba(102, 51, 0, 0.25);
 }
 
-/* Icon addon của input-group hoà cùng ô nhập (thay nền xám mặc định của Bootstrap)
-   để Email/Mật khẩu... nhất quán với các trường khác ở cả sáng lẫn tối. */
 .input-group-text {
     background-color: var(--app-surface);
     border-color: var(--app-border);
     color: var(--app-text-muted);
 }
 
-/* ------------------------------------------------------------------
- * Brand overrides — gom các thành phần Bootstrap "primary"/link/
- * pagination/badge về tông accent (nâu). Các màu ngữ nghĩa
- * (success/danger/warning/info) GIỮ NGUYÊN.
- * ------------------------------------------------------------------ */
+.form-group {
+    margin-bottom: 1rem;
+}
 
-/* Liên kết thường (không áp cho .btn/.nav-link/.dropdown-item — chúng tự set màu) */
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -5px;
+    margin-left: -5px;
+}
+
+.form-row > .col,
+.form-row > [class*="col-"] {
+    padding-right: 5px;
+    padding-left: 5px;
+}
+
+.btn-block {
+    display: block;
+    width: 100%;
+}
+
+.btn-block + .btn-block {
+    margin-top: 0.5rem;
+}
+
+.mr-0 { margin-right: 0 !important; }
+.mr-1 { margin-right: 0.25rem !important; }
+.mr-2 { margin-right: 0.5rem !important; }
+.mr-3 { margin-right: 1rem !important; }
+.mr-4 { margin-right: 1.5rem !important; }
+.mr-5 { margin-right: 3rem !important; }
+.mr-auto { margin-right: auto !important; }
+
+.ml-0 { margin-left: 0 !important; }
+.ml-1 { margin-left: 0.25rem !important; }
+.ml-2 { margin-left: 0.5rem !important; }
+.ml-3 { margin-left: 1rem !important; }
+.ml-4 { margin-left: 1.5rem !important; }
+.ml-5 { margin-left: 3rem !important; }
+.ml-auto { margin-left: auto !important; }
+
+.pr-0 { padding-right: 0 !important; }
+.pr-1 { padding-right: 0.25rem !important; }
+.pr-2 { padding-right: 0.5rem !important; }
+.pr-3 { padding-right: 1rem !important; }
+.pr-4 { padding-right: 1.5rem !important; }
+.pr-5 { padding-right: 3rem !important; }
+
+.pl-0 { padding-left: 0 !important; }
+.pl-1 { padding-left: 0.25rem !important; }
+.pl-2 { padding-left: 0.5rem !important; }
+.pl-3 { padding-left: 1rem !important; }
+.pl-4 { padding-left: 1.5rem !important; }
+.pl-5 { padding-left: 3rem !important; }
+
+.badge-secondary { background-color: #6c757d; color: #fff; }
+.badge-success { background-color: #198754; color: #fff; }
+.badge-danger { background-color: #dc3545; color: #fff; }
+.badge-warning { background-color: #ffc107; color: #212529; }
+.badge-info { background-color: #0dcaf0; color: #212529; }
+.badge-dark { background-color: #212529; color: #fff; }
+.badge-light { background-color: #f1f3f5; color: #212529; }
+
 a {
     color: var(--app-accent);
 }
@@ -79,7 +121,6 @@ a:hover {
     color: var(--app-accent-dark);
 }
 
-/* Nút primary */
 .btn-primary {
     background-color: var(--app-accent);
     border-color: var(--app-accent);
@@ -93,7 +134,6 @@ a:hover {
     border-color: var(--app-accent-dark);
 }
 
-/* Nút outline primary */
 .btn-outline-primary {
     color: var(--app-accent);
     border-color: var(--app-accent);
@@ -106,7 +146,6 @@ a:hover {
     color: #fff;
 }
 
-/* Nút link / tiện ích text-primary */
 .btn-link {
     color: var(--app-accent);
 }
@@ -119,7 +158,6 @@ a:hover {
     color: var(--app-accent) !important;
 }
 
-/* Vùng focus ring của nút primary */
 .btn-primary:focus,
 .btn-outline-primary:focus,
 .btn-primary.focus,
@@ -127,12 +165,10 @@ a:hover {
     box-shadow: 0 0 0 0.2rem rgba(102, 51, 0, 0.35);
 }
 
-/* Badge primary */
 .badge-primary {
     background-color: var(--app-accent);
 }
 
-/* Phân trang */
 .page-link {
     color: var(--app-accent);
 }
@@ -143,7 +179,6 @@ a:hover {
     color: #fff;
 }
 
-/* Tiện ích thương hiệu dùng chung */
 .bg-accent {
     background-color: var(--app-accent) !important;
     color: #fff;
@@ -157,11 +192,6 @@ a:hover {
     border-color: var(--app-accent) !important;
 }
 
-/* ------------------------------------------------------------------
- * Dark mode overrides — các thành phần Bootstrap mặc định hardcode màu
- * sáng (card/form/table/modal/dropdown/bg-light...). Ánh xạ về biến theme
- * để giao diện đổi màu nhất quán khi bật chế độ tối.
- * ------------------------------------------------------------------ */
 [data-theme="dark"] body {
     color: var(--app-text);
 }
@@ -245,7 +275,6 @@ a:hover {
     background-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Nút "đen" (btn-dark / btn-outline-dark) sẽ chìm trên nền tối -> đảo sang sáng */
 [data-theme="dark"] .btn-outline-dark {
     color: var(--app-text);
     border-color: var(--app-text);
@@ -287,7 +316,6 @@ a:hover {
     color: var(--app-text);
 }
 
-/* Nền chung của layout người dùng & admin: sáng, ánh đỏ rất mờ */
 .client-bg,
 #admin-bg {
     background-color: var(--app-bg);
@@ -295,7 +323,6 @@ a:hover {
     background-attachment: fixed;
 }
 
-/* Vùng nội dung: thẻ bo góc, đổ bóng nhẹ */
 .cute-border {
     background: var(--app-surface);
     color: var(--app-text);

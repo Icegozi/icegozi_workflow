@@ -1,5 +1,5 @@
 <script setup>
-import { Head, useForm, Link } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -112,7 +112,7 @@ const submit = () => {
                 <Btn variant="black" outline class="mr-2" :disabled="form.processing">
                     {{ isEdit ? 'Lưu thay đổi' : 'Tạo mẫu' }}
                 </Btn>
-                <Link :href="route('admin.template.index')" class="btn btn-danger">Hủy</Link>
+                <Btn :href="route('admin.template.index')" variant="danger">Hủy</Btn>
             </div>
         </form>
     </AdminLayout>

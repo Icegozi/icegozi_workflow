@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import DataTable from '@/Components/DataTable.vue';
@@ -27,9 +27,9 @@ const destroy = (tpl) => {
     <AdminLayout>
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h3 class="mb-0">Mẫu bảng</h3>
-            <Link :href="route('admin.template.create')" class="btn btn-success btn-sm">
-                <i class="fas fa-plus mr-1"></i>Thêm mẫu
-            </Link>
+            <Btn :href="route('admin.template.create')" variant="success" icon="fas fa-plus" class="btn-sm">
+                Thêm mẫu
+            </Btn>
         </div>
 
         <DataTable :columns="columns" :rows="templates" empty-text="Chưa có mẫu nào.">
@@ -43,9 +43,8 @@ const destroy = (tpl) => {
             <template #cell-status_ids="{ row }">{{ (row.status_ids || []).length }}</template>
             <template #cell-labels="{ row }">{{ (row.labels || []).length }}</template>
             <template #actions="{ row }">
-                <Link :href="route('admin.template.edit', row.id)" class="btn btn-sm btn-outline-secondary mr-1">
-                    <i class="fas fa-pencil-alt"></i>
-                </Link>
+                <Btn :href="route('admin.template.edit', row.id)" variant="secondary" outline
+                    icon="fas fa-pencil-alt" class="btn-sm mr-1" />
                 <Btn type="button" variant="danger" class="btn-sm" @click="destroy(row)">
                     <i class="fas fa-trash-alt"></i>
                 </Btn>

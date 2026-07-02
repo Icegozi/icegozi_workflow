@@ -31,7 +31,7 @@ const errors = computed(() => page.props.errors || {});
                         <TextInput type="email" name="email" placeholder="Email" icon="fas fa-envelope" required autofocus />
                         <TextInput type="password" name="password" placeholder="Mật khẩu" icon="fas fa-lock" required />
 
-                        <div class="row">
+                        <div class="row align-items-center">
                             <div class="col-7">
                                 <Checkbox id="remember" name="remember" value="1" label="Ghi nhớ đăng nhập" />
                             </div>

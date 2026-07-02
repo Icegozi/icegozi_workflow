@@ -3,6 +3,8 @@ import { ref } from 'vue';
 import draggable from 'vuedraggable';
 import KanbanCard from '@/Components/KanbanCard.vue';
 import TextInput from '@/Components/TextInput.vue';
+import Btn from '@/Components/Btn.vue';
+import Modal from '@/Components/Modal.vue';
 
 const props = defineProps({
     col: { type: Object, required: true },
@@ -48,16 +50,24 @@ const submitTask = () => {
         </draggable>
 
         <div v-if="canEdit" class="mt-2">
-            <template v-if="adding">
-                <TextInput v-model="newTitle" placeholder="Tiêu đề công việc..." class="form-control-sm"
-                    group-class="mb-1" @keyup.enter="submitTask" autofocus />
-                <button class="btn btn-success btn-sm mr-1" @click="submitTask">Thêm</button>
-                <button class="btn btn-secondary btn-sm" @click="adding = false">Huỷ</button>
-            </template>
-            <a v-else href="#" class="text-muted small" @click.prevent="adding = true; newTitle = ''">
-                <i class="fas fa-plus"></i> Thêm công việc
-            </a>
+            <Btn type="button" variant="white" icon="fas fa-plus"
+                class="btn-sm btn-block add-task-btn" @click="adding = true; newTitle = ''">Thêm công việc</Btn>
         </div>
+
+        <!-- Form thêm công việc trong modal -->
+        <Modal v-if="adding" :title="`Thêm công việc · ${col.name}`" max-width="440px"
+            align="center" @close="adding = false">
+            <form @submit.prevent="submitTask">
+                <div class="form-group">
+                    <label class="small font-weight-bold">Tiêu đề công việc</label>
+                    <TextInput v-model="newTitle" placeholder="Nhập tiêu đề công việc..." autofocus group-class="mb-0" />
+                </div>
+                <div class="text-right">
+                    <Btn type="button" variant="white" class="btn-sm mr-2" @click="adding = false">Huỷ</Btn>
+                    <Btn variant="success" icon="fas fa-plus" class="btn-sm px-3">Thêm công việc</Btn>
+                </div>
+            </form>
+        </Modal>
     </div>
 </template>
 
@@ -117,6 +127,29 @@ const submitTask = () => {
     background-image: none;
     width: 100%;
     margin: 0;
+}
+
+/* Nút "Thêm công việc": dạng ghost gạch đứt, dịu; hover mới nổi màu accent.
+   Dùng biến theme nên nhất quán ở cả chế độ sáng lẫn tối. */
+.add-task-btn {
+    justify-content: flex-start;
+    border: 1px dashed var(--app-border) !important;
+    background: transparent !important;
+    color: var(--app-text-muted) !important;
+    font-weight: 500;
+    box-shadow: none !important;
+}
+
+.add-task-btn:hover {
+    background: rgba(102, 51, 0, 0.08) !important;
+    color: var(--app-accent) !important;
+    border-color: var(--app-accent) !important;
+}
+
+[data-theme="dark"] .add-task-btn:hover {
+    background: rgba(165, 118, 63, 0.18) !important;
+    color: var(--app-accent-2) !important;
+    border-color: var(--app-accent-2) !important;
 }
 
 @media (max-width: 575.98px) {

@@ -21,12 +21,7 @@ import Footer from '@/Components/Footer.vue';
                 </li>
                 <li class="nav-item">
                     <Link :href="route('admin.user.index')" class="nav-link">
-                        <i class="fas fa-users fa-fw"></i> Danh sách tài khoản
-                    </Link>
-                </li>
-                <li class="nav-item">
-                    <Link :href="route('admin.user.create')" class="nav-link">
-                        <i class="fas fa-user-plus fa-fw"></i> Thêm tài khoản
+                        <i class="fas fa-users fa-fw"></i> Tài khoản
                     </Link>
                 </li>
                 <li class="nav-item">

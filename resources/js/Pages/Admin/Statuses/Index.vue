@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import DataTable from '@/Components/DataTable.vue';
@@ -31,9 +31,9 @@ const destroy = (s) => {
     <AdminLayout>
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h3 class="mb-0">Trạng thái (dùng chung)</h3>
-            <Link :href="route('admin.status.create')" class="btn btn-success btn-sm">
-                <i class="fas fa-plus mr-1"></i>Thêm trạng thái
-            </Link>
+            <Btn :href="route('admin.status.create')" variant="success" icon="fas fa-plus" class="btn-sm">
+                Thêm trạng thái
+            </Btn>
         </div>
 
         <DataTable :columns="columns" :rows="statuses" empty-text="Chưa có trạng thái nào.">
@@ -50,9 +50,8 @@ const destroy = (s) => {
                 <span v-else class="text-muted">—</span>
             </template>
             <template #actions="{ row }">
-                <Link :href="route('admin.status.edit', row.id)" class="btn btn-sm btn-outline-secondary mr-1">
-                    <i class="fas fa-pencil-alt"></i>
-                </Link>
+                <Btn :href="route('admin.status.edit', row.id)" variant="secondary" outline
+                    icon="fas fa-pencil-alt" class="btn-sm mr-1" />
                 <Btn type="button" variant="danger" class="btn-sm" @click="destroy(row)">
                     <i class="fas fa-trash-alt"></i>
                 </Btn>

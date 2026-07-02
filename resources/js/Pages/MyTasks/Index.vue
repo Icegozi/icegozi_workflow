@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import TaskModal from '@/Components/TaskModal.vue';
 
 const props = defineProps({
     tasks: { type: Array, default: () => [] },
@@ -28,14 +29,18 @@ const grouped = computed(() =>
         .filter((g) => g.items.length)
 );
 
-const openTask = (t) => router.visit(route('tasks.edit', t.code));
+// Click task -> mở modal xem trước; từ modal bấm "Chỉnh sửa" mới sang trang edit.
+const modalTaskId = ref(null);
+const modalBoardId = ref(null);
+const openTask = (t) => { modalTaskId.value = t.id; modalBoardId.value = t.board_id; };
+const closeTask = () => { modalTaskId.value = null; };
 </script>
 
 <template>
     <Head title="Task của tôi" />
     <AuthenticatedLayout>
         <div class="p-3 mb-2 border-bottom d-flex align-items-center justify-content-between flex-wrap">
-            <h3 class="mb-0"><i class="fas fa-user-check mr-2"></i>Task của tôi</h3>
+            <h3 class="mb-0"><i class="fas fa-user-check"></i> Task của tôi</h3>
             <span class="text-muted small">{{ tasks.length }} công việc được giao</span>
         </div>
 
@@ -77,6 +82,10 @@ const openTask = (t) => router.visit(route('tasks.edit', t.code));
                 </div>
             </div>
         </div>
+
+        <!-- Xem trước task; "Chỉnh sửa" trong modal sẽ mở trang edit (và quay lại về đây) -->
+        <TaskModal v-if="modalTaskId" :task-id="modalTaskId" :board-id="modalBoardId"
+            :can-edit="true" :edit-query="{ return: 'my-tasks' }" @close="closeTask" />
     </AuthenticatedLayout>
 </template>
 

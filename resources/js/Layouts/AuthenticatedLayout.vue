@@ -1,13 +1,8 @@
 <script setup>
-import { computed } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import Topbar from '@/Components/Topbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
-import NavDropdown from '@/Components/NavDropdown.vue';
 import Footer from '@/Components/Footer.vue';
-
-const page = usePage();
-const ownedBoards = computed(() => page.props.ownedBoards || []);
 </script>
 
 <template>
@@ -28,15 +23,6 @@ const ownedBoards = computed(() => page.props.ownedBoards || []);
                         <i class="fas fa-user-check fa-fw"></i> Task của tôi
                     </Link>
                 </li>
-                <NavDropdown label="Mời thành viên" menu-style="max-height: 500px; overflow-y: auto;">
-                    <template v-if="ownedBoards.length">
-                        <Link v-for="b in ownedBoards" :key="b.id" class="dropdown-item"
-                            :href="route('boards.settings', b.id)">
-                            <i class="fas fa-cog fa-fw"></i> {{ b.name }}
-                        </Link>
-                    </template>
-                    <a v-else class="dropdown-item disabled" href="#">Vui lòng tạo thêm bảng!</a>
-                </NavDropdown>
             </Sidebar>
 
             <!-- Content -->

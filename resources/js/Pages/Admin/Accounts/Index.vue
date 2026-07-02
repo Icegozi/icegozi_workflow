@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DataTable from '@/Components/DataTable.vue';
+import Btn from '@/Components/Btn.vue';
 
 const props = defineProps({
     users: { type: Object, required: true },
@@ -40,14 +41,19 @@ const destroy = (user) => {
     <Head title="Danh sách tài khoản" />
     <AdminLayout>
         <div class="container">
-            <h3 class="mb-4">Danh sách người dùng</h3>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="mb-0">Danh sách người dùng</h3>
+                <Btn :href="route('admin.user.create')" variant="success" icon="fas fa-plus" class="btn-sm">
+                    Thêm tài khoản
+                </Btn>
+            </div>
 
             <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
             <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
 
             <DataTable :columns="columns" :rows="props.users.data" empty-text="Không có người dùng nào.">
                 <template #cell-name="{ row }">
-                    <Link :href="route('admin.user.show', row.id)">{{ row.name }}</Link>
+                    <span class="font-weight-bold">{{ row.name }}</span>
                 </template>
                 <template #cell-is_admin="{ row }">
                     <span v-if="row.is_admin" class="badge badge-success">Admin</span>
@@ -59,9 +65,10 @@ const destroy = (user) => {
                 <template #cell-created_at="{ row }">{{ fmt(row.created_at) }}</template>
                 <template #cell-updated_at="{ row }">{{ fmt(row.updated_at) }}</template>
                 <template #actions="{ row }">
-                    <a href="#" class="btn btn-sm btn-danger text-white" @click.prevent="destroy(row)">
-                        <i class="fa-solid fa-trash"></i>
-                    </a>
+                    <Btn :href="route('admin.user.show', row.id)" variant="secondary" outline
+                        icon="fas fa-pencil-alt" class="btn-sm mr-1" title="Chỉnh sửa" />
+                    <Btn type="button" variant="danger" icon="fa-solid fa-trash" class="btn-sm"
+                        title="Xoá" @click="destroy(row)" />
                 </template>
                 <template #footer>
                     <nav v-if="props.users.links && props.users.links.length > 3" class="d-flex justify-content-end mt-4">
