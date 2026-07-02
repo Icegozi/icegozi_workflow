@@ -1,0 +1,527 @@
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
+import axios from 'axios';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Btn from '@/Components/Btn.vue';
+import { renderMarkdown } from '@/composables/useMarkdown';
+
+const props = defineProps({
+    taskId: { type: Number, required: true },
+    boardId: { type: Number, required: true },
+    boardName: { type: String, default: '' },
+    boardCode: { type: Number, required: true },
+    taskCode: { type: Number, required: true },
+    code: { type: String, required: true },
+    canEdit: { type: Boolean, default: false },
+});
+
+const loading = ref(true);
+const task = ref(null);
+
+const loadTask = async () => {
+    try {
+        const { data } = await axios.get(route('tasks.show', props.taskId));
+        task.value = data.task;
+        loading.value = false;
+    } catch (e) {
+        // Task đã bị xoá / không còn -> chuyển về board.
+        if (e.response?.status === 404) {
+            router.visit(route('boards.show', props.boardId));
+            return;
+        }
+        loading.value = false;
+    }
+};
+onMounted(loadTask);
+
+const PRIORITY = {
+    urgent: { label: 'Khẩn cấp', color: '#e5484d', bg: '#ffe5e5' },
+    high: { label: 'Cao', color: '#f76808', bg: '#ffefe5' },
+    normal: { label: 'Bình thường', color: '#006adc', bg: '#e6f0ff' },
+    low: { label: 'Thấp', color: '#18794e', bg: '#e5f5ec' },
+};
+const priority = computed(() => (task.value ? PRIORITY[task.value.priority] || null : null));
+
+const checklistDone = computed(() => (task.value?.checklists || []).filter((c) => c.is_done).length);
+const checklistTotal = computed(() => (task.value?.checklists || []).length);
+const checklistPct = computed(() =>
+    checklistTotal.value ? Math.round((checklistDone.value / checklistTotal.value) * 100) : 0
+);
+
+const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(email || 'x')}`;
+
+// ---- Permalink + copy ---- (URL đẹp /b-{board_code}/tasks/{task_code})
+const taskUrl = computed(() => route('tasks.permalink', { boardCode: props.boardCode, taskCode: props.taskCode }));
+const linkCopied = ref(false);
+const copyLink = async () => {
+    try {
+        await navigator.clipboard.writeText(taskUrl.value);
+    } catch {
+        const el = document.createElement('textarea');
+        el.value = taskUrl.value;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+    }
+    linkCopied.value = true;
+    setTimeout(() => { linkCopied.value = false; }, 1500);
+};
+
+// Quay lại: nếu tới từ "Task của tôi" (?return=my-tasks) thì về đó, ngược lại về bảng.
+const backToBoard = () => {
+    const ret = new URLSearchParams(window.location.search).get('return');
+    if (ret === 'my-tasks') {
+        router.visit(route('my-tasks.index'));
+    } else {
+        router.visit(route('boards.show', props.boardId));
+    }
+};
+
+// return=view: để trang Edit khi bấm "Quay lại" trở về đúng trang xem này.
+const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, return: 'view' }));
+</script>
+
+<template>
+    <Head :title="`Công việc ${code}`" />
+    <AuthenticatedLayout>
+        <div class="task-view">
+            <!-- Thanh công cụ -->
+            <div class="tv-toolbar">
+                <Btn type="button" variant="white" class="btn-sm" icon="fas fa-arrow-left" @click="backToBoard">
+                    Quay lại
+                </Btn>
+                <span class="task-code">{{ code }}</span>
+                <span class="flex-grow-1"></span>
+                <div class="tv-link">
+                    <input class="tv-link__input" type="text" :value="taskUrl" readonly @focus="$event.target.select()">
+                    <button type="button" class="tv-link__btn" :title="linkCopied ? 'Đã sao chép' : 'Sao chép liên kết'"
+                        @click="copyLink">
+                        <i :class="linkCopied ? 'fas fa-check' : 'fas fa-copy'"></i>
+                    </button>
+                </div>
+                <Btn v-if="canEdit" type="button" variant="black" class="btn-sm" icon="fas fa-pen" @click="goEdit">
+                    Chỉnh sửa
+                </Btn>
+            </div>
+
+            <div v-if="loading" class="text-center py-5 text-muted">
+                <i class="fas fa-spinner fa-spin fa-lg"></i>
+                <div class="mt-2">Đang tải...</div>
+            </div>
+
+            <div v-else class="row tv-body">
+                <!-- Cột trái -->
+                <div class="col-lg-8 mb-4 mb-lg-0">
+                    <p class="tv-breadcrumb">
+                        <i class="fas fa-columns mr-1"></i>Trong danh sách:
+                        <strong>{{ task.column_name }}</strong>
+                    </p>
+                    <h4 class="tv-title">{{ task.title }}</h4>
+
+                    <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
+                    <div class="d-flex align-items-center flex-wrap mb-4" style="gap:8px;">
+                        <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
+                            <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
+                            <span>{{ a.name }}</span>
+                        </span>
+                        <span v-if="!task.assignees || !task.assignees.length" class="text-muted small">Chưa có ai.</span>
+                    </div>
+
+                    <h6 class="sect"><i class="fas fa-align-left"></i>Mô tả</h6>
+                    <div class="tv-box mb-4">
+                        <div v-if="task.description" class="md-content" v-html="renderMarkdown(task.description)"></div>
+                        <span v-else class="text-muted small"><em>Chưa có mô tả.</em></span>
+                    </div>
+
+                    <h6 class="sect">
+                        <i class="fas fa-tasks"></i>Checklist
+                        <span v-if="checklistTotal" class="sect-count">{{ checklistDone }}/{{ checklistTotal }}</span>
+                    </h6>
+                    <div class="mb-4">
+                        <div v-if="checklistTotal" class="checklist-progress mb-2">
+                            <div class="checklist-progress__bar" :style="{ width: checklistPct + '%' }"></div>
+                        </div>
+                        <div v-for="item in task.checklists" :key="item.id" class="checklist-item">
+                            <i :class="item.is_done ? 'far fa-check-square text-success' : 'far fa-square text-muted'"></i>
+                            <span :class="{ done: item.is_done }">{{ item.title }}</span>
+                        </div>
+                        <span v-if="!task.checklists || !task.checklists.length" class="text-muted small">Chưa có mục nào.</span>
+                    </div>
+
+                    <h6 class="sect"><i class="fas fa-comments"></i>Bình luận</h6>
+                    <div class="comment-list">
+                        <div v-for="c in task.comments" :key="c.id" class="comment">
+                            <img :src="c.user_avatar || avatar(c.user_name, 40)" class="rounded-circle comment__avatar"
+                                width="34" height="34">
+                            <div class="comment__body">
+                                <div class="comment__head">
+                                    <strong>{{ c.user_name }}</strong>
+                                    <small class="text-muted">{{ c.time_ago }}</small>
+                                </div>
+                                <div class="comment__content md-content" v-html="renderMarkdown(c.content)"></div>
+                            </div>
+                        </div>
+                        <div v-if="!task.comments || !task.comments.length" class="text-muted small text-center py-3">
+                            Chưa có bình luận.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cột phải -->
+                <div class="col-lg-4 tv-side">
+                    <div class="tv-panel mb-3">
+                        <h6 class="side-title">Thông tin</h6>
+
+                        <div class="info-row">
+                            <span class="info-label">Nhãn</span>
+                            <div v-if="task.labels && task.labels.length" class="d-flex flex-wrap" style="gap:4px;">
+                                <span v-for="l in task.labels" :key="l.id" class="label-chip"
+                                    :style="{ backgroundColor: l.color }">{{ l.name }}</span>
+                            </div>
+                            <span v-else class="info-empty">—</span>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Trạng thái</span>
+                            <span v-if="task.status" class="status-badge"
+                                :style="{ color: task.status.color, borderColor: task.status.color }">
+                                {{ task.status.name }}
+                            </span>
+                            <span v-else class="info-empty">—</span>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Độ ưu tiên</span>
+                            <span v-if="priority" class="priority-pill" :style="{ color: priority.color, backgroundColor: priority.bg }">
+                                <span class="dot" :style="{ backgroundColor: priority.color }"></span>{{ priority.label }}
+                            </span>
+                            <span v-else class="info-empty">—</span>
+                        </div>
+
+                        <div class="info-row mb-0">
+                            <span class="info-label">Ngày hết hạn</span>
+                            <strong class="tv-due">{{ task.formatted_due_date || '—' }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="tv-panel">
+                        <h6 class="side-title">Lịch sử</h6>
+                        <div class="history-scroll">
+                            <div v-for="h in task.task_histories" :key="h.id" class="history-item">
+                                <img :src="h.user_avatar" class="rounded-circle" width="24" height="24">
+                                <div class="history-item__text">
+                                    <!-- note là HTML dựng sẵn (đã escape ở server) -->
+                                    <div v-if="h.note" class="history-note" v-html="h.note"></div>
+                                    <div v-else class="history-note"><strong>{{ h.user_name }}</strong> {{ h.action }}</div>
+                                    <div class="history-item__time">{{ h.updated_at }}</div>
+                                </div>
+                            </div>
+                            <div v-if="!task.task_histories || !task.task_histories.length"
+                                class="text-muted small text-center py-2">Chưa có lịch sử.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </AuthenticatedLayout>
+</template>
+
+<style scoped>
+.task-view {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+/* ---------------- Thanh công cụ ---------------- */
+.tv-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.task-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: var(--app-accent, #663300);
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 6px;
+}
+
+.tv-link {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    max-width: 340px;
+    flex: 1;
+}
+
+.tv-link__input {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.78rem;
+    padding: 4px 8px;
+    border: 1px solid var(--app-border, #e4e6ea);
+    border-radius: 6px;
+    background: var(--app-bg-subtle, #f4f6f9);
+    color: var(--app-text-muted);
+}
+
+.tv-link__btn {
+    flex-shrink: 0;
+    border: 1px solid var(--app-border, #e4e6ea);
+    background: transparent;
+    color: var(--app-accent, #663300);
+    border-radius: 6px;
+    padding: 0 10px;
+    cursor: pointer;
+}
+
+.tv-link__btn:hover {
+    background: var(--app-accent, #663300);
+    color: #fff;
+}
+
+/* ---------------- Bố cục ---------------- */
+.tv-breadcrumb {
+    font-size: 0.8rem;
+    color: var(--app-text-muted);
+    margin-bottom: 6px;
+}
+
+.tv-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--app-text);
+    line-height: 1.35;
+    margin: 0 0 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--app-border);
+    word-break: break-word;
+}
+
+.sect,
+.side-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--app-accent, #663300);
+}
+
+.sect {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+}
+
+.sect-count {
+    font-weight: 600;
+    color: var(--app-text-muted);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.side-title { margin: 0 0 14px; }
+
+.assignee-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(127, 127, 127, 0.1);
+    border-radius: 20px;
+    padding: 3px 12px 3px 3px;
+    font-size: 0.82rem;
+    color: var(--app-text);
+}
+
+.tv-box {
+    background: rgba(127, 127, 127, 0.05);
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--app-text);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.checklist-progress {
+    height: 6px;
+    border-radius: 4px;
+    background: rgba(127, 127, 127, 0.2);
+    overflow: hidden;
+}
+
+.checklist-progress__bar {
+    height: 100%;
+    background: #18794e;
+    transition: width 0.25s ease;
+}
+
+.checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+    font-size: 0.9rem;
+    color: var(--app-text);
+}
+
+.checklist-item .done {
+    color: var(--app-text-muted);
+    text-decoration: line-through;
+}
+
+.comment {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid var(--app-border);
+}
+
+.comment:first-child { border-top: 0; padding-top: 0; }
+.comment__avatar { flex-shrink: 0; }
+.comment__body { flex: 1; min-width: 0; }
+
+.comment__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+    font-size: 0.9rem;
+}
+
+.comment__content {
+    color: var(--app-text);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.tv-side { align-self: flex-start; }
+
+.tv-panel {
+    background: rgba(127, 127, 127, 0.04);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    padding: 16px 18px;
+}
+
+.info-row { margin-bottom: 14px; }
+
+.info-label {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--app-text-muted);
+    margin-bottom: 4px;
+}
+
+.info-empty { color: var(--app-text-muted); }
+.tv-due { color: var(--app-text); font-size: 0.9rem; }
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 12px;
+    border-radius: 20px;
+    border: 1px solid currentColor;
+    background: var(--app-surface);
+}
+
+.priority-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.priority-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.label-chip {
+    display: inline-flex;
+    align-items: center;
+    min-width: 28px;
+    height: 22px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1;
+}
+
+.history-scroll {
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.history-item {
+    display: flex;
+    gap: 8px;
+    padding: 8px 0;
+    font-size: 0.8rem;
+    color: var(--app-text);
+}
+
+.history-item + .history-item { border-top: 1px solid var(--app-border); }
+
+.history-item__time {
+    color: var(--app-text-muted);
+    font-size: 0.7rem;
+    margin-top: 1px;
+}
+
+.history-note {
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+/* ---------------- Markdown ---------------- */
+.md-content { word-break: break-word; }
+.md-content :deep(p) { margin: 0 0 0.5rem; }
+.md-content :deep(p:last-child) { margin-bottom: 0; }
+.md-content :deep(ul),
+.md-content :deep(ol) { margin: 0 0 0.5rem; padding-left: 1.4rem; }
+.md-content :deep(blockquote) {
+    margin: 0 0 0.5rem;
+    padding: 3px 12px;
+    border-left: 3px solid var(--app-accent);
+    background: rgba(102, 51, 0, 0.06);
+    border-radius: 0 6px 6px 0;
+}
+.md-content :deep(code) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.82em;
+    background: rgba(127, 127, 127, 0.15);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+.md-content :deep(pre) {
+    padding: 10px 12px;
+    background: rgba(127, 127, 127, 0.12);
+    border-radius: 8px;
+    overflow-x: auto;
+}
+.md-content :deep(pre code) { background: none; padding: 0; }
+.md-content :deep(a) { color: var(--app-accent); }
+
+[data-theme="dark"] .md-content :deep(a) { color: var(--app-accent-2); }
+[data-theme="dark"] .md-content :deep(blockquote) {
+    background: rgba(165, 118, 63, 0.12);
+    border-left-color: var(--app-accent-2);
+}
+</style>

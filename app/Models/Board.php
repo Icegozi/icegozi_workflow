@@ -7,13 +7,46 @@ use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Board extends Model
 {
     use BoardRelationships;
     use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = ['name', 'description', 'user_id'];
+
+    protected static function booted(): void
+    {
+        // Xoá mềm board -> xoá mềm luôn column (kéo theo task và các con của task) để board
+        // "đã xoá" không để lại dữ liệu vẫn hiện trong truy vấn xuyên bảng (vd. "Task của tôi").
+        // Xoá cứng (forceDelete) thì để FK ON DELETE CASCADE của DB lo.
+        static::deleting(function (Board $board) {
+            if ($board->isForceDeleting()) {
+                return;
+            }
+            $board->columns()->get()->each->delete();
+        });
+    }
+
+    /**
+     * Sinh board_code (số tăng dần toàn hệ thống, unique) một cách atomic: đọc max + INSERT
+     * nằm trong CÙNG transaction với lockForUpdate để hai board tạo song song không nhận
+     * trùng mã (nếu không sẽ vi phạm unique và trả 500).
+     */
+    public function save(array $options = []): bool
+    {
+        if ($this->exists || ! empty($this->board_code)) {
+            return parent::save($options);
+        }
+
+        return DB::transaction(function () use ($options) {
+            $this->board_code = (static::withTrashed()->lockForUpdate()->max('board_code') ?? 0) + 1;
+
+            return parent::save($options);
+        });
+    }
 
     // Lấy tất cả board theo user_id
     public static function getBoardsByUser(int $userId)

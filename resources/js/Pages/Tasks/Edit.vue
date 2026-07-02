@@ -14,6 +14,8 @@ const props = defineProps({
     taskId: { type: Number, required: true },
     boardId: { type: Number, required: true },
     boardName: { type: String, default: '' },
+    boardCode: { type: Number, required: true },
+    taskCode: { type: Number, required: true },
     code: { type: String, required: true },
     canEdit: { type: Boolean, default: false },
     canManage: { type: Boolean, default: false },
@@ -51,11 +53,40 @@ const PRIORITIES = [
 
 const statusOptions = computed(() => props.statuses.map((s) => ({ value: s.id, label: s.name })));
 
+// ---- Permalink công việc (https://{miền}/b-{board_code}/tasks/{task_code}) ----
+// Ziggy trả URL tuyệt đối (kèm host) nên copy ra là link đầy đủ dùng được.
+const taskUrl = computed(() => route('tasks.permalink', { boardCode: props.boardCode, taskCode: props.taskCode }));
+const linkCopied = ref(false);
+const copyLink = async () => {
+    try {
+        await navigator.clipboard.writeText(taskUrl.value);
+    } catch {
+        const el = document.createElement('textarea');
+        el.value = taskUrl.value;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+    }
+    linkCopied.value = true;
+    setTimeout(() => { linkCopied.value = false; }, 1500);
+};
+
 // Nạp task từ server. resetForm=true chỉ dùng khi mở trang: gán lại các ô nhập.
 // Các thao tác phụ (bình luận, checklist, nhãn...) gọi resetForm=false để KHÔNG
 // ghi đè phần người dùng đang gõ dở ở tiêu đề/mô tả (tránh mất dữ liệu chưa lưu).
 const fetchTask = async (resetForm = false) => {
-    const { data } = await axios.get(route('tasks.show', props.taskId));
+    let data;
+    try {
+        ({ data } = await axios.get(route('tasks.show', props.taskId)));
+    } catch (e) {
+        // Task đã bị xoá / không còn -> chuyển về board.
+        if (e.response?.status === 404) {
+            router.visit(route('boards.show', props.boardId));
+            return;
+        }
+        throw e;
+    }
     task.value = data.task;
     if (resetForm) {
         title.value = data.task.title;
@@ -125,15 +156,26 @@ const pickMention = (member) => {
     mentionAt.value = -1;
 };
 
-// Quay lại: nếu tới từ danh sách "Task của tôi" (?return=my-tasks) thì về đó,
-// ngược lại quay về bảng.
+const returnTo = () => new URLSearchParams(window.location.search).get('return');
+
+// Quay lại theo nơi đã tới:
+//  - ?return=view     -> về trang XEM chi tiết công việc (/tasks/{id})
+//  - ?return=my-tasks -> về danh sách "Task của tôi"
+//  - còn lại          -> về bảng
 const backToBoard = () => {
-    const ret = new URLSearchParams(window.location.search).get('return');
-    if (ret === 'my-tasks') {
+    const ret = returnTo();
+    if (ret === 'view') {
+        router.visit(route('tasks.permalink', { boardCode: props.boardCode, taskCode: props.taskCode }));
+    } else if (ret === 'my-tasks') {
         router.visit(route('my-tasks.index'));
     } else {
         router.visit(route('boards.show', props.boardId));
     }
+};
+
+// Task đã bị xoá -> luôn về trang board (không về view của chính nó vì đã không còn).
+const backAfterDelete = () => {
+    router.visit(route('boards.show', props.boardId));
 };
 
 const saveTask = async () => {
@@ -158,7 +200,7 @@ const deleteTask = async () => {
     if (!confirm('Xoá công việc này?')) return;
     try {
         await axios.delete(route('tasks.destroy', props.taskId));
-        backToBoard();
+        backAfterDelete();
     } catch (e) {
         alert(e.response?.data?.message || 'Không thể xoá công việc.');
     }
@@ -332,7 +374,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                         <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
                         <div class="d-flex align-items-center flex-wrap mb-4" style="gap:8px;">
                             <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
-                                <img :src="avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
+                                <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
                                 <span>{{ a.name }}</span>
                                 <button v-if="canManage" class="pill-x" @click="removeAssignee(a)" title="Gỡ">&times;</button>
                             </span>
@@ -346,7 +388,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                         <a v-for="u in boardMembers" :key="u.id" href="#"
                                             class="list-group-item list-group-item-action py-2"
                                             @click.prevent="addAssignee(u)">
-                                            <img :src="avatar(u.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ u.name }}
+                                            <img :src="u.avatar_url || avatar(u.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ u.name }}
                                         </a>
                                         <span v-if="!boardMembers.length" class="list-group-item small text-muted">Không có thành viên.</span>
                                     </div>
@@ -449,7 +491,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                 <a v-for="m in mentionMatches" :key="m.id" href="#"
                                     class="list-group-item list-group-item-action py-2 d-flex align-items-center"
                                     @click.prevent="pickMention(m)">
-                                    <img :src="avatar(m.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ m.name }}
+                                    <img :src="m.avatar_url || avatar(m.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ m.name }}
                                 </a>
                             </div>
                         </div>
@@ -489,10 +531,21 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                 <SelectInput v-model="priority" :options="PRIORITIES" class="form-control-sm"
                                     :disabled="!canEdit" />
                             </div>
-                            <div class="form-group mb-0">
+                            <div class="form-group mb-3">
                                 <label class="sect-label">Ngày hết hạn</label>
                                 <TextInput type="date" v-model="dueDate" class="form-control-sm" group-class="mb-0"
                                     :disabled="!canEdit" />
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="sect-label">Liên kết công việc</label>
+                                <div class="task-link">
+                                    <input class="task-link__input" type="text" :value="taskUrl" readonly
+                                        @focus="$event.target.select()">
+                                    <button type="button" class="task-link__btn" :title="linkCopied ? 'Đã sao chép' : 'Sao chép liên kết'"
+                                        @click="copyLink">
+                                        <i :class="linkCopied ? 'fas fa-check' : 'fas fa-copy'"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -604,6 +657,39 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
     letter-spacing: 0.4px;
     color: var(--app-text-muted);
     margin-bottom: 6px;
+}
+
+/* ---------------- Permalink công việc ---------------- */
+.task-link {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.task-link__input {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.78rem;
+    padding: 4px 8px;
+    border: 1px solid var(--app-border, #e4e6ea);
+    border-radius: 6px;
+    background: var(--app-bg-subtle, #f4f6f9);
+    color: var(--app-text-muted);
+}
+
+.task-link__btn {
+    flex-shrink: 0;
+    border: 1px solid var(--app-border, #e4e6ea);
+    background: transparent;
+    color: var(--app-accent, #663300);
+    border-radius: 6px;
+    padding: 0 10px;
+    cursor: pointer;
+}
+
+.task-link__btn:hover {
+    background: var(--app-accent, #663300);
+    color: #fff;
 }
 
 /* ---------------- Người phụ trách ---------------- */

@@ -75,7 +75,7 @@ const goEdit = () => {
                 <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
                 <div class="d-flex align-items-center flex-wrap mb-4" style="gap:8px;">
                     <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
-                        <img :src="avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
+                        <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
                         <span>{{ a.name }}</span>
                     </span>
                     <span v-if="!task.assignees || !task.assignees.length" class="text-muted small">Chưa có ai.</span>

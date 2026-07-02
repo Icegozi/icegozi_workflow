@@ -47,7 +47,6 @@ class UserRequest extends FormRequest
             'social.github' => 'nullable|url|max:255',
             'social.website' => 'nullable|url|max:255',
             'password' => [
-                // Bắt buộc khi tạo mới; khi sửa để trống = giữ mật khẩu cũ.
                 $userId ? 'nullable' : 'required',
                 'string',
                 'min:8',
