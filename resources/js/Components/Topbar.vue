@@ -1,9 +1,58 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { usePage, router } from '@inertiajs/vue3';
+import axios from 'axios';
+import { useTheme } from '@/composables/useTheme';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user || null);
+
+const { theme, toggle: toggleTheme } = useTheme();
+
+// ---- Thông báo ----
+const notifications = ref([]);
+const unread = ref(0);
+const showNotif = ref(false);
+let poll = null;
+
+const loadNotifications = async () => {
+    try {
+        const { data } = await axios.get(route('notifications.index'));
+        notifications.value = data.notifications || [];
+        unread.value = data.unread || 0;
+    } catch (e) { /* im lặng */ }
+};
+
+const openNotif = async () => {
+    showNotif.value = !showNotif.value;
+    if (showNotif.value) await loadNotifications();
+};
+
+const onNotifClick = async (n) => {
+    try {
+        if (!n.is_read) {
+            await axios.post(route('notifications.read', n.id));
+            n.is_read = true;
+            unread.value = Math.max(0, unread.value - 1);
+        }
+    } catch (e) { /* ignore */ }
+    showNotif.value = false;
+    if (n.url) router.visit(n.url);
+};
+
+const markAllRead = async () => {
+    try {
+        await axios.post(route('notifications.readAll'));
+        notifications.value.forEach((n) => (n.is_read = true));
+        unread.value = 0;
+    } catch (e) { /* ignore */ }
+};
+
+onMounted(() => {
+    loadNotifications();
+    poll = setInterval(loadNotifications, 60000);   // làm mới mỗi 60s
+});
+onUnmounted(() => poll && clearInterval(poll));
 
 const logout = () => {
     if (confirm('Bạn có chắc chắn muốn đăng xuất không?')) {
@@ -21,6 +70,35 @@ const logout = () => {
 
         <!-- Người dùng + đăng xuất (dùng chung) -->
         <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <a class="nav-link d-flex align-items-center" href="#" @click.prevent="toggleTheme"
+                    :title="theme === 'dark' ? 'Chuyển sáng' : 'Chuyển tối'">
+                    <i :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>
+                </a>
+            </li>
+            <li class="nav-item position-relative">
+                <a class="nav-link d-flex align-items-center" href="#" @click.prevent="openNotif" title="Thông báo">
+                    <i class="far fa-bell"></i>
+                    <span v-if="unread" class="notif-badge">{{ unread > 9 ? '9+' : unread }}</span>
+                </a>
+                <div v-if="showNotif" class="notif-panel card shadow">
+                    <div class="notif-head d-flex justify-content-between align-items-center px-3 py-2">
+                        <strong>Thông báo</strong>
+                        <a v-if="unread" href="#" class="small" @click.prevent="markAllRead">Đánh dấu đã đọc</a>
+                    </div>
+                    <div class="notif-list">
+                        <a v-for="n in notifications" :key="n.id" href="#"
+                            class="notif-item px-3 py-2 d-block" :class="{ unread: !n.is_read }"
+                            @click.prevent="onNotifClick(n)">
+                            <div v-html="n.message" class="notif-msg"></div>
+                            <div class="text-muted" style="font-size:.72rem;">{{ n.time_ago }}</div>
+                        </a>
+                        <div v-if="!notifications.length" class="text-muted text-center py-3 small">
+                            Chưa có thông báo.
+                        </div>
+                    </div>
+                </div>
+            </li>
             <li class="nav-item d-flex align-items-center">
                 <span class="nav-link">{{ user?.name }}</span>
             </li>
@@ -36,11 +114,70 @@ const logout = () => {
 <!-- Không dùng scoped: các link điều hướng đến từ <slot> (do layout cha render),
      nên cần selector global, giới hạn phạm vi bằng tiền tố .main-header. -->
 <style>
+/* Chuông thông báo */
+.main-header .notif-badge {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: var(--app-accent, #663300);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+}
+
+.main-header .notif-panel {
+    position: absolute;
+    top: 120%;
+    right: 0;
+    width: 340px;
+    max-width: 90vw;
+    z-index: 1050;
+    border: 1px solid var(--app-border, #e4e6ea);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--app-surface, #fff);
+}
+
+.main-header .notif-head {
+    border-bottom: 1px solid var(--app-border, #eee);
+}
+
+.main-header .notif-list {
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.main-header .notif-item {
+    color: var(--app-text, #212529);
+    border-bottom: 1px solid rgba(127, 127, 127, 0.12);
+    text-decoration: none;
+}
+
+.main-header .notif-item:hover {
+    background: rgba(127, 127, 127, 0.1);
+}
+
+.main-header .notif-item.unread {
+    background: rgba(102, 51, 0, 0.08);
+}
+
+.main-header .notif-msg {
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
 .main-header.navbar {
-    background-color: #1c1c1c;
-    color: #dee2e6;
+    background-color: var(--app-surface, #ffffff);
+    color: var(--app-text, #212529);
     padding: 0.5rem 1rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-bottom: 2px solid var(--app-accent, #663300) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -54,7 +191,7 @@ const logout = () => {
 .main-header .navbar-nav.ml-auto .nav-item {
     margin-left: 15px;
     font-weight: 500;
-    color: #dee2e6;
+    color: var(--app-text, #212529);
     display: flex;
     align-items: center;
 }
@@ -63,7 +200,7 @@ const logout = () => {
     display: flex;
     align-items: center;
     padding: 8px;
-    color: #dee2e6;
+    color: var(--app-text, #212529);
 }
 
 .main-header .navbar-nav.ml-auto .nav-link i {
@@ -72,7 +209,7 @@ const logout = () => {
 
 /* Áp cho link bên trái (slot), nút dropdown và link bên phải */
 .main-header .nav-link {
-    color: #dee2e6;
+    color: var(--app-text, #212529);
     font-size: 14px;
     transition: color 0.3s ease, background-color 0.3s ease;
     display: flex;
@@ -80,8 +217,8 @@ const logout = () => {
 }
 
 .main-header .nav-link:hover {
-    color: #ff545a;
-    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--app-accent, #663300);
+    background-color: rgba(0, 0, 0, 0.05);
     border-radius: 5px;
 }
 </style>

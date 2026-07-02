@@ -2,40 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BoardRelationships;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Board extends Model
 {
+    use BoardRelationships;
     use HasFactory;
 
     protected $fillable = ['name', 'description', 'user_id'];
-
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    public function columns(): HasMany
-    {
-        // Mặc định sắp xếp các cột theo vị trí 'position'
-        return $this->hasMany(Column::class)->orderBy('position', 'asc');
-    }
-
-    public function owner(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
-
-    public function invitations(): HasMany
-    {
-        return $this->hasMany(BoardInvitation::class);
-    }
 
     // Lấy tất cả board theo user_id
     public static function getBoardsByUser(int $userId)
@@ -79,19 +57,6 @@ class Board extends Model
     public static function getBoardData(int $id)
     {
         return self::with(['user', 'columns.tasks'])->findOrFail($id);
-    }
-
-    public function boardPermissionUsers(): HasManyThrough
-    {
-        // Board -> board_permissions -> permission_users
-        return $this->hasManyThrough(
-            PermissionUser::class,
-            BoardPermission::class,
-            'board_id',
-            'id',
-            'id',
-            'permission_user_id'
-        );
     }
 
     public function getMembersWithRoles()

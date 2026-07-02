@@ -192,8 +192,8 @@ const stats = [
 
 <style scoped>
 .lp {
-    --accent: #ff545a;
-    --accent-dark: #f43032;
+    --accent: #663300;
+    --accent-dark: #4d2600;
     --ink: #2d333a;
     --muted: #6c757d;
     --bg-alt: #f8fafb;
@@ -232,7 +232,7 @@ const stats = [
 .lp-btn:hover { transform: translateY(-2px); }
 
 .lp-btn--solid { background: var(--accent); color: #fff; }
-.lp-btn--solid:hover { background: var(--accent-dark); box-shadow: 0 8px 18px rgba(255, 84, 90, 0.35); }
+.lp-btn--solid:hover { background: var(--accent-dark); box-shadow: 0 8px 18px rgba(102, 51, 0, 0.35); }
 
 .lp-btn--ghost { color: var(--ink); border-color: #e3e6ea; background: #fff; }
 .lp-btn--ghost:hover { color: var(--accent); border-color: var(--accent); }
@@ -372,7 +372,7 @@ const stats = [
     display: grid;
     place-items: center;
     border-radius: 50%;
-    background: rgba(255, 84, 90, 0.1);
+    background: rgba(102, 51, 0, 0.1);
     color: var(--accent);
     font-size: 26px;
 }

@@ -106,9 +106,9 @@ class AssigneeController extends Controller
             'action' => 'assignee_removed',
             'note' => sprintf(
                 '%s đã chọn %s phụ trách cho công việc "%s".',
-                Auth::user()->name,
-                $user->name,
-                $task->title
+                e(Auth::user()->name),
+                e($user->name),
+                e($task->title)
             ),
         ]);
     }

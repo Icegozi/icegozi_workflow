@@ -23,6 +23,7 @@
     <!-- Thiết kế -->
     <rule ref="rulesets/design.xml">
         <exclude name="CouplingBetweenObjects"/>
+        <exclude name="NumberOfChildren"/>
     </rule>
 
     <!-- Đặt tên: bỏ các luật quá khắt khe với code Laravel -->

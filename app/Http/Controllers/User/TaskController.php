@@ -29,6 +29,38 @@ class TaskController extends Controller
         abort(403, 'Bạn không có quyền thực hiện thao tác!');
     }
 
+    /**
+     * Chặn gán status không thuộc tập status của board.
+     * Board chưa cấu hình tập status -> chấp nhận mọi status global (tương thích ngược).
+     */
+    private function assertStatusAllowed(Board $board, $statusId): void
+    {
+        if (! $statusId) {
+            return;
+        }
+        $allowed = $board->statuses()->pluck('statuses.id');
+        if ($allowed->isEmpty()) {
+            return;
+        }
+        abort_unless($allowed->contains((int) $statusId), 422, 'Trạng thái không thuộc bảng này.');
+    }
+
+    /** Shape gọn của trạng thái để trả về JSON. */
+    private function statusPayload($status): ?array
+    {
+        if (! $status) {
+            return null;
+        }
+
+        return [
+            'id' => $status->id,
+            'key' => $status->key,
+            'name' => $status->name,
+            'color' => $status->color,
+            'is_completed' => (bool) $status->is_completed,
+        ];
+    }
+
     private function authorizeBoardAccess(Board $board, array $requiredPermissions = [])
     {
         $user = Auth::user();
@@ -45,6 +77,7 @@ class TaskController extends Controller
     {
         $board = $column->board;
         $this->authorizeBoardAccess($board, ['board_editor', 'board_member_manager']);
+        $this->assertStatusAllowed($board, $request->input('status_id'));
 
         try {
             $data = $request->validated();
@@ -55,7 +88,7 @@ class TaskController extends Controller
 
                 return $task;
             });
-            $createdTask->load('assignees');
+            $createdTask->load('assignees', 'status');
 
             return response()->json([
                 'success' => true,
@@ -65,6 +98,7 @@ class TaskController extends Controller
                     'title' => $createdTask->title,
                     'description' => $createdTask->description,
                     'priority' => $createdTask->priority,
+                    'status' => $this->statusPayload($createdTask->status),
                     'due_date' => $createdTask->due_date ? $createdTask->due_date->toDateString() : null,
                     'formatted_due_date' => $createdTask->due_date ? $createdTask->due_date->format('d M') : null,
                     'position' => $createdTask->position,
@@ -94,11 +128,11 @@ class TaskController extends Controller
 
     public function show(Task $task)
     {
-        $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
+        $board = $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
         $task->loadDetails();
 
         $this->applyColumnName($task);
-
+        $task->code = Task::buildCode($board->name, $task->id);
         // Định dạng ngày nếu cần
         $task->formatted_due_date = $task->due_date ? $task->due_date->format('d/m/Y') : null;
 
@@ -201,11 +235,45 @@ class TaskController extends Controller
     }
 
     /**
+     * Trang chỉnh sửa task (page riêng). Nhận mã dạng "ICE-0042" trên URL,
+     * suy ngược id rồi render Inertia. Chi tiết đầy đủ do trang tự fetch qua tasks.show.
+     */
+    public function edit(string $taskCode)
+    {
+        $task = Task::findOrFail(Task::idFromCode($taskCode));
+        // Viewer cũng mở được trang (read-only) — link thông báo/nhắc hạn trỏ về đây.
+        $board = $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
+        $canEdit = Auth::user()->hasBoardPermission($board, 'board_editor')
+            || Auth::user()->hasBoardPermission($board, 'board_member_manager');
+
+        // Ưu tiên tập trạng thái riêng của bảng; nếu bảng chưa gán thì dùng toàn bộ status global.
+        $statuses = $board->statuses()
+            ->orderBy('statuses.position')
+            ->get(['statuses.id', 'statuses.key', 'statuses.name', 'statuses.color', 'statuses.is_completed']);
+        if ($statuses->isEmpty()) {
+            $statuses = \App\Models\Status::orderBy('position')
+                ->get(['id', 'key', 'name', 'color', 'is_completed']);
+        }
+
+        return \Inertia\Inertia::render('Tasks/Edit', [
+            'taskId' => $task->id,
+            'boardId' => $board->id,
+            'boardName' => $board->name,
+            'code' => Task::buildCode($board->name, $task->id),
+            'canEdit' => $canEdit,
+            'canManage' => Auth::user()->hasBoardPermission($board, 'board_member_manager'),
+            'statuses' => $statuses,
+            'boardLabels' => $board->labels()->orderBy('name')->get(['id', 'name', 'color']),
+        ]);
+    }
+
+    /**
      * Update the specified task in storage.
      */
     public function update(TaskRequest $request, Task $task)
     {
-        $this->authorizeTaskAccess($task, ['board_member_manager', 'board_editor']);
+        $board = $this->authorizeTaskAccess($task, ['board_member_manager', 'board_editor']);
+        $this->assertStatusAllowed($board, $request->input('status_id'));
 
         try {
             $task->updateDetails($request->validated());
@@ -218,6 +286,7 @@ class TaskController extends Controller
                     'title' => $task->title,
                     'description' => $task->description,
                     'priority' => $task->priority,
+                    'status' => $this->statusPayload($task->load('status')->status),
                     'due_date' => $task->due_date ? $task->due_date->toDateString() : null,
                     'formatted_due_date' => $task->due_date ? $task->due_date->format('M d') : null,
                     'position' => $task->position,

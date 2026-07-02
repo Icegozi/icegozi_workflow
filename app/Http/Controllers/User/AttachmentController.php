@@ -76,7 +76,7 @@ class AttachmentController extends Controller
                             $task->taskHistories()->create([
                                 'user_id' => Auth::id(),
                                 'action' => 'attachment_added',
-                                'note' => "Đã thêm đính kèm: {$originalName}",
+                                'note' => 'Đã thêm đính kèm: ' . e($originalName),
                             ]);
 
                             return $attachment;
@@ -164,7 +164,7 @@ class AttachmentController extends Controller
                 $task->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'attachment_deleted',
-                    'note' => "Đã xoá đính kèm: {$originalName}",
+                    'note' => 'Đã xoá đính kèm: ' . e($originalName),
                 ]);
             });
 

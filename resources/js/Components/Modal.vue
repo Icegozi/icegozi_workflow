@@ -57,7 +57,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
     display: flex;
     flex-direction: column;
     max-height: calc(100vh - 60px);
-    background: #fff;
+    background: var(--app-surface);
+    color: var(--app-text);
     border-radius: 0.5rem;
     box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.25);
     overflow: hidden;
@@ -69,7 +70,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
     justify-content: space-between;
     gap: 1rem;
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--app-border);
 }
 
 .modal-card__title {

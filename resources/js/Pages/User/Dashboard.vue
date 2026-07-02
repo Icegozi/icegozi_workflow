@@ -8,6 +8,7 @@ import TextInput from '@/Components/TextInput.vue';
 
 const props = defineProps({
     boards: { type: Array, default: () => [] },
+    templates: { type: Array, default: () => [] },
 });
 
 const roleLabels = {
@@ -19,13 +20,24 @@ const roleLabel = (role) => roleLabels[role] || 'người sở hữu';
 
 // --- Tạo bảng mới ---
 const showCreate = ref(false);
-const createForm = useForm({ name: '', description: '' });
-const openCreate = () => { createForm.reset(); createForm.clearErrors(); showCreate.value = true; };
+const createForm = useForm({ name: '', description: '', template_id: null });
+const openCreate = () => {
+    createForm.reset();
+    createForm.clearErrors();
+    createForm.template_id = props.templates[0]?.key ?? null;
+    showCreate.value = true;
+};
 const submitCreate = () => {
     createForm.post(route('boards.store'), {
         preserveScroll: true,
         onSuccess: () => { showCreate.value = false; },
     });
+};
+
+// --- Nhân bản bảng ---
+const duplicate = (board) => {
+    if (!confirm(`Nhân bản bảng "${board.name}" (kèm toàn bộ công việc)?`)) return;
+    router.post(route('boards.duplicate', board.id), { with_tasks: true }, { preserveScroll: true });
 };
 
 // --- Đổi tên bảng ---
@@ -51,9 +63,6 @@ const destroy = (board) => {
         router.delete(route('boards.destroy', board.id), { preserveScroll: true });
     }
 };
-
-const openMenuId = ref(null);
-const toggleMenu = (id) => { openMenuId.value = openMenuId.value === id ? null : id; };
 </script>
 
 <template>
@@ -71,38 +80,32 @@ const toggleMenu = (id) => { openMenuId.value = openMenuId.value === id ? null :
             <div class="row" id="board-list-container">
                 <template v-if="props.boards.length">
                     <div v-for="board in props.boards" :key="board.id"
-                        class="col-md-4 col-lg-3 mt-2 mb-2 board-card"
-                        style="position: relative; overflow: visible; height:120px">
-                        <div class="card shadow-sm h-80 card-hover">
-                            <div class="card-body p-3 d-flex flex-column">
-                                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-                                    <h6 class="mb-0 text-truncate font-weight-bold board-name">{{ board.name }}</h6>
-                                    <div class="dropdown">
-                                        <a href="#" class="text-muted" @click.prevent="toggleMenu(board.id)">
-                                            <i class="fas fa-ellipsis-v"></i>
-                                        </a>
-                                        <div class="dropdown-menu dropdown-menu-right" :class="{ show: openMenuId === board.id }"
-                                            style="position:absolute; right:0; z-index:9999;">
-                                            <a class="dropdown-item" :href="board.show_url">
-                                                <i class="fas fa-folder-open fa-fw mr-2 text-muted"></i>Mở
-                                            </a>
-                                            <a class="dropdown-item" href="#" @click.prevent="openRename(board); toggleMenu(board.id)">
-                                                <i class="fas fa-pencil-alt fa-fw mr-2 text-muted"></i>Sửa tên
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                            <a class="dropdown-item text-danger" href="#" @click.prevent="destroy(board); toggleMenu(board.id)">
-                                                <i class="fas fa-trash-alt fa-fw mr-2"></i> Xoá
-                                            </a>
-                                        </div>
-                                    </div>
+                        class="col-sm-6 col-md-4 col-lg-3 mb-3 board-card">
+                        <div class="board-tile">
+                            <!-- Vùng thông tin: bấm để mở bảng -->
+                            <a :href="board.show_url" class="board-tile__body">
+                                <h6 class="board-tile__name text-truncate">{{ board.name }}</h6>
+                                <div class="board-tile__meta">
+                                    <span class="board-tile__time">
+                                        <i class="far fa-clock mr-1"></i>{{ board.updated_at }}
+                                    </span>
+                                    <span class="board-tile__role">{{ roleLabel(board.currentUserRole) }}</span>
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center text-muted small">
-                                    <div class="d-flex align-items-center">
-                                        <i class="far fa-clock fa-fw mr-2"></i>
-                                        <span>{{ board.updated_at }}</span>
-                                    </div>
-                                    <b class="ml-2">{{ roleLabel(board.currentUserRole) }}</b>
-                                </div>
+                            </a>
+
+                            <!-- Thanh hành động ngay trên card -->
+                            <div class="board-tile__actions">
+                                <Btn :href="board.show_url" variant="secondary" outline icon="fas fa-folder-open"
+                                    class="btn-sm flex-fill" title="Mở bảng" aria-label="Mở bảng" />
+                                <Btn type="button" variant="secondary" outline icon="fas fa-pen"
+                                    class="btn-sm flex-fill" title="Sửa tên" aria-label="Sửa tên"
+                                    @click="openRename(board)" />
+                                <Btn type="button" variant="secondary" outline icon="fas fa-clone"
+                                    class="btn-sm flex-fill" title="Nhân bản" aria-label="Nhân bản"
+                                    @click="duplicate(board)" />
+                                <Btn type="button" variant="red" outline icon="fas fa-trash-alt"
+                                    class="btn-sm flex-fill" title="Xoá bảng" aria-label="Xoá bảng"
+                                    @click="destroy(board)" />
                             </div>
                         </div>
                     </div>
@@ -114,13 +117,31 @@ const toggleMenu = (id) => { openMenuId.value = openMenuId.value === id ? null :
         </div>
 
         <!-- Modal tạo bảng -->
-        <Modal v-if="showCreate" title="Tạo bảng mới" max-width="380px" @close="showCreate = false">
+        <Modal v-if="showCreate" title="Tạo bảng mới" max-width="620px" @close="showCreate = false">
             <form @submit.prevent="submitCreate">
                 <div class="form-group">
+                    <label class="small font-weight-bold">Tên bảng</label>
                     <TextInput v-model="createForm.name" placeholder="Nhập tên bảng..."
                         required maxlength="255" autofocus group-class="" />
                     <div v-if="createForm.errors.name" class="text-danger small mt-1">{{ createForm.errors.name }}</div>
                 </div>
+
+                <label class="small font-weight-bold">Chọn mẫu</label>
+                <div class="template-grid mb-3">
+                    <button v-for="tpl in templates" :key="tpl.key" type="button"
+                        class="template-card" :class="{ active: createForm.template_id === tpl.key }"
+                        @click="createForm.template_id = tpl.key">
+                        <div class="template-head">
+                            <i class="fas" :class="tpl.icon"></i>
+                            <span class="template-name">{{ tpl.name }}</span>
+                        </div>
+                        <div class="template-desc">{{ tpl.description }}</div>
+                        <div class="template-cols">
+                            <span v-for="c in tpl.columns" :key="c" class="template-col">{{ c }}</span>
+                        </div>
+                    </button>
+                </div>
+
                 <div class="text-right">
                     <Btn type="button" variant="white" class="btn-sm" @click="showCreate = false">Huỷ</Btn>
                     <Btn variant="black" class="btn-sm px-3" :disabled="createForm.processing">Tạo</Btn>
@@ -146,24 +167,140 @@ const toggleMenu = (id) => { openMenuId.value = openMenuId.value === id ? null :
 </template>
 
 <style scoped>
-/* Thẻ bảng */
-.card-hover {
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+/* ---------------- Thẻ bảng (board tile) ---------------- */
+.board-tile {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(9, 30, 66, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    overflow: hidden;
 }
 
-.card-hover:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+.board-tile:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 22px rgba(9, 30, 66, 0.12);
+    border-color: var(--app-accent);
 }
 
-/* Menu thao tác trên thẻ bảng */
-.dropdown-item .fa-fw {
-    text-align: center;
+/* Vùng thông tin có thể bấm để mở bảng */
+.board-tile__body {
+    display: block;
+    flex: 1 1 auto;
+    padding: 16px 16px 12px;
+    text-decoration: none;
+    color: inherit;
 }
 
-.dropdown-item.text-danger:hover,
-.dropdown-item.text-danger:focus {
-    background-color: #f8d7da;
-    color: #721c24;
+.board-tile__body:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+.board-tile__name {
+    margin: 0 0 14px;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--app-text);
+}
+
+.board-tile__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--app-text-muted);
+}
+
+.board-tile__time {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.board-tile__role {
+    flex-shrink: 0;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    background: rgba(127, 127, 127, 0.12);
+    color: var(--app-text-muted);
+    white-space: nowrap;
+}
+
+/* Thanh hành động: các nút icon dùng chung <Btn>, chia đều bằng flex-fill */
+.board-tile__actions {
+    display: flex;
+    gap: 6px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--app-border);
+    background: rgba(127, 127, 127, 0.04);
+}
+
+/* Lưới chọn mẫu bảng */
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.template-card {
+    text-align: left;
+    background: var(--app-surface);
+    border: 1px solid #e4e6ea;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.template-card:hover {
+    border-color: #c1c7d0;
+}
+
+.template-card.active {
+    border-color: var(--app-accent, #663300);
+    box-shadow: 0 0 0 2px rgba(102, 51, 0, 0.25);
+}
+
+.template-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: #172b4d;
+}
+
+.template-desc {
+    font-size: 0.75rem;
+    color: #7a869a;
+    margin: 4px 0 6px;
+}
+
+.template-cols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.template-col {
+    font-size: 0.66rem;
+    background: #f1f2f4;
+    color: #44546f;
+    border-radius: 4px;
+    padding: 1px 6px;
+}
+
+@media (max-width: 575.98px) {
+    .template-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>

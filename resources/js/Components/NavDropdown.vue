@@ -19,7 +19,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick));
 <template>
     <li class="nav-item dropdown" ref="root">
         <a class="nav-link dropdown-toggle" href="#" role="button" @click.prevent="open = !open">{{ label }}</a>
-        <div class="dropdown-menu show" v-if="open" :style="menuStyle">
+        <div class="dropdown-menu nav-dropdown-menu show" v-if="open" :style="menuStyle">
             <slot />
         </div>
     </li>
@@ -38,6 +38,18 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick));
 
 .main-header .dropdown-item:hover {
     background-color: #f1f1f1;
-    color: #ff545a;
+    color: #663300;
+}
+
+/* Giới hạn bề rộng menu + cắt text (…) khi tên (vd tên board) quá dài -> không vỡ layout */
+.nav-dropdown-menu {
+    max-width: 215px;
+}
+
+.nav-dropdown-menu .dropdown-item {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 </style>

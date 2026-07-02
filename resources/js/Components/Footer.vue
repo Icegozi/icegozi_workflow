@@ -21,11 +21,12 @@
 
 <style scoped>
 .footer {
-    background-color: #1c1c1c;
-    color: #dee2e6;
+    background-color: var(--app-surface, #ffffff);
+    color: var(--app-text, #212529);
     padding: 20px 0;
     font-size: 14px;
     line-height: 1.6;
+    border-top: 2px solid var(--app-accent, #663300);
 }
 
 .footer .container {
@@ -35,14 +36,14 @@
 }
 
 .hm-footer-copyright {
-    border-top: 1px solid #333;
+    border-top: 1px solid var(--app-border, #e9ecef);
     padding-top: 15px;
     margin-top: 15px;
 }
 
 .hm-footer-copyright p {
     margin: 0;
-    color: #adb5bd;
+    color: var(--app-text-muted, #6c757d);
 }
 
 .footer-social {
@@ -54,7 +55,7 @@
 }
 
 .footer-social span {
-    color: #adb5bd;
+    color: var(--app-text-muted, #6c757d);
     font-size: 14px;
     transition: color 0.3s ease;
     display: flex;
@@ -66,7 +67,7 @@
 }
 
 .footer-social span:hover {
-    color: #ff545a;
+    color: #663300;
 }
 
 .footer-social a {
@@ -84,7 +85,7 @@
 }
 
 .footer-social a:hover {
-    background-color: #ff545a;
+    background-color: #663300;
     color: #fff;
 }
 </style>
