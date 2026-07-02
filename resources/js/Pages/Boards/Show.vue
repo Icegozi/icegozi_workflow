@@ -318,7 +318,7 @@ const openActivity = async () => {
         <Modal v-if="showAddColumn" title="Thêm cột mới" max-width="420px" align="center" @close="showAddColumn = false">
             <form @submit.prevent="saveColumn">
                 <div class="form-group">
-                    <label class="small font-weight-bold">Tên cột</label>
+                    <label class="small font-weight-bold mb-1">Tên cột</label>
                     <TextInput v-model="newColumnName" placeholder="Nhập tên cột..." autofocus group-class="mb-0" />
                 </div>
                 <div class="text-right">

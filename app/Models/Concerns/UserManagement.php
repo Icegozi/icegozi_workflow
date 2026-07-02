@@ -35,9 +35,14 @@ trait UserManagement
         // Chỉ chấp nhận các trường được phép; is_admin/status gán có chủ đích (luồng quản trị).
         $fields = [];
         foreach (['name', 'username', 'email', 'avatar_url', 'social', 'is_admin', 'status'] as $key) {
-            if (array_key_exists($key, $data)) {
-                $fields[$key] = $data[$key];
+            if (! array_key_exists($key, $data)) {
+                continue;
             }
+            // username rỗng = giữ nguyên, tránh nulling ngoài ý muốn khi admin để trống ô.
+            if ($key === 'username' && ($data[$key] === null || $data[$key] === '')) {
+                continue;
+            }
+            $fields[$key] = $data[$key];
         }
         if (! empty($data['password'])) {
             $fields['password'] = Hash::make($data['password']);

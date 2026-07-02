@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UserRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -43,7 +44,14 @@ class UserController extends Controller
         $data['avatar_url'] = $this->storeAvatar($request->file('avatar'));
         $data['social'] = $this->cleanSocial($data['social'] ?? []);
 
-        User::addUser($data);
+        try {
+            User::addUser($data);
+        } catch (\Throwable $e) {
+            Log::error('Admin create user failed: ' . $e->getMessage());
+
+            return redirect()->back()->withInput()
+                ->with('error', 'Không thể tạo tài khoản, vui lòng thử lại.');
+        }
 
         return redirect()
             ->route('admin.user.index')
@@ -64,7 +72,14 @@ class UserController extends Controller
         $data['avatar_url'] = $this->storeAvatar($request->file('avatar'), $user->avatar_url);
         $data['social'] = $this->cleanSocial($data['social'] ?? []);
 
-        $ok = User::updateUserById($id, $data);
+        try {
+            $ok = User::updateUserById($id, $data);
+        } catch (\Throwable $e) {
+            Log::error('Admin update user failed: ' . $e->getMessage());
+
+            return redirect()->back()->withInput()
+                ->with('error', 'Không thể cập nhật tài khoản, vui lòng thử lại.');
+        }
 
         if ($ok) {
             return redirect()

@@ -2,14 +2,12 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Support\SocialLinks;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 trait HandlesProfileMedia
 {
-    /** Các nền tảng mạng xã hội được hỗ trợ (khớp với UI). */
-    public const SOCIAL_KEYS = ['facebook', 'twitter', 'linkedin', 'github', 'website'];
-
     /**
      * Lưu ảnh đại diện vào disk public (storage/app/public/avatars) và trả về URL
      * dạng "/storage/avatars/...". Không có file -> giữ nguyên URL cũ.
@@ -24,7 +22,10 @@ trait HandlesProfileMedia
         $this->deleteLocalAvatar($old);
         $path = $file->store('avatars', 'public');
 
-        return Storage::disk('public')->url($path);
+        // Trả đường dẫn TƯƠNG ĐỐI ('/storage/avatars/...'): không baked host/port từ
+        // APP_URL (config disk 'public' đặt url = APP_URL.'/storage'), và khớp với
+        // deleteLocalAvatar khi dọn ảnh cũ.
+        return '/storage/' . $path;
     }
 
     /** Xoá file avatar cũ nếu là ảnh nội bộ (bỏ qua URL ngoài / pravatar). */
@@ -38,14 +39,6 @@ trait HandlesProfileMedia
     /** Chỉ giữ các key hợp lệ và bỏ giá trị rỗng; null nếu không còn gì. */
     protected function cleanSocial(?array $social): ?array
     {
-        $clean = [];
-        foreach (self::SOCIAL_KEYS as $key) {
-            $value = trim((string) ($social[$key] ?? ''));
-            if ($value !== '') {
-                $clean[$key] = $value;
-            }
-        }
-
-        return $clean ?: null;
+        return SocialLinks::clean($social);
     }
 }

@@ -14,6 +14,14 @@ class LoginRequest extends FormRequest
         return true;
     }
 
+    /** Tương thích ngược: client cũ gửi 'email' -> ánh xạ sang 'login'. */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->filled('login') && $this->filled('email')) {
+            $this->merge(['login' => $this->input('email')]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *

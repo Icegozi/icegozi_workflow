@@ -324,7 +324,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                             <strong>{{ task.column_name }}</strong>
                         </p>
 
-                        <label class="sect-label">Tiêu đề</label>
+                        <label class="sect-label mb-1">Tiêu đề</label>
                         <TextInput v-model="title" placeholder="Tiêu đề công việc..." group-class="mb-4"
                             :readonly="!canEdit" />
 

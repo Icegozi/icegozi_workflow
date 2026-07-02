@@ -15,6 +15,14 @@ class RegisterRequest extends FormRequest
         return true;
     }
 
+    /** Chuẩn hoá username về lowercase để login/uniqueness không phụ thuộc collation DB. */
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('username')) {
+            $this->merge(['username' => mb_strtolower(trim($this->input('username')))]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *

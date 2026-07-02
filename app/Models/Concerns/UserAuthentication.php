@@ -30,7 +30,14 @@ trait UserAuthentication
     public static function login(array $credentials, bool $remember = false): bool
     {
         $login = $credentials['login'] ?? $credentials['email'] ?? null;
+        if (! $login) {
+            return false;
+        }
+
         $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+        if ($field === 'username') {
+            $login = mb_strtolower($login);
+        }
 
         $user = self::where($field, $login)->first();
 

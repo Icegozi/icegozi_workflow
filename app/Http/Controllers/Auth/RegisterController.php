@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class RegisterController extends Controller
@@ -24,6 +25,7 @@ class RegisterController extends Controller
 
             return redirect()->route('login');
         } catch (\Exception $e) {
+            Log::error('Register failed: ' . $e->getMessage());
             session()->flash('error', 'Đã có lỗi xảy ra, vui lòng thử lại!');
 
             return redirect()->back();

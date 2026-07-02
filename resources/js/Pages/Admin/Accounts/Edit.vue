@@ -12,6 +12,7 @@ const props = defineProps({
 const fmt = (d) => (d ? new Date(d).toLocaleString('vi-VN') : '');
 
 const form = useForm({
+    _method: 'put',
     id: props.user.id,
     name: props.user.name,
     username: props.user.username || '',
@@ -30,10 +31,7 @@ const meta = computed(() => ({
     email_verified_at: props.user.email_verified_at ? fmt(props.user.email_verified_at) : null,
 }));
 
-// PUT có upload file -> POST kèm _method spoofing để gửi multipart/form-data.
-const submit = () =>
-    form.transform((data) => ({ ...data, _method: 'put' }))
-        .post(route('admin.user.update', props.user.id));
+const submit = () => form.post(route('admin.user.update', props.user.id));
 </script>
 
 <template>

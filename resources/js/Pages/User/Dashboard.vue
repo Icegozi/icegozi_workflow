@@ -143,7 +143,7 @@ const destroy = (board) => {
                 </div>
 
                 <div class="text-right">
-                    <Btn type="button" variant="white" class="btn-sm" @click="showCreate = false">Huỷ</Btn>
+                    <Btn type="button" variant="white" class="btn-sm mr-2" @click="showCreate = false">Huỷ</Btn>
                     <Btn variant="black" class="btn-sm px-3" :disabled="createForm.processing">Tạo</Btn>
                 </div>
             </form>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\SocialLinks;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -14,6 +15,17 @@ class ProfileUpdateRequest extends FormRequest
         return Auth::check();
     }
 
+    /** Chuẩn hoá dữ liệu trước khi validate: lowercase username + thêm scheme cho social. */
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('username')) {
+            $this->merge(['username' => mb_strtolower(trim($this->input('username')))]);
+        }
+        if (is_array($this->social)) {
+            $this->merge(['social' => SocialLinks::normalize($this->social)]);
+        }
+    }
+
     public function rules(): array
     {
         $id = Auth::id();
@@ -22,7 +34,7 @@ class ProfileUpdateRequest extends FormRequest
             'name' => 'required|string|max:255',
             'username' => ['required', 'string', 'min:3', 'max:50', 'alpha_dash', Rule::unique('users', 'username')->ignore($id)],
             'email' => ['required', 'email:rfc,strict', Rule::unique('users', 'email')->ignore($id)],
-            'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:2048',
+            'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:10240',
             'social' => 'nullable|array',
             'social.facebook' => 'nullable|url|max:255',
             'social.twitter' => 'nullable|url|max:255',
@@ -39,7 +51,7 @@ class ProfileUpdateRequest extends FormRequest
         return [
             'username.alpha_dash' => 'Tên đăng nhập chỉ gồm chữ, số, gạch ngang và gạch dưới.',
             'username.unique' => 'Tên đăng nhập đã được sử dụng.',
-            'avatar.max' => 'Ảnh đại diện tối đa 2MB.',
+            'avatar.max' => 'Ảnh đại diện tối đa 10MB.',
             'social.*.url' => 'Liên kết mạng xã hội phải là URL hợp lệ.',
         ];
     }

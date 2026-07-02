@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
@@ -33,6 +33,7 @@ const fileInput = ref(null);
 const onAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (preview.value?.startsWith('blob:')) URL.revokeObjectURL(preview.value);
     form.avatar = file;
     preview.value = URL.createObjectURL(file);
 };
@@ -41,6 +42,11 @@ const pickAvatar = () => fileInput.value?.click();
 // Sau khi lưu, back() nạp lại props -> đồng bộ ảnh mới (khi không có file đang chờ).
 watch(() => props.profile.avatar_url, (url) => {
     if (!form.avatar) preview.value = url;
+});
+
+// Thu hồi blob URL còn treo khi rời trang (tránh rò bộ nhớ).
+onUnmounted(() => {
+    if (preview.value?.startsWith('blob:')) URL.revokeObjectURL(preview.value);
 });
 
 const avatarDisplay = computed(() => avatarSrc(preview.value, props.profile.email, 160));
@@ -81,7 +87,7 @@ const submit = () => {
                                     <Btn type="button" variant="black" outline icon="fas fa-upload"
                                         class="btn-sm" @click="pickAvatar">Chọn ảnh</Btn>
                                 </div>
-                                <p class="text-muted small mt-2 mb-0">JPG/PNG/WEBP, tối đa 2MB.</p>
+                                <p class="text-muted small mt-2 mb-0">JPG/PNG/WEBP, tối đa 10MB.</p>
                                 <div v-if="form.errors.avatar" class="invalid-feedback d-block small">
                                     {{ form.errors.avatar }}
                                 </div>
@@ -109,6 +115,7 @@ const submit = () => {
                                 <p class="text-muted small mb-0">
                                     <i class="fas fa-circle-info mr-1"></i>Bạn có thể đăng nhập bằng
                                     <strong>tên đăng nhập</strong> hoặc <strong>email</strong>.
+                                    Tên đăng nhập không phân biệt chữ hoa/thường.
                                 </p>
 
                                 <hr class="my-3" style="opacity:.15;">

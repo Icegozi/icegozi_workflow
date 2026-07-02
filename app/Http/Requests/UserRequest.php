@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\SocialLinks;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UserRequest extends FormRequest
@@ -12,6 +13,17 @@ class UserRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /** Chuẩn hoá dữ liệu trước khi validate: lowercase username + thêm scheme cho social. */
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('username')) {
+            $this->merge(['username' => mb_strtolower(trim($this->input('username')))]);
+        }
+        if (is_array($this->social)) {
+            $this->merge(['social' => SocialLinks::normalize($this->social)]);
+        }
     }
 
     /**
@@ -27,7 +39,7 @@ class UserRequest extends FormRequest
             'name' => 'required|string|max:255',
             'username' => 'nullable|string|min:3|max:50|alpha_dash|unique:users,username,' . $userId,
             'email' => 'required|email:rfc,strict|unique:users,email,' . $userId,
-            'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:2048',
+            'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:10240',
             'social' => 'nullable|array',
             'social.facebook' => 'nullable|url|max:255',
             'social.twitter' => 'nullable|url|max:255',
@@ -35,7 +47,8 @@ class UserRequest extends FormRequest
             'social.github' => 'nullable|url|max:255',
             'social.website' => 'nullable|url|max:255',
             'password' => [
-                'nullable',
+                // Bắt buộc khi tạo mới; khi sửa để trống = giữ mật khẩu cũ.
+                $userId ? 'nullable' : 'required',
                 'string',
                 'min:8',
                 'regex:/[a-z]/',

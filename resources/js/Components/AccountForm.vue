@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onUnmounted } from 'vue';
 import Btn from '@/Components/Btn.vue';
 import TextInput from '@/Components/TextInput.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -25,9 +25,14 @@ const fileInput = ref(null);
 const onAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (preview.value?.startsWith('blob:')) URL.revokeObjectURL(preview.value);
     props.form.avatar = file;
     preview.value = URL.createObjectURL(file);
 };
+// Thu hồi blob URL còn treo khi rời form (tránh rò bộ nhớ).
+onUnmounted(() => {
+    if (preview.value?.startsWith('blob:')) URL.revokeObjectURL(preview.value);
+});
 </script>
 
 <template>
@@ -43,7 +48,7 @@ const onAvatarChange = (e) => {
                         <input ref="fileInput" type="file" accept="image/*" class="d-none" @change="onAvatarChange">
                         <Btn type="button" variant="black" outline icon="fas fa-upload" class="btn-sm"
                             @click="fileInput?.click()">Chọn ảnh đại diện</Btn>
-                        <div class="text-muted small mt-1">JPG/PNG/WEBP, tối đa 2MB.</div>
+                        <div class="text-muted small mt-1">JPG/PNG/WEBP, tối đa 10MB.</div>
                         <div v-if="props.form.errors.avatar" class="invalid-feedback d-block small">
                             {{ props.form.errors.avatar }}
                         </div>
