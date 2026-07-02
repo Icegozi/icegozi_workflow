@@ -28,7 +28,10 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
+        'avatar_url',
+        'social',
         'password',
     ];
 
@@ -50,6 +53,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_admin' => 'boolean',
+        'social' => 'array',
     ];
 
     public function comments(): HasMany

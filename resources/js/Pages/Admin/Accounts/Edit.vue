@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AccountForm from '@/Components/AccountForm.vue';
+import { makeSocialForm } from '@/composables/useSocialLinks';
 
 const props = defineProps({
     user: { type: Object, required: true },
@@ -13,7 +14,10 @@ const fmt = (d) => (d ? new Date(d).toLocaleString('vi-VN') : '');
 const form = useForm({
     id: props.user.id,
     name: props.user.name,
+    username: props.user.username || '',
     email: props.user.email,
+    avatar: null,
+    social: makeSocialForm(props.user.social),
     password: '',
     password_confirmation: '',
     status: props.user.status,
@@ -26,7 +30,10 @@ const meta = computed(() => ({
     email_verified_at: props.user.email_verified_at ? fmt(props.user.email_verified_at) : null,
 }));
 
-const submit = () => form.put(route('admin.user.update', props.user.id));
+// PUT có upload file -> POST kèm _method spoofing để gửi multipart/form-data.
+const submit = () =>
+    form.transform((data) => ({ ...data, _method: 'put' }))
+        .post(route('admin.user.update', props.user.id));
 </script>
 
 <template>
@@ -34,7 +41,7 @@ const submit = () => form.put(route('admin.user.update', props.user.id));
     <AdminLayout>
         <h3 class="mb-4">Cập nhật tài khoản</h3>
 
-        <AccountForm :form="form" is-edit :meta="meta" submit-label="Lưu thay đổi"
-            :cancel-href="route('admin.user.index')" @submit="submit" />
+        <AccountForm :form="form" is-edit :meta="meta" :current-avatar="props.user.avatar_url"
+            submit-label="Lưu thay đổi" :cancel-href="route('admin.user.index')" @submit="submit" />
     </AdminLayout>
 </template>

@@ -370,7 +370,7 @@ const openActivity = async () => {
                     <img :src="a.user_avatar" class="rounded-circle mr-2" width="32" height="32" style="height:32px;">
                     <div class="flex-grow-1">
                         <div v-html="a.note" style="font-size:.85rem;"></div>
-                        <div class="text-muted" style="font-size:.72rem;">{{ a.time_ago }}</div>
+                        <div class="text-muted" style="font-size:.72rem;">{{ a.time }}</div>
                     </div>
                 </div>
                 <div v-if="!activities.length" class="text-muted text-center py-4">Chưa có hoạt động nào.</div>

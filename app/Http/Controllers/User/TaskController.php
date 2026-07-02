@@ -165,10 +165,15 @@ class TaskController extends Controller
         }
 
         $task->task_histories = $task->taskHistories()
+            ->with('user')
             ->orderByDesc('created_at')
             ->limit(100)
             ->get();
         $task->task_histories->transform(fn ($history) => $this->mapHistory($history));
+
+        // Bỏ quan hệ thô: khi serialize, quan hệ 'taskHistories' (-> key 'task_histories')
+        // sẽ ghi đè attribute đã map/format ở trên, làm lộ timestamp ISO thô.
+        $task->unsetRelation('taskHistories');
     }
 
     private function mapHistory($history): array
@@ -177,19 +182,18 @@ class TaskController extends Controller
 
         $timestamp = $history->updated_at ?? $history->created_at;
         $formatted_time = $timestamp
-            ? \Carbon\Carbon::parse($timestamp)->format('Y/m/d H:i:s')
+            ? \Carbon\Carbon::parse($timestamp)->format('Y-m-d H:i:s')
             : 'Không rõ thời gian';
 
         return [
             'id' => $history->id,
             'user_id' => $user?->id,
             'user_name' => $user?->name ?? 'Người dùng không xác định',
-            'user_avatar' => $user
-                ? 'https://i.pravatar.cc/40?u=' . $user->id
-                : 'https://i.pravatar.cc/40?u=unknown',
+            'user_avatar' => $user?->avatar_url
+                ?: ('https://i.pravatar.cc/40?u=' . ($user?->id ?? 'unknown')),
             'action' => $history->action,
             'note' => $history->note,
-            'created_at' => $history->created_at->format('Y/m/d H:i:s'),
+            'created_at' => $history->created_at->format('Y-m-d H:i:s'),
             'updated_at' => $formatted_time,
         ];
     }

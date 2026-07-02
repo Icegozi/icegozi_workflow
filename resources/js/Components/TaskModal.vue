@@ -170,8 +170,9 @@ const goEdit = () => {
                         <div v-for="h in task.task_histories" :key="h.id" class="history-item">
                             <img :src="h.user_avatar" class="rounded-circle" width="24" height="24">
                             <div class="history-item__text">
-                                <span><strong>{{ h.user_name }}</strong> {{ h.action }}
-                                    <span v-if="h.note">— {{ h.note }}</span></span>
+                                <!-- note là HTML dựng sẵn (dữ liệu người dùng đã escape ở server) -->
+                                <div v-if="h.note" class="history-note" v-html="h.note"></div>
+                                <div v-else class="history-note"><strong>{{ h.user_name }}</strong> {{ h.action }}</div>
                                 <div class="history-item__time">{{ h.updated_at }}</div>
                             </div>
                         </div>
@@ -404,6 +405,11 @@ const goEdit = () => {
     color: var(--app-text-muted);
     font-size: 0.7rem;
     margin-top: 1px;
+}
+
+.history-note {
+    line-height: 1.5;
+    word-break: break-word;
 }
 
 /* ---------------- Nội dung markdown đã render ---------------- */

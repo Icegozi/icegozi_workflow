@@ -158,7 +158,7 @@ const destroy = (board) => {
                     <div v-if="renameForm.errors.name" class="text-danger small mt-1">{{ renameForm.errors.name }}</div>
                 </div>
                 <div class="text-right">
-                    <Btn type="button" variant="white" class="btn-sm" @click="showRename = false">Huỷ</Btn>
+                    <Btn type="button" variant="white" class="btn-sm mr-2" @click="showRename = false">Huỷ</Btn>
                     <Btn variant="black" class="btn-sm px-3" :disabled="renameForm.processing">OK</Btn>
                 </div>
             </form>

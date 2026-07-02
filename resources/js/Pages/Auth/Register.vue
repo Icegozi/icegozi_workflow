@@ -32,6 +32,8 @@ const errors = computed(() => page.props.errors || {});
                     <form :action="route('register')" method="POST">
                         <input type="hidden" name="_token" :value="csrf">
                         <TextInput type="text" name="name" placeholder="Họ tên" icon="fas fa-user" required />
+                        <TextInput type="text" name="username" placeholder="Tên đăng nhập (chữ, số, _ -)"
+                            icon="fas fa-at" required />
                         <TextInput type="email" name="email" placeholder="Email"
                             icon="fas fa-envelope" required />
                         <TextInput type="password" name="password" placeholder="Mật khẩu" icon="fas fa-lock" required />

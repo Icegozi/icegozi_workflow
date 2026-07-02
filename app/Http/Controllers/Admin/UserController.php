@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HandlesProfileMedia;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UserRequest;
 use App\Models\User;
@@ -12,6 +13,8 @@ use Inertia\Inertia;
 
 class UserController extends Controller
 {
+    use HandlesProfileMedia;
+
     public function index()
     {
         $users = User::paginate(20);
@@ -36,7 +39,11 @@ class UserController extends Controller
 
     public function store(UserRequest $request)
     {
-        User::addUser($request->all());
+        $data = $request->validated();
+        $data['avatar_url'] = $this->storeAvatar($request->file('avatar'));
+        $data['social'] = $this->cleanSocial($data['social'] ?? []);
+
+        User::addUser($data);
 
         return redirect()
             ->route('admin.user.index')
@@ -52,7 +59,12 @@ class UserController extends Controller
 
     public function update(UserRequest $request, $id)
     {
-        $ok = User::updateUserById($id, $request->all());
+        $user = User::findOrFail($id);
+        $data = $request->validated();
+        $data['avatar_url'] = $this->storeAvatar($request->file('avatar'), $user->avatar_url);
+        $data['social'] = $this->cleanSocial($data['social'] ?? []);
+
+        $ok = User::updateUserById($id, $data);
 
         if ($ok) {
             return redirect()

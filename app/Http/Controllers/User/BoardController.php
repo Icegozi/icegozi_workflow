@@ -221,8 +221,9 @@ class BoardController extends Controller
                 'action' => $h->action,
                 'note' => $h->note,   // đã là HTML dựng sẵn
                 'user_name' => $h->user?->name ?? 'Không rõ',
-                'user_avatar' => 'https://i.pravatar.cc/40?u=' . ($h->user_id ?? 'x'),
-                'time_ago' => $h->created_at?->diffForHumans(),
+                'user_avatar' => $h->user?->avatar_url
+                    ?: ('https://i.pravatar.cc/40?u=' . ($h->user_id ?? 'x')),
+                'time' => $h->created_at?->format('Y-m-d H:i:s'),
             ]);
 
         return response()->json(['success' => true, 'activities' => $items]);

@@ -1,11 +1,13 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import { usePage, router } from '@inertiajs/vue3';
+import { usePage, router, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useTheme } from '@/composables/useTheme';
+import { avatarSrc } from '@/composables/useSocialLinks';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user || null);
+const userAvatar = computed(() => avatarSrc(user.value?.avatar_url, user.value?.email, 40));
 
 const { theme, toggle: toggleTheme } = useTheme();
 
@@ -100,7 +102,10 @@ const logout = () => {
                 </div>
             </li>
             <li class="nav-item d-flex align-items-center">
-                <span class="nav-link">{{ user?.name }}</span>
+                <Link :href="route('profile.edit')" class="nav-link d-flex align-items-center" title="Hồ sơ cá nhân">
+                    <img :src="userAvatar" class="rounded-circle mr-2 topbar-avatar" width="28" height="28" alt="avatar">
+                    <span>{{ user?.name }}</span>
+                </Link>
             </li>
             <li class="nav-item">
                 <a class="nav-link d-flex align-items-center" href="#" @click.prevent="logout" title="Đăng xuất">
@@ -129,6 +134,11 @@ const logout = () => {
     font-weight: 700;
     line-height: 16px;
     text-align: center;
+}
+
+.main-header .topbar-avatar {
+    object-fit: cover;
+    border: 1px solid var(--app-border, #e4e6ea);
 }
 
 .main-header .notif-panel {
