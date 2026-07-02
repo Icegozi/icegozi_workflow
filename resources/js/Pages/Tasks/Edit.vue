@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -264,7 +264,34 @@ const createLabel = async () => {
     } catch (e) { alert(e.response?.data?.message || 'Không thể tạo nhãn.'); }
 };
 
+// Xoá hẳn nhãn khỏi bảng (gỡ khỏi mọi công việc do cascade ở DB).
+const deleteLabel = async (label) => {
+    if (!confirm(`Xoá nhãn "${label.name || 'Nhãn'}" khỏi bảng? Nhãn sẽ bị gỡ khỏi mọi công việc.`)) return;
+    try {
+        await axios.delete(route('labels.destroy', label.id));
+        labels.value = labels.value.filter((l) => l.id !== label.id);
+        if (task.value?.labels) {
+            task.value.labels = task.value.labels.filter((l) => l.id !== label.id);
+        }
+    } catch (e) { alert(e.response?.data?.message || 'Không thể xoá nhãn.'); }
+};
+
 const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(email || 'x')}`;
+
+// ---- Đóng popover khi click ra ngoài ----
+const labelWrap = ref(null);
+const assigneeWrap = ref(null);
+const onDocClick = (e) => {
+    if (showLabelPanel.value && labelWrap.value && !labelWrap.value.contains(e.target)) {
+        showLabelPanel.value = false;
+    }
+    if (showAssigneePicker.value && assigneeWrap.value && !assigneeWrap.value.contains(e.target)) {
+        showAssigneePicker.value = false;
+    }
+};
+// mousedown (không phải click) để không xung đột với nút bật/tắt popover.
+onMounted(() => document.addEventListener('mousedown', onDocClick));
+onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
 </script>
 
 <template>
@@ -297,7 +324,7 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                             <strong>{{ task.column_name }}</strong>
                         </p>
 
-                        <label class="sect-label">Tiêu đề</label>
+                        <label class="sect-label mb-1">Tiêu đề</label>
                         <TextInput v-model="title" placeholder="Tiêu đề công việc..." group-class="mb-4"
                             :readonly="!canEdit" />
 
@@ -310,7 +337,7 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                                 <button v-if="canManage" class="pill-x" @click="removeAssignee(a)" title="Gỡ">&times;</button>
                             </span>
                             <span v-if="!task.assignees || !task.assignees.length" class="text-muted small">Chưa có ai.</span>
-                            <div v-if="canManage" class="position-relative d-inline-block">
+                            <div v-if="canManage" ref="assigneeWrap" class="position-relative d-inline-block">
                                 <button class="btn-round" @click="showAssigneePicker = !showAssigneePicker" title="Thêm người">
                                     <i class="fas fa-plus"></i>
                                 </button>
@@ -337,19 +364,24 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                             </span>
                             <span v-if="!task.labels || !task.labels.length" class="text-muted small">Chưa gắn nhãn.</span>
 
-                            <div v-if="canEdit" class="position-relative d-inline-block">
+                            <div v-if="canEdit" ref="labelWrap" class="position-relative d-inline-block">
                                 <button class="btn btn-sm btn-outline-secondary" @click="showLabelPanel = !showLabelPanel">
                                     <i class="fas fa-plus mr-1"></i>Nhãn
                                 </button>
                                 <div v-if="showLabelPanel" class="popover-card p-2" style="min-width:240px;">
                                     <div class="small text-muted mb-1">Chọn nhãn</div>
                                     <div class="d-flex flex-column mb-2" style="gap:4px; max-height:180px; overflow-y:auto;">
-                                        <button v-for="l in labels" :key="l.id" type="button"
-                                            class="label-row" :class="{ active: hasLabel(l.id) }"
-                                            :style="{ backgroundColor: l.color }" @click="toggleLabel(l)">
-                                            <span>{{ l.name || 'Nhãn' }}</span>
-                                            <i v-if="hasLabel(l.id)" class="fas fa-check"></i>
-                                        </button>
+                                        <div v-for="l in labels" :key="l.id" class="label-row-wrap">
+                                            <button type="button" class="label-row" :class="{ active: hasLabel(l.id) }"
+                                                :style="{ backgroundColor: l.color }" @click="toggleLabel(l)">
+                                                <span>{{ l.name || 'Nhãn' }}</span>
+                                                <i v-if="hasLabel(l.id)" class="fas fa-check"></i>
+                                            </button>
+                                            <button type="button" class="label-del" title="Xoá nhãn khỏi bảng"
+                                                @click="deleteLabel(l)">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
                                         <span v-if="!labels.length" class="text-muted small">Chưa có nhãn nào.</span>
                                     </div>
                                     <div class="small text-muted mb-1">Tạo nhãn mới</div>
@@ -479,8 +511,9 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                                 <div v-for="h in task.task_histories" :key="h.id" class="history-item">
                                     <img :src="h.user_avatar" class="rounded-circle" width="24" height="24">
                                     <div class="history-item__text">
-                                        <span><strong>{{ h.user_name }}</strong> {{ h.action }}
-                                            <span v-if="h.note">— {{ h.note }}</span></span>
+                                        <!-- note là HTML dựng sẵn (dữ liệu người dùng đã escape ở server) -->
+                                        <div v-if="h.note" class="history-note" v-html="h.note"></div>
+                                        <div v-else class="history-note"><strong>{{ h.user_name }}</strong> {{ h.action }}</div>
                                         <div class="history-item__time">{{ h.updated_at }}</div>
                                     </div>
                                 </div>
@@ -664,6 +697,34 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
     box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25) inset;
 }
 
+.label-row-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.label-row-wrap .label-row {
+    flex: 1;
+    min-width: 0;
+}
+
+.label-del {
+    flex-shrink: 0;
+    border: 0;
+    background: transparent;
+    color: var(--app-text-muted);
+    cursor: pointer;
+    padding: 4px 6px;
+    font-size: 0.78rem;
+    line-height: 1;
+    border-radius: 6px;
+}
+
+.label-del:hover {
+    color: #fff;
+    background: #e5484d;
+}
+
 .color-dot {
     width: 22px;
     height: 22px;
@@ -795,6 +856,11 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
     color: var(--app-text-muted);
     font-size: 0.7rem;
     margin-top: 1px;
+}
+
+.history-note {
+    line-height: 1.5;
+    word-break: break-word;
 }
 
 [data-theme="dark"] .md-content :deep(a) { color: var(--app-accent-2); }

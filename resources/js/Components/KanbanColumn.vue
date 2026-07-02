@@ -59,7 +59,7 @@ const submitTask = () => {
             align="center" @close="adding = false">
             <form @submit.prevent="submitTask">
                 <div class="form-group">
-                    <label class="small font-weight-bold">Tiêu đề công việc</label>
+                    <label class="small font-weight-bold mb-1">Tiêu đề công việc</label>
                     <TextInput v-model="newTitle" placeholder="Nhập tiêu đề công việc..." autofocus group-class="mb-0" />
                 </div>
                 <div class="text-right">

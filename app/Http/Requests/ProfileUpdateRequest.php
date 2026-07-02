@@ -4,15 +4,15 @@ namespace App\Http\Requests;
 
 use App\Support\SocialLinks;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
-class UserRequest extends FormRequest
+class ProfileUpdateRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return true;
+        return Auth::check();
     }
 
     /** Chuẩn hoá dữ liệu trước khi validate: lowercase username + thêm scheme cho social. */
@@ -26,19 +26,14 @@ class UserRequest extends FormRequest
         }
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
-        $userId = $this->route('id');
+        $id = Auth::id();
 
         return [
             'name' => 'required|string|max:255',
-            'username' => 'nullable|string|min:3|max:50|alpha_dash|unique:users,username,' . $userId,
-            'email' => 'required|email:rfc,strict|unique:users,email,' . $userId,
+            'username' => ['required', 'string', 'min:3', 'max:50', 'alpha_dash', Rule::unique('users', 'username')->ignore($id)],
+            'email' => ['required', 'email:rfc,strict', Rule::unique('users', 'email')->ignore($id)],
             'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:10240',
             'social' => 'nullable|array',
             'social.facebook' => 'nullable|url|max:255',
@@ -46,19 +41,18 @@ class UserRequest extends FormRequest
             'social.linkedin' => 'nullable|url|max:255',
             'social.github' => 'nullable|url|max:255',
             'social.website' => 'nullable|url|max:255',
-            'password' => [
-                // Bắt buộc khi tạo mới; khi sửa để trống = giữ mật khẩu cũ.
-                $userId ? 'nullable' : 'required',
-                'string',
-                'min:8',
-                'regex:/[a-z]/',
-                'regex:/[A-Z]/',
-                'regex:/[0-9]/',
-                'regex:/[@$!%*#?&]/',
-                'confirmed',
-            ],
-            'status' => 'required|in:active,inactive,banned',
-            'is_admin' => 'nullable|boolean',
+            // Đổi mật khẩu là tuỳ chọn; để trống nếu không đổi.
+            'password' => ['nullable', 'confirmed', Password::min(8)->mixedCase()->numbers()],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'username.alpha_dash' => 'Tên đăng nhập chỉ gồm chữ, số, gạch ngang và gạch dưới.',
+            'username.unique' => 'Tên đăng nhập đã được sử dụng.',
+            'avatar.max' => 'Ảnh đại diện tối đa 10MB.',
+            'social.*.url' => 'Liên kết mạng xã hội phải là URL hợp lệ.',
         ];
     }
 }

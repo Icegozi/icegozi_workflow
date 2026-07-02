@@ -24,11 +24,12 @@ const errors = computed(() => page.props.errors || {});
                 <div class="card-body login-card-body">
                     <p class="login-box-msg">Đăng nhập để bắt đầu phiên làm việc</p>
 
-                    <div v-if="errors.email" class="alert alert-danger small p-2">{{ errors.email }}</div>
+                    <div v-if="errors.login" class="alert alert-danger small p-2">{{ errors.login }}</div>
 
                     <form :action="route('login')" method="POST">
                         <input type="hidden" name="_token" :value="csrf">
-                        <TextInput type="email" name="email" placeholder="Email" icon="fas fa-envelope" required autofocus />
+                        <TextInput type="text" name="login" placeholder="Email hoặc tên đăng nhập"
+                            icon="fas fa-user" required autofocus />
                         <TextInput type="password" name="password" placeholder="Mật khẩu" icon="fas fa-lock" required />
 
                         <div class="row align-items-center">

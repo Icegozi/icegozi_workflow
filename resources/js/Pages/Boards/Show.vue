@@ -318,7 +318,7 @@ const openActivity = async () => {
         <Modal v-if="showAddColumn" title="Thêm cột mới" max-width="420px" align="center" @close="showAddColumn = false">
             <form @submit.prevent="saveColumn">
                 <div class="form-group">
-                    <label class="small font-weight-bold">Tên cột</label>
+                    <label class="small font-weight-bold mb-1">Tên cột</label>
                     <TextInput v-model="newColumnName" placeholder="Nhập tên cột..." autofocus group-class="mb-0" />
                 </div>
                 <div class="text-right">
@@ -370,7 +370,7 @@ const openActivity = async () => {
                     <img :src="a.user_avatar" class="rounded-circle mr-2" width="32" height="32" style="height:32px;">
                     <div class="flex-grow-1">
                         <div v-html="a.note" style="font-size:.85rem;"></div>
-                        <div class="text-muted" style="font-size:.72rem;">{{ a.time_ago }}</div>
+                        <div class="text-muted" style="font-size:.72rem;">{{ a.time }}</div>
                     </div>
                 </div>
                 <div v-if="!activities.length" class="text-muted text-center py-4">Chưa có hoạt động nào.</div>

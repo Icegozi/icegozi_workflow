@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HandlesProfileMedia;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UserRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class UserController extends Controller
 {
+    use HandlesProfileMedia;
+
     public function index()
     {
         $users = User::paginate(20);
@@ -36,7 +40,18 @@ class UserController extends Controller
 
     public function store(UserRequest $request)
     {
-        User::addUser($request->all());
+        $data = $request->validated();
+        $data['avatar_url'] = $this->storeAvatar($request->file('avatar'));
+        $data['social'] = $this->cleanSocial($data['social'] ?? []);
+
+        try {
+            User::addUser($data);
+        } catch (\Throwable $e) {
+            Log::error('Admin create user failed: ' . $e->getMessage());
+
+            return redirect()->back()->withInput()
+                ->with('error', 'Không thể tạo tài khoản, vui lòng thử lại.');
+        }
 
         return redirect()
             ->route('admin.user.index')
@@ -52,7 +67,19 @@ class UserController extends Controller
 
     public function update(UserRequest $request, $id)
     {
-        $ok = User::updateUserById($id, $request->all());
+        $user = User::findOrFail($id);
+        $data = $request->validated();
+        $data['avatar_url'] = $this->storeAvatar($request->file('avatar'), $user->avatar_url);
+        $data['social'] = $this->cleanSocial($data['social'] ?? []);
+
+        try {
+            $ok = User::updateUserById($id, $data);
+        } catch (\Throwable $e) {
+            Log::error('Admin update user failed: ' . $e->getMessage());
+
+            return redirect()->back()->withInput()
+                ->with('error', 'Không thể cập nhật tài khoản, vui lòng thử lại.');
+        }
 
         if ($ok) {
             return redirect()

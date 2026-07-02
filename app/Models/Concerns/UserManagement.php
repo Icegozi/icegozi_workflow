@@ -13,7 +13,10 @@ trait UserManagement
         $user = new self();
         $user->forceFill([
             'name' => $data['name'],
+            'username' => $data['username'] ?? null,
             'email' => $data['email'],
+            'avatar_url' => $data['avatar_url'] ?? null,
+            'social' => $data['social'] ?? null,
             'password' => Hash::make($data['password']),
             'is_admin' => $data['is_admin'] ?? false,
             'status' => $data['status'] ?? 'active',
@@ -31,10 +34,15 @@ trait UserManagement
 
         // Chỉ chấp nhận các trường được phép; is_admin/status gán có chủ đích (luồng quản trị).
         $fields = [];
-        foreach (['name', 'email', 'is_admin', 'status'] as $key) {
-            if (array_key_exists($key, $data)) {
-                $fields[$key] = $data[$key];
+        foreach (['name', 'username', 'email', 'avatar_url', 'social', 'is_admin', 'status'] as $key) {
+            if (! array_key_exists($key, $data)) {
+                continue;
             }
+            // username rỗng = giữ nguyên, tránh nulling ngoài ý muốn khi admin để trống ô.
+            if ($key === 'username' && ($data[$key] === null || $data[$key] === '')) {
+                continue;
+            }
+            $fields[$key] = $data[$key];
         }
         if (! empty($data['password'])) {
             $fields['password'] = Hash::make($data['password']);
@@ -60,6 +68,7 @@ trait UserManagement
     {
         return self::where(function ($query) use ($keyword) {
             $query->where('name', 'like', "%{$keyword}%")
+                ->orWhere('username', 'like', "%{$keyword}%")
                 ->orWhere('email', 'like', "%{$keyword}%");
         })->get();
     }

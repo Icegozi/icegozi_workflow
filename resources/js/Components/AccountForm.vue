@@ -1,20 +1,38 @@
 <script setup>
+import { ref, onUnmounted } from 'vue';
 import Btn from '@/Components/Btn.vue';
 import TextInput from '@/Components/TextInput.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import FormField from '@/Components/FormField.vue';
+import { SOCIAL_PLATFORMS, avatarSrc } from '@/composables/useSocialLinks';
 
 const props = defineProps({
-    form: { type: Object, required: true },        // instance useForm
+    form: { type: Object, required: true },        // instance useForm (gồm avatar, social)
     isEdit: { type: Boolean, default: false },
     meta: { type: Object, default: null },          // {created_at, updated_at, email_verified_at} đã format
+    currentAvatar: { type: String, default: null }, // ảnh hiện có (khi sửa) để xem trước
     submitLabel: { type: String, default: 'Lưu' },
     cancelHref: { type: String, default: null },
 });
 const emit = defineEmits(['submit']);
 
 const statuses = { active: 'Kích hoạt', inactive: 'Không kích hoạt', banned: 'Bị khóa' };
+
+// ---- Ảnh đại diện + xem trước ----
+const preview = ref(props.currentAvatar);
+const fileInput = ref(null);
+const onAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (preview.value?.startsWith('blob:')) URL.revokeObjectURL(preview.value);
+    props.form.avatar = file;
+    preview.value = URL.createObjectURL(file);
+};
+// Thu hồi blob URL còn treo khi rời form (tránh rò bộ nhớ).
+onUnmounted(() => {
+    if (preview.value?.startsWith('blob:')) URL.revokeObjectURL(preview.value);
+});
 </script>
 
 <template>
@@ -24,12 +42,40 @@ const statuses = { active: 'Kích hoạt', inactive: 'Không kích hoạt', bann
                 
                 <!-- THÔNG TIN CƠ BẢN -->
                 <h6 class="section-title mb-3"><i class="fas fa-id-card mr-2"></i>Thông tin cơ bản</h6>
+                <div class="d-flex align-items-center mb-3" style="gap:16px;">
+                    <img :src="avatarSrc(preview, props.form.email, 120)" alt="avatar" class="avatar-thumb">
+                    <div>
+                        <input ref="fileInput" type="file" accept="image/*" class="d-none" @change="onAvatarChange">
+                        <Btn type="button" variant="black" outline icon="fas fa-upload" class="btn-sm"
+                            @click="fileInput?.click()">Chọn ảnh đại diện</Btn>
+                        <div class="text-muted small mt-1">JPG/PNG/WEBP, tối đa 10MB.</div>
+                        <div v-if="props.form.errors.avatar" class="invalid-feedback d-block small">
+                            {{ props.form.errors.avatar }}
+                        </div>
+                    </div>
+                </div>
                 <div class="row">
                     <FormField label="Họ và tên" :error="props.form.errors.name" class="col-12 col-md-6 mb-3">
                         <TextInput v-model="props.form.name" icon="fas fa-user" required group-class="mb-0" />
                     </FormField>
-                    <FormField label="Email" :error="props.form.errors.email" class="col-12 col-md-6 mb-3">
+                    <FormField label="Tên đăng nhập" :error="props.form.errors.username" class="col-12 col-md-6 mb-3">
+                        <TextInput v-model="props.form.username" icon="fas fa-at" group-class="mb-0"
+                            placeholder="chữ, số, _ -" />
+                    </FormField>
+                    <FormField label="Email" :error="props.form.errors.email" class="col-12 mb-3">
                         <TextInput type="email" v-model="props.form.email" icon="fas fa-envelope" required group-class="mb-0" />
+                    </FormField>
+                </div>
+
+                <hr class="my-3 text-muted" style="opacity: 0.2;">
+
+                <!-- MẠNG XÃ HỘI -->
+                <h6 class="section-title mb-3"><i class="fas fa-share-nodes mr-2"></i>Mạng xã hội</h6>
+                <div class="row">
+                    <FormField v-for="p in SOCIAL_PLATFORMS" :key="p.key" :label="p.label"
+                        :error="props.form.errors[`social.${p.key}`]" class="col-12 col-md-6 mb-3">
+                        <TextInput type="url" v-model="props.form.social[p.key]" :icon="p.icon"
+                            :placeholder="p.placeholder" group-class="mb-0" />
                     </FormField>
                 </div>
 
@@ -108,6 +154,16 @@ const statuses = { active: 'Kích hoạt', inactive: 'Không kích hoạt', bann
 .form-card {
     border: 1px solid var(--app-border, #e4e6ea);
     border-radius: 12px;
+}
+
+/* Ảnh đại diện xem trước trong form admin */
+.avatar-thumb {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--app-border, #e4e6ea);
+    flex-shrink: 0;
 }
 
 /* Tiêu đề các phần */

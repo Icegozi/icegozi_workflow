@@ -19,6 +19,7 @@ use App\Http\Controllers\User\LabelController;
 use App\Http\Controllers\User\MyTaskController;
 use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\OverviewTaskController;
+use App\Http\Controllers\User\ProfileController;
 use App\Http\Controllers\User\TaskController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -52,6 +53,11 @@ Route::middleware(['auth', 'active'])->group(function () {
             ? redirect()->route('admin.dashboard')
             : redirect()->route('user.dashboard');
     })->name('dashboard');
+
+    // --- Hồ sơ cá nhân (user & admin tự chỉnh) ---
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    // POST (không PUT) để upload avatar multipart đơn giản, không cần method spoofing.
+    Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     // Dashboard riêng cho user thường
     Route::get('/user/dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard');

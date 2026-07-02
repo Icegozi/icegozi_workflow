@@ -17,7 +17,7 @@ class LoginController extends Controller
 
     public function login(LoginRequest $request)
     {
-        $credentials = $request->only('email', 'password');
+        $credentials = $request->only('login', 'password');
         $remember = $request->has('remember');
 
         if (User::login($credentials, $remember)) {
@@ -30,7 +30,7 @@ class LoginController extends Controller
             }
         } else {
             return back()->withErrors([
-                'email' => 'Thông tin đăng nhập không hợp lệ hoặc tài khoản đã bị khóa.',
+                'login' => 'Thông tin đăng nhập không hợp lệ hoặc tài khoản đã bị khóa.',
             ])->withInput();
         }
     }
