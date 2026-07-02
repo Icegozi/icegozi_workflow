@@ -241,7 +241,10 @@ class TaskController extends Controller
     public function edit(string $taskCode)
     {
         $task = Task::findOrFail(Task::idFromCode($taskCode));
-        $board = $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
+        // Viewer cũng mở được trang (read-only) — link thông báo/nhắc hạn trỏ về đây.
+        $board = $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
+        $canEdit = Auth::user()->hasBoardPermission($board, 'board_editor')
+            || Auth::user()->hasBoardPermission($board, 'board_member_manager');
 
         // Ưu tiên tập trạng thái riêng của bảng; nếu bảng chưa gán thì dùng toàn bộ status global.
         $statuses = $board->statuses()
@@ -257,7 +260,7 @@ class TaskController extends Controller
             'boardId' => $board->id,
             'boardName' => $board->name,
             'code' => Task::buildCode($board->name, $task->id),
-            'canEdit' => true,
+            'canEdit' => $canEdit,
             'canManage' => Auth::user()->hasBoardPermission($board, 'board_member_manager'),
             'statuses' => $statuses,
             'boardLabels' => $board->labels()->orderBy('name')->get(['id', 'name', 'color']),

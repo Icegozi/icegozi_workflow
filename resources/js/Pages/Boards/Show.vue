@@ -79,10 +79,25 @@ const saveTask = async (col, title) => {
 };
 
 // ---- Kéo thả công việc ----
+let positionSeq = 0;
+
+// Khôi phục thứ tự task của mọi cột về trạng thái đã chụp (khi lưu vị trí thất bại).
+const restoreOrder = (snapshot) => {
+    const byId = new Map();
+    for (const c of columns) for (const t of c.tasks) byId.set(t.id, t);
+    for (const { col, ids } of snapshot) {
+        col.tasks = ids.map((id) => byId.get(id)).filter(Boolean);
+        col.tasks.forEach((t) => { t.column_id = col.id; });
+    }
+};
+
 const onTaskChange = async (col, evt) => {
     const moved = evt.added || evt.moved;
     if (!moved) return;
     const taskId = moved.element.id;
+    // Chụp thứ tự hiện tại của MỌI cột trước khi gọi API (kéo có thể vắt qua 2 cột).
+    const snapshot = columns.map((c) => ({ col: c, ids: c.tasks.map((t) => t.id) }));
+    const seq = ++positionSeq;
     try {
         await axios.post(route('tasks.updatePosition'), {
             task_id: taskId,
@@ -90,6 +105,10 @@ const onTaskChange = async (col, evt) => {
             order: col.tasks.map((t) => t.id),
         });
     } catch (e) {
+        // Chỉ hoàn tác nếu chưa có thao tác kéo-thả mới hơn (tránh giật ngược trạng thái).
+        if (seq === positionSeq) {
+            restoreOrder(snapshot);
+        }
         alert(e.response?.data?.message || 'Không thể cập nhật vị trí.');
     }
 };

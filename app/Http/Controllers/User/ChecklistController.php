@@ -56,7 +56,7 @@ class ChecklistController extends Controller
                 $task->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'added_checklist_item',
-                    'note' => "Đã thêm mục checklist: '{$checklist->title}'",
+                    'note' => "Đã thêm mục checklist: '" . e($checklist->title) . "'",
                 ]);
 
                 return $checklist;
@@ -121,7 +121,7 @@ class ChecklistController extends Controller
         // Check if 'title' is present in the request and different
         if ($request->has('title') && $checklist->title !== $request->title) {
             $checklist->title = $request->title; // Uses validated data if 'title' was part of it
-            $updatedFieldsMessages[] = "tiêu đề từ '{$originalTitle}' thành '{$request->title}'";
+            $updatedFieldsMessages[] = "tiêu đề từ '" . e($originalTitle) . "' thành '" . e($request->title) . "'";
         }
 
         // Check if 'is_done' is present in the request and different
@@ -130,7 +130,7 @@ class ChecklistController extends Controller
             $checklist->is_done = $request->boolean('is_done'); // Assign the boolean value
             $status = $checklist->is_done ? 'hoàn thành' : 'chưa hoàn thành';
             $titleForMessage = $request->has('title') ? $request->title : $originalTitle;
-            $updatedFieldsMessages[] = "trạng thái mục '{$titleForMessage}' thành {$status}";
+            $updatedFieldsMessages[] = "trạng thái mục '" . e($titleForMessage) . "' thành {$status}";
         }
 
         return $updatedFieldsMessages;
@@ -164,7 +164,7 @@ class ChecklistController extends Controller
                 $task->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'deleted_checklist_item',
-                    'note' => "Đã xóa mục checklist: '{$checklistTitle}'",
+                    'note' => "Đã xóa mục checklist: '" . e($checklistTitle) . "'",
                 ]);
             });
 

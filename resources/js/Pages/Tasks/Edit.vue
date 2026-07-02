@@ -33,6 +33,7 @@ const newChecklistItem = ref('');
 const boardMembers = ref([]);
 const showAssigneePicker = ref(false);
 const saving = ref(false);
+const sending = ref(false);   // chống gửi bình luận trùng (Ctrl+Enter + click)
 
 // ---- Nhãn ----
 const labels = ref([...props.boardLabels]);   // bảng nhãn của board (có thể thêm mới)
@@ -50,14 +51,19 @@ const PRIORITIES = [
 
 const statusOptions = computed(() => props.statuses.map((s) => ({ value: s.id, label: s.name })));
 
-const loadTask = async () => {
+// Nạp task từ server. resetForm=true chỉ dùng khi mở trang: gán lại các ô nhập.
+// Các thao tác phụ (bình luận, checklist, nhãn...) gọi resetForm=false để KHÔNG
+// ghi đè phần người dùng đang gõ dở ở tiêu đề/mô tả (tránh mất dữ liệu chưa lưu).
+const fetchTask = async (resetForm = false) => {
     const { data } = await axios.get(route('tasks.show', props.taskId));
     task.value = data.task;
-    title.value = data.task.title;
-    description.value = data.task.description || '';
-    dueDate.value = data.task.due_date || '';
-    priority.value = data.task.priority || 'normal';
-    statusId.value = data.task.status?.id ?? null;
+    if (resetForm) {
+        title.value = data.task.title;
+        description.value = data.task.description || '';
+        dueDate.value = data.task.due_date || '';
+        priority.value = data.task.priority || 'normal';
+        statusId.value = data.task.status?.id ?? null;
+    }
     loading.value = false;
 };
 
@@ -69,7 +75,7 @@ const loadMembers = async () => {
 };
 
 onMounted(async () => {
-    await loadTask();
+    await fetchTask(true);
     loadMembers();   // cần cho cả gợi ý @mention, không chỉ khi canManage
 });
 
@@ -84,15 +90,23 @@ const mentionMatches = computed(() => {
         .slice(0, 6);
 });
 
+const mentionAt = ref(-1);   // vị trí ký tự '@' đang kích hoạt gợi ý
+
 const onCommentInput = () => {
     const text = newComment.value;
     const at = text.lastIndexOf('@');
-    // Đang gõ token @... (sau @ không có khoảng trắng) thì mở gợi ý
-    if (at >= 0 && !/\s/.test(text.slice(at + 1))) {
+    // Chỉ mở gợi ý khi '@' đứng đầu hoặc sau khoảng trắng (bỏ qua '@' trong email
+    // như bob@corp.com) và phần sau '@' chưa có khoảng trắng (đang gõ token tên).
+    const triggered = at >= 0
+        && (at === 0 || /\s/.test(text[at - 1]))
+        && !/\s/.test(text.slice(at + 1));
+    if (triggered) {
+        mentionAt.value = at;
         mentionQuery.value = text.slice(at + 1);
         mentionOpen.value = true;
     } else {
         mentionOpen.value = false;
+        mentionAt.value = -1;
     }
 };
 // MarkdownEditor phát v-model -> theo dõi để bật gợi ý @mention
@@ -100,12 +114,15 @@ watch(newComment, onCommentInput);
 
 const pickMention = (member) => {
     const text = newComment.value;
-    const at = text.lastIndexOf('@');
+    // Dùng đúng vị trí '@' đã kích hoạt gợi ý, không dò lại lastIndexOf('@').
+    const at = mentionAt.value;
+    if (at < 0) return;
     newComment.value = text.slice(0, at) + '@' + member.name + ' ';
     if (!selectedMentions.value.some((m) => m.id === member.id)) {
         selectedMentions.value.push({ id: member.id, name: member.name });
     }
     mentionOpen.value = false;
+    mentionAt.value = -1;
 };
 
 // Quay lại: nếu tới từ danh sách "Task của tôi" (?return=my-tasks) thì về đó,
@@ -129,7 +146,7 @@ const saveTask = async () => {
             priority: priority.value,
             status_id: statusId.value,
         });
-        await loadTask();
+        await fetchTask(false);
     } catch (e) {
         alert(e.response?.data?.message || 'Không thể lưu thay đổi.');
     } finally {
@@ -149,25 +166,31 @@ const deleteTask = async () => {
 
 // ---- Bình luận ----
 const addComment = async () => {
+    if (sending.value) return;   // đang gửi -> bỏ qua lần gọi trùng
     const content = newComment.value.trim();
     if (!content) return;
     // Chỉ gửi mention còn xuất hiện dạng "@Tên" trong nội dung
     const mentions = selectedMentions.value
         .filter((m) => content.includes('@' + m.name))
         .map((m) => m.id);
+    sending.value = true;
     try {
         await axios.post(route('comments.store', props.taskId), { content, mentions });
         newComment.value = '';
         selectedMentions.value = [];
         mentionOpen.value = false;
-        await loadTask();
-    } catch (e) { alert(e.response?.data?.message || 'Không thể thêm bình luận.'); }
+        await fetchTask(false);
+    } catch (e) {
+        alert(e.response?.data?.message || 'Không thể thêm bình luận.');
+    } finally {
+        sending.value = false;
+    }
 };
 const deleteComment = async (c) => {
     if (!confirm('Xoá bình luận?')) return;
     try {
         await axios.delete(`/tasks/${props.taskId}/comments/${c.id}`);
-        await loadTask();
+        await fetchTask(false);
     } catch (e) { alert(e.response?.data?.message || 'Không thể xoá bình luận.'); }
 };
 
@@ -178,19 +201,19 @@ const addChecklist = async () => {
     try {
         await axios.post(route('checklists.store', props.taskId), { title: t });
         newChecklistItem.value = '';
-        await loadTask();
+        await fetchTask(false);
     } catch (e) { alert(e.response?.data?.message || 'Không thể thêm mục.'); }
 };
 const toggleChecklist = async (item) => {
     try {
         await axios.put(route('checklists.update', item.id), { is_done: !item.is_done });
-        await loadTask();
+        await fetchTask(false);
     } catch (e) { alert('Không thể cập nhật.'); }
 };
 const deleteChecklist = async (item) => {
     try {
         await axios.delete(route('checklists.destroy', item.id));
-        await loadTask();
+        await fetchTask(false);
     } catch (e) { alert('Không thể xoá mục.'); }
 };
 
@@ -205,13 +228,13 @@ const addAssignee = async (user) => {
     try {
         await axios.post(route('tasks.assignees.store', props.taskId), { user_id: user.id });
         showAssigneePicker.value = false;
-        await loadTask();
+        await fetchTask(false);
     } catch (e) { alert(e.response?.data?.message || 'Không thể thêm người phụ trách.'); }
 };
 const removeAssignee = async (user) => {
     try {
         await axios.delete(route('tasks.assignees.destroy', [props.taskId, user.id]));
-        await loadTask();
+        await fetchTask(false);
     } catch (e) { alert('Không thể gỡ người phụ trách.'); }
 };
 
@@ -224,7 +247,7 @@ const toggleLabel = async (label) => {
         } else {
             await axios.post(route('tasks.labels.attach', props.taskId), { label_id: label.id });
         }
-        await loadTask();
+        await fetchTask(false);
     } catch (e) { alert(e.response?.data?.message || 'Không thể cập nhật nhãn.'); }
 };
 
@@ -275,7 +298,8 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                         </p>
 
                         <label class="sect-label">Tiêu đề</label>
-                        <TextInput v-model="title" placeholder="Tiêu đề công việc..." group-class="mb-4" />
+                        <TextInput v-model="title" placeholder="Tiêu đề công việc..." group-class="mb-4"
+                            :readonly="!canEdit" />
 
                         <!-- Người phụ trách -->
                         <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
@@ -309,11 +333,11 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                             <span v-for="l in (task.labels || [])" :key="l.id" class="label-chip"
                                 :style="{ backgroundColor: l.color }">
                                 {{ l.name || 'Nhãn' }}
-                                <button class="chip-x" @click="toggleLabel(l)" title="Gỡ nhãn">&times;</button>
+                                <button v-if="canEdit" class="chip-x" @click="toggleLabel(l)" title="Gỡ nhãn">&times;</button>
                             </span>
                             <span v-if="!task.labels || !task.labels.length" class="text-muted small">Chưa gắn nhãn.</span>
 
-                            <div class="position-relative d-inline-block">
+                            <div v-if="canEdit" class="position-relative d-inline-block">
                                 <button class="btn btn-sm btn-outline-secondary" @click="showLabelPanel = !showLabelPanel">
                                     <i class="fas fa-plus mr-1"></i>Nhãn
                                 </button>
@@ -343,8 +367,10 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                         <!-- Mô tả -->
                         <h6 class="sect"><i class="fas fa-align-left"></i>Mô tả</h6>
                         <div class="mb-4">
-                            <MarkdownEditor v-model="description" :min-rows="4"
+                            <MarkdownEditor v-if="canEdit" v-model="description" :min-rows="4"
                                 placeholder="Thêm mô tả chi tiết hơn... (hỗ trợ Markdown)" />
+                            <div v-else-if="description" class="md-content" v-html="renderMarkdown(description)"></div>
+                            <div v-else class="text-muted small">Chưa có mô tả.</div>
                         </div>
 
                         <!-- Checklist -->
@@ -359,11 +385,12 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                                 <div class="checklist-progress__bar" :style="{ width: checklistPct + '%' }"></div>
                             </div>
                             <div v-for="item in task.checklists" :key="item.id" class="checklist-item">
-                                <Checkbox bare :model-value="item.is_done" @update:model-value="toggleChecklist(item)" />
+                                <Checkbox bare :model-value="item.is_done" :disabled="!canEdit"
+                                    @update:model-value="canEdit && toggleChecklist(item)" />
                                 <span :class="{ 'done': item.is_done }">{{ item.title }}</span>
-                                <button class="item-x" @click="deleteChecklist(item)" title="Xoá">&times;</button>
+                                <button v-if="canEdit" class="item-x" @click="deleteChecklist(item)" title="Xoá">&times;</button>
                             </div>
-                            <div class="input-group input-group-sm mt-2">
+                            <div v-if="canEdit" class="input-group input-group-sm mt-2">
                                 <input type="text" class="form-control" v-model="newChecklistItem"
                                     placeholder="Thêm mục mới..." @keyup.enter="addChecklist">
                                 <div class="input-group-append">
@@ -382,7 +409,9 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                                 @submit="addComment" />
                             <div class="d-flex justify-content-end mt-2">
                                 <Btn type="button" variant="black" icon="fas fa-paper-plane"
-                                    class="btn-sm" @click="addComment">Gửi bình luận</Btn>
+                                    class="btn-sm" :disabled="sending" @click="addComment">
+                                    {{ sending ? 'Đang gửi...' : 'Gửi bình luận' }}
+                                </Btn>
                             </div>
                             <div v-if="mentionOpen && mentionMatches.length" class="mention-pop">
                                 <a v-for="m in mentionMatches" :key="m.id" href="#"
@@ -420,19 +449,22 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
                             <h6 class="side-title">Thuộc tính</h6>
                             <div class="form-group">
                                 <label class="sect-label">Trạng thái</label>
-                                <SelectInput v-model="statusId" :options="statusOptions" class="form-control-sm" />
+                                <SelectInput v-model="statusId" :options="statusOptions" class="form-control-sm"
+                                    :disabled="!canEdit" />
                             </div>
                             <div class="form-group">
                                 <label class="sect-label">Độ ưu tiên</label>
-                                <SelectInput v-model="priority" :options="PRIORITIES" class="form-control-sm" />
+                                <SelectInput v-model="priority" :options="PRIORITIES" class="form-control-sm"
+                                    :disabled="!canEdit" />
                             </div>
                             <div class="form-group mb-0">
                                 <label class="sect-label">Ngày hết hạn</label>
-                                <TextInput type="date" v-model="dueDate" class="form-control-sm" group-class="mb-0" />
+                                <TextInput type="date" v-model="dueDate" class="form-control-sm" group-class="mb-0"
+                                    :disabled="!canEdit" />
                             </div>
                         </div>
 
-                        <div class="panel mb-3">
+                        <div v-if="canEdit" class="panel mb-3">
                             <Btn type="button" variant="black" icon="fas fa-save" class="btn-block"
                                 :disabled="saving" @click="saveTask">
                                 {{ saving ? 'Đang lưu...' : 'Lưu thay đổi' }}

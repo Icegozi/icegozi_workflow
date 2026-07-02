@@ -148,7 +148,7 @@ class Task extends Model
             $this->taskHistories()->create([
                 'user_id' => $userId,
                 'action' => 'di chuyển',
-                'note' => "Thẻ công việc di chuyển từ '{$oldColumn->name}' sang '{$newColumn->name}'",
+                'note' => "Thẻ công việc di chuyển từ '" . e($oldColumn->name) . "' sang '" . e($newColumn->name) . "'",
             ]);
         }
 
