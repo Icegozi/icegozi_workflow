@@ -32,7 +32,14 @@ const grouped = computed(() =>
 // Click task -> mở modal xem trước; từ modal bấm "Chỉnh sửa" mới sang trang edit.
 const modalTaskId = ref(null);
 const modalBoardId = ref(null);
-const openTask = (t) => { modalTaskId.value = t.id; modalBoardId.value = t.board_id; };
+const modalCanEdit = ref(false);
+const modalCanManage = ref(false);
+const openTask = (t) => {
+    modalTaskId.value = t.id;
+    modalBoardId.value = t.board_id;
+    modalCanEdit.value = !!t.can_edit;
+    modalCanManage.value = !!t.can_manage;
+};
 const closeTask = () => { modalTaskId.value = null; };
 </script>
 
@@ -85,7 +92,8 @@ const closeTask = () => { modalTaskId.value = null; };
 
         <!-- Xem trước task; "Chỉnh sửa" trong modal sẽ mở trang edit (và quay lại về đây) -->
         <TaskModal v-if="modalTaskId" :task-id="modalTaskId" :board-id="modalBoardId"
-            :can-edit="true" :edit-query="{ return: 'my-tasks' }" @close="closeTask" />
+            :can-edit="modalCanEdit" :can-manage="modalCanManage"
+            :edit-query="{ return: 'my-tasks' }" @close="closeTask" />
     </AuthenticatedLayout>
 </template>
 

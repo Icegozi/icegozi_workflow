@@ -2,6 +2,7 @@
 // Ô soạn thảo kiểu Redmine/Vgate: thanh công cụ định dạng Markdown + auto-grow
 // + tab "Viết / Xem trước". An toàn XSS nhờ renderMarkdown (escape trước).
 import { ref, computed, nextTick, watch, onMounted } from 'vue';
+import axios from 'axios';
 import { renderMarkdown } from '@/composables/useMarkdown';
 
 const props = defineProps({
@@ -9,6 +10,8 @@ const props = defineProps({
     placeholder: { type: String, default: '' },
     minRows: { type: Number, default: 3 },
     autofocus: { type: Boolean, default: false },
+    // Khi có taskId: bật upload tệp/ảnh (nút đính kèm + dán clipboard + kéo-thả).
+    taskId: { type: Number, default: null },
 });
 const emit = defineEmits(['update:modelValue', 'submit']);
 
@@ -49,6 +52,80 @@ const linePrefix = (prefix) => {
     const replaced = block.split('\n').map((l) => prefix + l).join('\n');
     const next = val.slice(0, start) + replaced + val.slice(e);
     setValue(next, start, start + replaced.length);
+};
+
+// ---- Upload tệp/ảnh (chèn Markdown tại con trỏ) ----
+const fileInput = ref(null);
+const uploading = ref(0);   // số tệp đang tải
+let uploadSeq = 0;
+
+// Chèn văn bản tại vị trí con trỏ (hoặc cuối nội dung nếu chưa focus).
+const insertAtCursor = (text) => {
+    const el = ta.value;
+    const val = props.modelValue || '';
+    const s = el ? el.selectionStart : val.length;
+    const e = el ? el.selectionEnd : val.length;
+    const next = val.slice(0, s) + text + val.slice(e);
+    setValue(next, s + text.length);
+};
+
+// Thay chuỗi giữ chỗ bằng nội dung thật (khớp chuỗi thuần, thay lần đầu).
+const replaceToken = (token, replacement) => {
+    emit('update:modelValue', (props.modelValue || '').replace(token, replacement));
+    nextTick(autoGrow);
+};
+
+const uploadFile = async (file) => {
+    if (!props.taskId || !file) return;
+    const seq = ++uploadSeq;
+    const token = `⏳ đang tải ${file.name} #${seq}`;
+    insertAtCursor(token + '\n');
+    uploading.value++;
+    try {
+        const form = new FormData();
+        form.append('file', file);
+        const { data } = await axios.post(route('attachments.uploadInline', props.taskId), form);
+        const md = data.is_image ? `![${data.name}](${data.url})` : `[${data.name}](${data.url})`;
+        replaceToken(token, md);
+    } catch (err) {
+        replaceToken(token + '\n', '');
+        alert(err.response?.data?.message || 'Không thể tải tệp lên.');
+    } finally {
+        uploading.value--;
+    }
+};
+
+const uploadFiles = (files) => Array.from(files || []).forEach(uploadFile);
+
+const onPickFiles = (e) => {
+    uploadFiles(e.target.files);
+    e.target.value = '';   // cho phép chọn lại cùng tệp
+};
+
+// Dán từ clipboard: nếu có tệp/ảnh -> upload, chặn dán nhị phân vào textarea.
+const onPaste = (e) => {
+    if (!props.taskId) return;
+    const items = e.clipboardData?.items || [];
+    const files = [];
+    for (const it of items) {
+        if (it.kind === 'file') { const f = it.getAsFile(); if (f) files.push(f); }
+    }
+    if (files.length) {
+        e.preventDefault();
+        uploadFiles(files);
+    }
+};
+
+// Kéo-thả tệp vào ô soạn.
+const dragOver = ref(false);
+const onDrop = (e) => {
+    if (!props.taskId) return;
+    const files = e.dataTransfer?.files;
+    if (files && files.length) {
+        e.preventDefault();
+        dragOver.value = false;
+        uploadFiles(files);
+    }
 };
 
 const TOOLS = [
@@ -106,6 +183,14 @@ defineExpose({ focus: () => ta.value?.focus() });
                         <i :class="t.icon"></i>
                     </button>
                 </template>
+                <template v-if="taskId">
+                    <span class="md-sep"></span>
+                    <button type="button" class="md-btn" title="Đính kèm tệp / ảnh"
+                        :disabled="tab === 'preview' || uploading > 0" @click="fileInput?.click()">
+                        <i :class="uploading > 0 ? 'fas fa-spinner fa-spin' : 'fas fa-paperclip'"></i>
+                    </button>
+                    <input ref="fileInput" type="file" multiple class="d-none" @change="onPickFiles">
+                </template>
             </div>
             <div class="md-tabs">
                 <button type="button" class="md-tab" :class="{ active: tab === 'write' }"
@@ -115,8 +200,10 @@ defineExpose({ focus: () => ta.value?.focus() });
             </div>
         </div>
 
-        <textarea v-show="tab === 'write'" ref="ta" class="md-textarea" :value="modelValue"
-            :placeholder="placeholder" @input="onInput" @keydown="onKeydown"></textarea>
+        <textarea v-show="tab === 'write'" ref="ta" class="md-textarea" :class="{ 'is-dragover': dragOver }"
+            :value="modelValue" :placeholder="placeholder" @input="onInput" @keydown="onKeydown"
+            @paste="onPaste" @drop="onDrop"
+            @dragover.prevent="taskId && (dragOver = true)" @dragleave="dragOver = false"></textarea>
 
         <div v-show="tab === 'preview'" class="md-preview md-body">
             <div v-if="modelValue" v-html="rendered"></div>
@@ -124,7 +211,8 @@ defineExpose({ focus: () => ta.value?.focus() });
         </div>
 
         <div class="md-hint">
-            <i class="fas fa-info-circle mr-1"></i>Hỗ trợ Markdown · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> để gửi
+            <i class="fas fa-info-circle mr-1"></i>Hỗ trợ Markdown · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> để gửi<template
+                v-if="taskId"> · Dán, kéo-thả hoặc bấm <i class="fas fa-paperclip"></i> để đính kèm ảnh/tệp</template>
         </div>
     </div>
 </template>
@@ -237,6 +325,12 @@ defineExpose({ focus: () => ta.value?.focus() });
 
 .md-textarea::placeholder {
     color: var(--app-text-muted);
+}
+
+.md-textarea.is-dragover {
+    outline: 2px dashed var(--app-accent);
+    outline-offset: -6px;
+    background: rgba(102, 51, 0, 0.04);
 }
 
 .md-body {

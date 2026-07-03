@@ -97,18 +97,18 @@ const submitTask = () => {
     margin-bottom: 0;
     padding: 5px 8px;
     font-size: small;
-    background-color: #6e6666;
+    background: linear-gradient(135deg, var(--app-accent), var(--app-accent-2));
     color: #ffffff;
     border-radius: 8px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(102, 51, 0, 0.35);
     text-align: center;
 }
 
 .column-title:hover {
-    background-color: rgba(255, 0, 0, 0.1);
-    color: rgb(0, 0, 0);
+    background: linear-gradient(135deg, var(--app-accent-dark), var(--app-accent));
+    color: #ffffff;
 }
 
 .column-actions .btn {

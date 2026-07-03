@@ -20,6 +20,8 @@ body {
     --app-text: #212529;        /* chữ đậm trên nền sáng */
     --app-text-muted: #6c757d;
     --app-border: #e9ecef;
+    --app-scrollbar-thumb: rgba(102, 51, 0, 0.32);        /* nâu mờ hợp chủ đề */
+    --app-scrollbar-thumb-hover: rgba(102, 51, 0, 0.55);
 }
 
 :root[data-theme="dark"] {
@@ -28,6 +30,38 @@ body {
     --app-text: #e6e8eb;
     --app-text-muted: #9aa0a6;
     --app-border: #2c3036;
+    --app-scrollbar-thumb: rgba(165, 118, 63, 0.42);      /* nâu nhạt trên nền tối */
+    --app-scrollbar-thumb-hover: rgba(165, 118, 63, 0.65);
+}
+
+/* ------- Thanh cuộn thân thiện, đồng bộ chủ đề (mọi màn + modal) ------- */
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-scrollbar-thumb) transparent;
+}
+
+/* WebKit (Chrome/Edge/Safari) */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--app-scrollbar-thumb);
+    border-radius: 8px;
+    border: 2px solid transparent;   /* tạo khoảng đệm -> nhìn thon, bo tròn */
+    background-clip: padding-box;
+    transition: background-color 0.15s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--app-scrollbar-thumb-hover);
+    background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+    background: transparent;
 }
 
 input[type="checkbox"],

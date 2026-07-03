@@ -46,14 +46,34 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
 const goEdit = () => {
     router.visit(route('tasks.edit', { taskCode: task.value.code, ...(props.editQuery || {}) }));
 };
+
+// Permalink trang chi tiết (dành cho người chỉ có quyền xem, không có nút Chỉnh sửa)
+const taskUrl = computed(() =>
+    task.value ? route('tasks.permalink', { boardCode: task.value.board_code, taskCode: task.value.task_code }) : ''
+);
+const linkCopied = ref(false);
+const copyLink = async () => {
+    try {
+        await navigator.clipboard.writeText(taskUrl.value);
+    } catch {
+        const el = document.createElement('textarea');
+        el.value = taskUrl.value;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+    }
+    linkCopied.value = true;
+    setTimeout(() => { linkCopied.value = false; }, 1500);
+};
 </script>
 
 <template>
     <Modal max-width="960px" align="center" @close="emit('close')">
         <template #header>
             <h5 class="modal-card__title d-flex align-items-center mb-0">
-                <span v-if="task?.code" class="task-code mr-2">{{ task.code }}</span>
                 Chi tiết công việc
+                <span v-if="task?.display_code" class="task-code ml-2">#{{ task.display_code }}</span>
             </h5>
         </template>
 
@@ -155,9 +175,21 @@ const goEdit = () => {
                         <span v-else class="info-empty">—</span>
                     </div>
 
-                    <div class="info-row mb-0">
+                    <div class="info-row" :class="{ 'mb-0': canEdit }">
                         <span class="info-label">Ngày hết hạn</span>
                         <strong class="tm-due">{{ task.formatted_due_date || '—' }}</strong>
+                    </div>
+
+                    <!-- Chỉ có quyền xem: hiển thị đường dẫn trang chi tiết (không có nút Chỉnh sửa) -->
+                    <div v-if="!canEdit" class="info-row mb-0">
+                        <span class="info-label">Đường dẫn công việc</span>
+                        <div class="link-chip" @click="copyLink" :title="taskUrl">
+                            <i class="fas fa-link link-chip__icon"></i>
+                            <span class="link-chip__url">{{ taskUrl }}</span>
+                            <span class="link-chip__copy">
+                                <i :class="linkCopied ? 'fas fa-check text-success' : 'far fa-copy'"></i>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -342,6 +374,43 @@ const goEdit = () => {
 }
 
 .info-empty { color: var(--app-text-muted); }
+
+/* Đường dẫn công việc: hộp nhỏ, gọn, bấm cả hộp để sao chép */
+.link-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: var(--app-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.link-chip:hover {
+    border-color: var(--app-accent);
+    background: rgba(102, 51, 0, 0.05);
+}
+.link-chip__icon {
+    color: var(--app-accent);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+.link-chip__url {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.75rem;
+    color: var(--app-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.link-chip__copy {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    color: var(--app-text-muted);
+}
+.link-chip:hover .link-chip__copy { color: var(--app-accent); }
 
 .tm-due { color: var(--app-text); font-size: 0.9rem; }
 

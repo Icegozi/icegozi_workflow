@@ -22,9 +22,14 @@ class MyTaskController extends Controller
 
         $today = Carbon::today();
 
-        $data = $tasks->map(function (Task $t) use ($today) {
+        $data = $tasks->map(function (Task $t) use ($today, $user) {
             $board = $t->column?->board;
             $due = $t->due_date ? Carbon::parse($t->due_date)->startOfDay() : null;
+
+            // Quyền thực tế của user trên board của task (để modal ẩn/hiện nút Chỉnh sửa).
+            $canEdit = $board && ($user->hasBoardPermission($board, 'board_editor')
+                || $user->hasBoardPermission($board, 'board_member_manager'));
+            $canManage = $board && $user->hasBoardPermission($board, 'board_member_manager');
 
             return [
                 'id' => $t->id,
@@ -36,6 +41,8 @@ class MyTaskController extends Controller
                 'due_group' => $this->dueGroup($due, $today),
                 'board_id' => $board?->id,
                 'board_name' => $board?->name,
+                'can_edit' => $canEdit,
+                'can_manage' => $canManage,
                 'column_name' => $t->column?->name,
                 'status' => $t->status ? [
                     'id' => $t->status->id,

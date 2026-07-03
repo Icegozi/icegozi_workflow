@@ -4,6 +4,7 @@ import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Btn from '@/Components/Btn.vue';
+import TaskComments from '@/Components/TaskComments.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
 
 const props = defineProps({
@@ -13,6 +14,7 @@ const props = defineProps({
     boardCode: { type: Number, required: true },
     taskCode: { type: Number, required: true },
     code: { type: String, required: true },
+    displayCode: { type: String, required: true },
     canEdit: { type: Boolean, default: false },
 });
 
@@ -42,6 +44,24 @@ const PRIORITY = {
     low: { label: 'Thấp', color: '#18794e', bg: '#e5f5ec' },
 };
 const priority = computed(() => (task.value ? PRIORITY[task.value.priority] || null : null));
+
+// Tích/bỏ tích checklist: mọi người xem được trang này đều được phép (kể cả quyền view).
+// Không cho thêm/xoá mục — chỉ đổi trạng thái is_done. Cập nhật lạc quan rồi gọi API.
+const togglingChecklist = ref(false);
+const toggleChecklist = async (item) => {
+    if (togglingChecklist.value) return;
+    togglingChecklist.value = true;
+    const prev = item.is_done;
+    item.is_done = !prev;
+    try {
+        await axios.put(route('checklists.update', item.id), { is_done: item.is_done });
+    } catch (e) {
+        item.is_done = prev;
+        alert(e.response?.data?.message || 'Không thể cập nhật mục checklist.');
+    } finally {
+        togglingChecklist.value = false;
+    }
+};
 
 const checklistDone = computed(() => (task.value?.checklists || []).filter((c) => c.is_done).length);
 const checklistTotal = computed(() => (task.value?.checklists || []).length);
@@ -84,7 +104,7 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
 </script>
 
 <template>
-    <Head :title="`Công việc ${code}`" />
+    <Head :title="`Công việc #${displayCode}`" />
     <AuthenticatedLayout>
         <div class="task-view">
             <!-- Thanh công cụ -->
@@ -92,15 +112,8 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
                 <Btn type="button" variant="white" class="btn-sm" icon="fas fa-arrow-left" @click="backToBoard">
                     Quay lại
                 </Btn>
-                <span class="task-code">{{ code }}</span>
+                <span class="task-code">#{{ displayCode }}</span>
                 <span class="flex-grow-1"></span>
-                <div class="tv-link">
-                    <input class="tv-link__input" type="text" :value="taskUrl" readonly @focus="$event.target.select()">
-                    <button type="button" class="tv-link__btn" :title="linkCopied ? 'Đã sao chép' : 'Sao chép liên kết'"
-                        @click="copyLink">
-                        <i :class="linkCopied ? 'fas fa-check' : 'fas fa-copy'"></i>
-                    </button>
-                </div>
                 <Btn v-if="canEdit" type="button" variant="black" class="btn-sm" icon="fas fa-pen" @click="goEdit">
                     Chỉnh sửa
                 </Btn>
@@ -144,29 +157,18 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
                             <div class="checklist-progress__bar" :style="{ width: checklistPct + '%' }"></div>
                         </div>
                         <div v-for="item in task.checklists" :key="item.id" class="checklist-item">
-                            <i :class="item.is_done ? 'far fa-check-square text-success' : 'far fa-square text-muted'"></i>
+                            <button type="button" class="checklist-toggle" :disabled="togglingChecklist"
+                                :title="item.is_done ? 'Bỏ đánh dấu hoàn thành' : 'Đánh dấu hoàn thành'"
+                                @click="toggleChecklist(item)">
+                                <i :class="item.is_done ? 'far fa-check-square text-success' : 'far fa-square text-muted'"></i>
+                            </button>
                             <span :class="{ done: item.is_done }">{{ item.title }}</span>
                         </div>
                         <span v-if="!task.checklists || !task.checklists.length" class="text-muted small">Chưa có mục nào.</span>
                     </div>
 
-                    <h6 class="sect"><i class="fas fa-comments"></i>Bình luận</h6>
-                    <div class="comment-list">
-                        <div v-for="c in task.comments" :key="c.id" class="comment">
-                            <img :src="c.user_avatar || avatar(c.user_name, 40)" class="rounded-circle comment__avatar"
-                                width="34" height="34">
-                            <div class="comment__body">
-                                <div class="comment__head">
-                                    <strong>{{ c.user_name }}</strong>
-                                    <small class="text-muted">{{ c.time_ago }}</small>
-                                </div>
-                                <div class="comment__content md-content" v-html="renderMarkdown(c.content)"></div>
-                            </div>
-                        </div>
-                        <div v-if="!task.comments || !task.comments.length" class="text-muted small text-center py-3">
-                            Chưa có bình luận.
-                        </div>
-                    </div>
+                    <TaskComments :task-id="taskId" :board-id="boardId"
+                        :comments="task.comments || []" @updated="loadTask" />
                 </div>
 
                 <!-- Cột phải -->
@@ -200,9 +202,20 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
                             <span v-else class="info-empty">—</span>
                         </div>
 
-                        <div class="info-row mb-0">
+                        <div class="info-row">
                             <span class="info-label">Ngày hết hạn</span>
                             <strong class="tv-due">{{ task.formatted_due_date || '—' }}</strong>
+                        </div>
+
+                        <div class="info-row mb-0">
+                            <span class="info-label">Đường dẫn công việc</span>
+                            <div class="link-chip" @click="copyLink" :title="taskUrl">
+                                <i class="fas fa-link link-chip__icon"></i>
+                                <span class="link-chip__url">{{ taskUrl }}</span>
+                                <span class="link-chip__copy">
+                                    <i :class="linkCopied ? 'fas fa-check text-success' : 'far fa-copy'"></i>
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -253,39 +266,42 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
     border-radius: 6px;
 }
 
-.tv-link {
+/* Đường dẫn công việc: hộp nhỏ gọn, bấm cả hộp để sao chép (giống modal) */
+.link-chip {
     display: flex;
-    align-items: stretch;
-    gap: 6px;
-    max-width: 340px;
-    flex: 1;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: var(--app-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-
-.tv-link__input {
+.link-chip:hover {
+    border-color: var(--app-accent);
+    background: rgba(102, 51, 0, 0.05);
+}
+.link-chip__icon {
+    color: var(--app-accent);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+.link-chip__url {
     flex: 1;
     min-width: 0;
-    font-size: 0.78rem;
-    padding: 4px 8px;
-    border: 1px solid var(--app-border, #e4e6ea);
-    border-radius: 6px;
-    background: var(--app-bg-subtle, #f4f6f9);
+    font-size: 0.75rem;
+    color: var(--app-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.link-chip__copy {
+    flex-shrink: 0;
+    font-size: 0.75rem;
     color: var(--app-text-muted);
 }
-
-.tv-link__btn {
-    flex-shrink: 0;
-    border: 1px solid var(--app-border, #e4e6ea);
-    background: transparent;
-    color: var(--app-accent, #663300);
-    border-radius: 6px;
-    padding: 0 10px;
-    cursor: pointer;
-}
-
-.tv-link__btn:hover {
-    background: var(--app-accent, #663300);
-    color: #fff;
-}
+.link-chip:hover .link-chip__copy { color: var(--app-accent); }
 
 /* ---------------- Bố cục ---------------- */
 .tv-breadcrumb {
@@ -377,6 +393,18 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
     color: var(--app-text-muted);
     text-decoration: line-through;
 }
+
+.checklist-toggle {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    line-height: 1;
+    cursor: pointer;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.checklist-toggle:disabled { cursor: default; }
+.checklist-toggle:hover:not(:disabled) i { opacity: 0.75; }
 
 .comment {
     display: flex;

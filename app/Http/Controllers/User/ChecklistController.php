@@ -77,7 +77,12 @@ class ChecklistController extends Controller
     public function update(Request $request, Checklist $checklist)
     {
         $task = $checklist->task;
-        $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
+        // Người chỉ có quyền xem được phép tích/bỏ tích (is_done); đổi tiêu đề cần editor trở lên.
+        if ($request->has('title')) {
+            $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
+        } else {
+            $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
+        }
 
         // VALIDATION:
         $request->validate([

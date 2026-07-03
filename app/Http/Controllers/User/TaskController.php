@@ -152,6 +152,10 @@ class TaskController extends Controller
 
         $this->applyColumnName($task);
         $task->code = Task::buildCode($board->name, $task->id);
+        // Mã hiển thị: board_code + task_code (số thật trong DB), tách với code dùng cho URL.
+        $task->display_code = $board->board_code . '-' . $task->task_code;
+        // board_code để client dựng permalink /b-{board_code}/tasks/{task_code}.
+        $task->board_code = $board->board_code;
         // Định dạng ngày nếu cần
         $task->formatted_due_date = $task->due_date ? $task->due_date->format('d/m/Y') : null;
 
@@ -318,6 +322,7 @@ class TaskController extends Controller
             'boardCode' => $board->board_code,
             'taskCode' => $task->task_code,
             'code' => Task::buildCode($board->name, $task->id),
+            'displayCode' => $board->board_code . '-' . $task->task_code,
             'canEdit' => $canEdit,
         ]);
     }
@@ -344,6 +349,7 @@ class TaskController extends Controller
             'boardCode' => $board->board_code,
             'taskCode' => $task->task_code,
             'code' => Task::buildCode($board->name, $task->id),
+            'displayCode' => $board->board_code . '-' . $task->task_code,
             'canEdit' => $canEdit,
             'canManage' => Auth::user()->hasBoardPermission($board, 'board_member_manager'),
             'statuses' => $statuses,

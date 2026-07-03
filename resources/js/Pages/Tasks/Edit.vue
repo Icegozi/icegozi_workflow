@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -8,6 +8,7 @@ import SelectInput from '@/Components/SelectInput.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import Btn from '@/Components/Btn.vue';
 import MarkdownEditor from '@/Components/MarkdownEditor.vue';
+import TaskComments from '@/Components/TaskComments.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
 
 const props = defineProps({
@@ -17,6 +18,7 @@ const props = defineProps({
     boardCode: { type: Number, required: true },
     taskCode: { type: Number, required: true },
     code: { type: String, required: true },
+    displayCode: { type: String, required: true },
     canEdit: { type: Boolean, default: false },
     canManage: { type: Boolean, default: false },
     statuses: { type: Array, default: () => [] },
@@ -30,12 +32,10 @@ const description = ref('');
 const dueDate = ref('');
 const priority = ref('normal');
 const statusId = ref(null);
-const newComment = ref('');
 const newChecklistItem = ref('');
 const boardMembers = ref([]);
 const showAssigneePicker = ref(false);
 const saving = ref(false);
-const sending = ref(false);   // chống gửi bình luận trùng (Ctrl+Enter + click)
 
 // ---- Nhãn ----
 const labels = ref([...props.boardLabels]);   // bảng nhãn của board (có thể thêm mới)
@@ -110,51 +110,6 @@ onMounted(async () => {
     loadMembers();   // cần cho cả gợi ý @mention, không chỉ khi canManage
 });
 
-// ---- @mention trong bình luận ----
-const mentionOpen = ref(false);
-const mentionQuery = ref('');
-const selectedMentions = ref([]);   // [{id, name}]
-const mentionMatches = computed(() => {
-    const q = mentionQuery.value.toLowerCase();
-    return boardMembers.value
-        .filter((m) => m.name.toLowerCase().includes(q))
-        .slice(0, 6);
-});
-
-const mentionAt = ref(-1);   // vị trí ký tự '@' đang kích hoạt gợi ý
-
-const onCommentInput = () => {
-    const text = newComment.value;
-    const at = text.lastIndexOf('@');
-    // Chỉ mở gợi ý khi '@' đứng đầu hoặc sau khoảng trắng (bỏ qua '@' trong email
-    // như bob@corp.com) và phần sau '@' chưa có khoảng trắng (đang gõ token tên).
-    const triggered = at >= 0
-        && (at === 0 || /\s/.test(text[at - 1]))
-        && !/\s/.test(text.slice(at + 1));
-    if (triggered) {
-        mentionAt.value = at;
-        mentionQuery.value = text.slice(at + 1);
-        mentionOpen.value = true;
-    } else {
-        mentionOpen.value = false;
-        mentionAt.value = -1;
-    }
-};
-// MarkdownEditor phát v-model -> theo dõi để bật gợi ý @mention
-watch(newComment, onCommentInput);
-
-const pickMention = (member) => {
-    const text = newComment.value;
-    // Dùng đúng vị trí '@' đã kích hoạt gợi ý, không dò lại lastIndexOf('@').
-    const at = mentionAt.value;
-    if (at < 0) return;
-    newComment.value = text.slice(0, at) + '@' + member.name + ' ';
-    if (!selectedMentions.value.some((m) => m.id === member.id)) {
-        selectedMentions.value.push({ id: member.id, name: member.name });
-    }
-    mentionOpen.value = false;
-    mentionAt.value = -1;
-};
 
 const returnTo = () => new URLSearchParams(window.location.search).get('return');
 
@@ -204,36 +159,6 @@ const deleteTask = async () => {
     } catch (e) {
         alert(e.response?.data?.message || 'Không thể xoá công việc.');
     }
-};
-
-// ---- Bình luận ----
-const addComment = async () => {
-    if (sending.value) return;   // đang gửi -> bỏ qua lần gọi trùng
-    const content = newComment.value.trim();
-    if (!content) return;
-    // Chỉ gửi mention còn xuất hiện dạng "@Tên" trong nội dung
-    const mentions = selectedMentions.value
-        .filter((m) => content.includes('@' + m.name))
-        .map((m) => m.id);
-    sending.value = true;
-    try {
-        await axios.post(route('comments.store', props.taskId), { content, mentions });
-        newComment.value = '';
-        selectedMentions.value = [];
-        mentionOpen.value = false;
-        await fetchTask(false);
-    } catch (e) {
-        alert(e.response?.data?.message || 'Không thể thêm bình luận.');
-    } finally {
-        sending.value = false;
-    }
-};
-const deleteComment = async (c) => {
-    if (!confirm('Xoá bình luận?')) return;
-    try {
-        await axios.delete(`/tasks/${props.taskId}/comments/${c.id}`);
-        await fetchTask(false);
-    } catch (e) { alert(e.response?.data?.message || 'Không thể xoá bình luận.'); }
 };
 
 // ---- Checklist ----
@@ -337,7 +262,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
 </script>
 
 <template>
-    <Head :title="`${code} - Chỉnh sửa`" />
+    <Head :title="`#${displayCode} - Chỉnh sửa`" />
     <AuthenticatedLayout>
         <div class="task-edit">
             <!-- Header -->
@@ -345,7 +270,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                 <Btn type="button" variant="white" icon="fas fa-arrow-left" class="btn-sm" @click="backToBoard">
                     Quay lại
                 </Btn>
-                <span class="task-code">{{ code }}</span>
+                <span class="task-code">#{{ displayCode }}</span>
                 <div class="te-header__title">
                     <div class="text-muted small">{{ boardName }}</div>
                     <h4 class="mb-0 text-truncate">{{ title || 'Công việc' }}</h4>
@@ -441,7 +366,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                         <!-- Mô tả -->
                         <h6 class="sect"><i class="fas fa-align-left"></i>Mô tả</h6>
                         <div class="mb-4">
-                            <MarkdownEditor v-if="canEdit" v-model="description" :min-rows="4"
+                            <MarkdownEditor v-if="canEdit" v-model="description" :min-rows="4" :task-id="taskId"
                                 placeholder="Thêm mô tả chi tiết hơn... (hỗ trợ Markdown)" />
                             <div v-else-if="description" class="md-content" v-html="renderMarkdown(description)"></div>
                             <div v-else class="text-muted small">Chưa có mô tả.</div>
@@ -476,43 +401,8 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                         </div>
 
                         <!-- Bình luận -->
-                        <h6 class="sect"><i class="fas fa-comments"></i>Bình luận</h6>
-                        <div class="comment-compose position-relative mb-4">
-                            <MarkdownEditor v-model="newComment" :min-rows="2"
-                                placeholder="Viết bình luận... gõ @ để nhắc thành viên"
-                                @submit="addComment" />
-                            <div class="d-flex justify-content-end mt-2">
-                                <Btn type="button" variant="black" icon="fas fa-paper-plane"
-                                    class="btn-sm" :disabled="sending" @click="addComment">
-                                    {{ sending ? 'Đang gửi...' : 'Gửi bình luận' }}
-                                </Btn>
-                            </div>
-                            <div v-if="mentionOpen && mentionMatches.length" class="mention-pop">
-                                <a v-for="m in mentionMatches" :key="m.id" href="#"
-                                    class="list-group-item list-group-item-action py-2 d-flex align-items-center"
-                                    @click.prevent="pickMention(m)">
-                                    <img :src="m.avatar_url || avatar(m.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ m.name }}
-                                </a>
-                            </div>
-                        </div>
-
-                        <div class="comment-list">
-                            <div v-for="c in task.comments" :key="c.id" class="comment">
-                                <img :src="c.user_avatar || avatar(c.user_name, 40)" class="rounded-circle comment__avatar"
-                                    width="34" height="34">
-                                <div class="comment__body">
-                                    <div class="comment__head">
-                                        <strong>{{ c.user_name }}</strong>
-                                        <small class="text-muted">{{ c.time_ago }}</small>
-                                        <button class="item-x ml-auto" @click="deleteComment(c)" title="Xoá">&times;</button>
-                                    </div>
-                                    <div class="comment__content md-content" v-html="renderMarkdown(c.content)"></div>
-                                </div>
-                            </div>
-                            <div v-if="!task.comments || !task.comments.length" class="text-muted small text-center py-3">
-                                Chưa có bình luận nào.
-                            </div>
-                        </div>
+                        <TaskComments :task-id="taskId" :board-id="boardId"
+                            :comments="task.comments || []" @updated="() => fetchTask(false)" />
                     </div>
                 </div>
 

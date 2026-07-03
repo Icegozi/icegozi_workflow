@@ -25,9 +25,16 @@ const inline = (text) => {
     t = t.replace(/(^|[^_])_([^_\n]+)_/g, '$1<em>$2</em>');
     // Gạch ngang: ~~x~~
     t = t.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-    // Link dạng [text](url) — chỉ cho http/https/mailto
+    // Ảnh ![alt](url) — chỉ http(s) hoặc đường dẫn nội bộ bắt đầu bằng '/'.
+    // Phải xử lý TRƯỚC link để regex link không "ăn" mất phần [alt](url).
     t = t.replace(
-        /\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/g,
+        /!\[([^\]]*)\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/g,
+        '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:4px 0;">'
+    );
+    // Link dạng [text](url) — http/https/mailto hoặc đường dẫn nội bộ bắt đầu bằng '/'
+    // (để tệp đính kèm lưu URL tương đối /storage/... xem được từ mọi máy).
+    t = t.replace(
+        /\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+|\/[^\s)]+)\)/g,
         '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
     );
     // Tự động nhận link trần http(s)://…
