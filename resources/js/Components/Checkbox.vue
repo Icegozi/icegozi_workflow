@@ -84,7 +84,7 @@ const inputAttrs = computed(() => {
 .switch-slider {
     position: absolute;
     inset: 0;
-    background: #c1c7d0;
+    background: var(--app-border, #c1c7d0);
     border-radius: 22px;
     transition: background 0.2s ease;
 }

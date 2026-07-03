@@ -87,7 +87,7 @@ defineProps({
 
 .app-sidebar .nav-link.active,
 .app-sidebar .nav-link.active:hover {
-    background: linear-gradient(135deg, var(--sb-accent), #a5763f);
+    background: linear-gradient(135deg, var(--sb-accent), var(--app-accent-2, #a5763f));
     color: #ffffff !important;
     box-shadow: 0 4px 12px rgba(102, 51, 0, 0.35);
 }

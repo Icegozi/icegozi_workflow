@@ -285,7 +285,9 @@ class TaskController extends Controller
             return redirect()->route('dashboard');
         }
 
-        $task = Task::whereHas('column', fn ($q) => $q->where('board_id', $board->id))
+        // Tra theo board_id trực tiếp (có index + unique với task_code) thay vì join whereHas.
+        // orderBy('id') chỉ là phòng thủ cho dữ liệu cũ trước khi có ràng buộc unique.
+        $task = Task::where('board_id', $board->id)
             ->where('task_code', $taskCode)
             ->orderBy('id')
             ->first();

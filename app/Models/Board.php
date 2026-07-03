@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BoardRelationships;
+use App\Models\Concerns\CascadesSoftDeletes;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Board extends Model
 {
     use BoardRelationships;
+    use CascadesSoftDeletes;
     use HasFactory;
     use SoftDeletes;
 

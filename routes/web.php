@@ -136,7 +136,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/tasks/{task}/attachments', [AttachmentController::class, 'index'])->name('attachments.index');
     Route::post('/tasks/{task}/attachments', [AttachmentController::class, 'store'])->name('attachments.store');
     // Upload nội tuyến cho ô soạn mô tả / bình luận (chèn ảnh/liên kết Markdown)
-    Route::post('/tasks/{task}/media', [AttachmentController::class, 'uploadInline'])->name('attachments.uploadInline');
+    Route::post('/tasks/{task}/media', [AttachmentController::class, 'uploadInline'])
+        ->name('attachments.uploadInline')
+        ->middleware('throttle:30,1'); // tối đa 30 tệp / phút / user, chống làm cạn ổ đĩa
     Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
     Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])
         ->name('attachments.download');

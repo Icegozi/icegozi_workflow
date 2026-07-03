@@ -70,8 +70,9 @@ const insertAtCursor = (text) => {
 };
 
 // Thay chuỗi giữ chỗ bằng nội dung thật (khớp chuỗi thuần, thay lần đầu).
+// Dùng hàm thay thế để '$' trong tên tệp (vd $&, $', $1) không bị hiểu là pattern.
 const replaceToken = (token, replacement) => {
-    emit('update:modelValue', (props.modelValue || '').replace(token, replacement));
+    emit('update:modelValue', (props.modelValue || '').replace(token, () => replacement));
     nextTick(autoGrow);
 };
 

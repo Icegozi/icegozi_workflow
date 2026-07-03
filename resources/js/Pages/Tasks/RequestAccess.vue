@@ -79,7 +79,7 @@ const goHome = () => router.visit(route('dashboard'));
     line-height: 64px;
     margin: 0 auto;
     border-radius: 50%;
-    background: var(--app-bg-subtle, #f4f6f9);
+    background: rgba(127, 127, 127, 0.08);
     color: var(--app-accent, #663300);
     font-size: 1.5rem;
 }

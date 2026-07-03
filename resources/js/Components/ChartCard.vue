@@ -1,6 +1,15 @@
 <script setup>
 import { ref, onMounted, watch, onBeforeUnmount } from 'vue';
 import Chart from 'chart.js/auto';
+import { useTheme } from '@/composables/useTheme';
+
+// Chart.js vẽ trên canvas nên KHÔNG nhận CSS biến chủ đề -> phải đọc màu theo data-theme
+// và vẽ lại khi đổi sáng/tối, nếu không nhãn/chú giải/lưới sẽ mờ tịt ở chế độ tối.
+const { theme } = useTheme();
+
+// Đọc giá trị biến chủ đề hiện tại từ :root (đã đổi theo data-theme).
+const cssVar = (name, fallback) =>
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 
 const props = defineProps({
     title: { type: String, default: '' },
@@ -25,7 +34,7 @@ const valuePlugin = {
         const { ctx } = c;
         ctx.save();
         ctx.font = '600 11px sans-serif';
-        ctx.fillStyle = '#172b4d';
+        ctx.fillStyle = cssVar('--app-text', '#172b4d');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         c.data.datasets.forEach((ds, di) => {
@@ -46,15 +55,23 @@ const render = () => {
     if (chart) { chart.destroy(); chart = null; }
     if (!canvas.value) return;
 
+    // Màu theo chủ đề (đọc lúc render; watch theme bên dưới sẽ render lại khi đổi mode).
+    const textColor = cssVar('--app-text', '#172b4d');
+    const mutedColor = cssVar('--app-text-muted', '#6c757d');
+    const gridColor = cssVar('--app-border', '#e4e6ea');
+
     const base = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { display: props.showLegend, labels: { boxWidth: 12, font: { size: 11 } } },
+            legend: {
+                display: props.showLegend,
+                labels: { boxWidth: 12, font: { size: 11 }, color: textColor },
+            },
         },
         scales: {
-            x: { grid: { display: props.showGrid } },
-            y: { grid: { display: props.showGrid } },
+            x: { grid: { display: props.showGrid, color: gridColor }, ticks: { color: mutedColor } },
+            y: { grid: { display: props.showGrid, color: gridColor }, ticks: { color: mutedColor } },
         },
     };
     // Doughnut/pie không có trục -> bỏ scales để tránh cảnh báo
@@ -92,7 +109,7 @@ function deepMerge(a, b) {
 
 onMounted(render);
 watch(
-    () => [props.data, props.type, props.showLegend, props.showGrid, props.showValues, props.options],
+    () => [props.data, props.type, props.showLegend, props.showGrid, props.showValues, props.options, theme.value],
     render,
     { deep: true }
 );

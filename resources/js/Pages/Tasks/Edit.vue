@@ -563,7 +563,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
     padding: 4px 8px;
     border: 1px solid var(--app-border, #e4e6ea);
     border-radius: 6px;
-    background: var(--app-bg-subtle, #f4f6f9);
+    background: rgba(127, 127, 127, 0.08);
     color: var(--app-text-muted);
 }
 

@@ -119,6 +119,11 @@ class Attachment extends Model
         parent::boot();
 
         static::deleting(function ($attachment) {
+            // CHỈ xoá file vật lý khi XOÁ CỨNG. Với xoá mềm (kể cả cascade từ board/column/task
+            // bị xoá mềm), phải GIỮ file để còn khôi phục được — nếu không sẽ mất dữ liệu người dùng.
+            if (! $attachment->isForceDeleting()) {
+                return;
+            }
             // Sử dụng file_path và disk 'public'
             if ($attachment->file_path && Storage::disk('public')->exists($attachment->file_path)) {
                 Storage::disk('public')->delete($attachment->file_path);

@@ -159,7 +159,7 @@ const onDrop = (key, evt) => {
     text-align: center;
     font-weight: 700;
     font-size: 0.78rem;
-    color: #7a869a;
+    color: var(--app-text-muted);
     padding: 4px 0;
 }
 
@@ -174,7 +174,7 @@ const onDrop = (key, evt) => {
 }
 
 .cal-cell.out-month {
-    background: #fbfbfc;
+    background: rgba(127, 127, 127, 0.08);
     opacity: 0.55;
 }
 
@@ -186,7 +186,7 @@ const onDrop = (key, evt) => {
 .cal-daynum {
     font-size: 0.72rem;
     font-weight: 700;
-    color: #44546f;
+    color: var(--app-text);
     text-align: right;
     padding: 0 2px;
 }
@@ -230,7 +230,7 @@ const onDrop = (key, evt) => {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.6rem;
     font-weight: 700;
-    color: #7a869a;
+    color: var(--app-text-muted);
 }
 
 .cal-task-title {
@@ -243,7 +243,7 @@ const onDrop = (key, evt) => {
 
 .cal-unscheduled {
     margin-top: 12px;
-    border-top: 1px dashed #dfe1e6;
+    border-top: 1px dashed var(--app-border);
     padding-top: 10px;
 }
 

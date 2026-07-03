@@ -67,7 +67,7 @@
 }
 
 .footer-social span:hover {
-    color: #663300;
+    color: var(--app-accent, #663300);
 }
 
 .footer-social a {
@@ -76,8 +76,8 @@
     justify-content: center;
     width: 35px;
     height: 35px;
-    background-color: #dee2e6;
-    color: #6c757d;
+    background-color: var(--app-border, #dee2e6);
+    color: var(--app-text-muted, #6c757d);
     border-radius: 50%;
     text-decoration: none;
     font-size: 16px;
@@ -85,7 +85,7 @@
 }
 
 .footer-social a:hover {
-    background-color: #663300;
+    background-color: var(--app-accent, #663300);
     color: #fff;
 }
 </style>

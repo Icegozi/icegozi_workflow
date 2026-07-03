@@ -10,7 +10,9 @@ use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskAccessRequestNotification;
 use Database\Seeders\PermissionSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -68,6 +70,22 @@ class TaskAccessTest extends TestCase
         // Task đầu tiên của board -> task_code = 1.
         $this->assertSame(1, (int) $task->task_code);
         $this->assertNotNull($board->board_code);
+    }
+
+    public function test_i2_task_gan_board_id_va_unique_chan_trung_ma(): void
+    {
+        [, $task, $board] = $this->makeTask();
+        // board_id được ghi để ràng buộc unique(board_id, task_code).
+        $this->assertSame((int) $board->id, (int) $task->board_id);
+
+        // Task thứ 2 cùng board -> mã kế tiếp, không trùng.
+        $task2 = Task::create(['title' => 'Việc 2', 'column_id' => $task->column_id]);
+        $this->assertSame(2, (int) $task2->task_code);
+        $this->assertSame((int) $board->id, (int) $task2->board_id);
+
+        // Ép trùng (board_id, task_code) -> DB chặn (lưới an toàn khi lock không đủ).
+        $this->expectException(QueryException::class);
+        DB::table('tasks')->where('id', $task2->id)->update(['task_code' => 1]);
     }
 
     public function test_permalink_xhr_json_van_tra_json(): void

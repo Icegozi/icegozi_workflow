@@ -12,8 +12,9 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        // Phân bổ trạng thái toàn hệ thống
+        // Phân bổ trạng thái toàn hệ thống (bỏ task đã xoá mềm — DB::table không áp global scope)
         $statusDistribution = DB::table('tasks')
+            ->whereNull('tasks.deleted_at')
             ->leftJoin('statuses', 'tasks.status_id', '=', 'statuses.id')
             ->select('statuses.name', 'statuses.color', DB::raw('COUNT(*) as count'))
             ->groupBy('statuses.id', 'statuses.name', 'statuses.color')
@@ -29,6 +30,9 @@ class DashboardController extends Controller
             ->join('tasks', 'task_histories.task_id', '=', 'tasks.id')
             ->join('columns', 'tasks.column_id', '=', 'columns.id')
             ->join('boards', 'columns.board_id', '=', 'boards.id')
+            ->whereNull('task_histories.deleted_at')
+            ->whereNull('tasks.deleted_at')
+            ->whereNull('boards.deleted_at')
             ->select('boards.name', DB::raw('COUNT(*) as activity'))
             ->groupBy('boards.id', 'boards.name')
             ->orderByDesc('activity')
@@ -38,8 +42,8 @@ class DashboardController extends Controller
         return Inertia::render('Admin/Dashboard', [
             'totals' => [
                 'users' => DB::table('users')->count(),
-                'boards' => DB::table('boards')->count(),
-                'tasks' => DB::table('tasks')->count(),
+                'boards' => DB::table('boards')->whereNull('deleted_at')->count(),
+                'tasks' => DB::table('tasks')->whereNull('deleted_at')->count(),
             ],
             'statusDistribution' => $statusDistribution,
             'topBoards' => $topBoards,
@@ -70,10 +74,16 @@ class DashboardController extends Controller
 
     private function dailyCounts(string $table, Carbon $start, Carbon $end): array
     {
-        return DB::table($table)
+        $query = DB::table($table)
             ->select(DB::raw('DATE(created_at) as d'), DB::raw('COUNT(*) as c'))
-            ->whereBetween('created_at', [$start, $end])
-            ->groupBy('d')
+            ->whereBetween('created_at', [$start, $end]);
+
+        // boards/tasks dùng xoá mềm; users thì không -> chỉ lọc deleted_at cho bảng có cột đó.
+        if (in_array($table, ['boards', 'tasks'], true)) {
+            $query->whereNull('deleted_at');
+        }
+
+        return $query->groupBy('d')
             ->pluck('c', 'd')
             ->all();
     }

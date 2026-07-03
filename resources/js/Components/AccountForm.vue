@@ -206,7 +206,7 @@ onUnmounted(() => {
 
 .meta-grid span {
     font-size: 0.72rem;
-    color: #8993a4;
+    color: var(--app-text-muted, #8993a4);
     margin-bottom: 4px;
 }
 

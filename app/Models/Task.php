@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\CascadesSoftDeletes;
 use App\Models\Concerns\TaskRelationships;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ use Illuminate\Support\Str;
 
 class Task extends Model
 {
+    use CascadesSoftDeletes;
     use HasFactory;
     use SoftDeletes;
     use TaskRelationships;
@@ -39,10 +41,13 @@ class Task extends Model
             if ($task->isForceDeleting()) {
                 return;
             }
-            $task->comments()->get()->each->delete();
-            $task->checklists()->get()->each->delete();
-            $task->attachments()->get()->each->delete();
-            $task->taskHistories()->get()->each->delete();
+            // Xoá mềm hàng loạt (1 UPDATE/quan hệ, không nổ event từng dòng): các bảng con này
+            // đều là "lá" (không cascade tiếp) và không có hook deleting cần chạy. Riêng attachment
+            // dùng builder delete nên KHÔNG kích hoạt hook xoá file -> file được giữ (khôi phục được).
+            $task->comments()->delete();
+            $task->checklists()->delete();
+            $task->attachments()->delete();
+            $task->taskHistories()->delete();
         });
     }
 
@@ -65,6 +70,9 @@ class Task extends Model
                 ->lockForUpdate()
                 ->max('task_code');
             $this->task_code = ($max ?? 0) + 1;
+            // Ghi board_id để ràng buộc unique(board_id, task_code) ở DB chặn trùng mã
+            // (lưới an toàn nếu khoá lockForUpdate không đủ dưới mức isolation READ COMMITTED).
+            $this->board_id = $boardId;
 
             return parent::save($options);
         });

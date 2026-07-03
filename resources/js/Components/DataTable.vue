@@ -93,7 +93,7 @@ const alignClass = (a) => (a === 'center' ? 'text-center' : a === 'right' ? 'tex
 
 .dt-empty {
     text-align: center;
-    color: #8993a4;
+    color: var(--app-text-muted, #8993a4);
     padding: 24px 12px !important;
 }
 </style>

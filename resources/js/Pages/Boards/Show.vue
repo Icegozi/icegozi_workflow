@@ -418,7 +418,7 @@ const openActivity = async () => {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.7rem;
     font-weight: 700;
-    color: #7a869a;
+    color: var(--app-text-muted);
 }
 
 .my-label {

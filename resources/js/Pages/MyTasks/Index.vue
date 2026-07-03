@@ -143,7 +143,7 @@ const closeTask = () => { modalTaskId.value = null; };
 
 .mt-title.done {
     text-decoration: line-through;
-    color: #8993a4;
+    color: var(--app-text-muted);
 }
 
 .mt-task-meta {
@@ -157,7 +157,7 @@ const closeTask = () => { modalTaskId.value = null; };
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.7rem;
     font-weight: 700;
-    color: #7a869a;
+    color: var(--app-text-muted);
 }
 
 .label-chip {
@@ -191,10 +191,14 @@ const closeTask = () => { modalTaskId.value = null; };
 .due {
     font-size: 0.75rem;
     font-weight: 500;
-    color: #44546f;
+    color: var(--app-text);
     white-space: nowrap;
 }
 
 .due-overdue { color: #c9372c; }
 .due-today { color: #976400; }
+
+/* Dark mode: làm sáng màu hạn cho đủ tương phản trên nền tối. */
+[data-theme="dark"] .due-overdue { color: #ff8a84; }
+[data-theme="dark"] .due-today { color: #e0b64d; }
 </style>

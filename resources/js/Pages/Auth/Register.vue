@@ -20,7 +20,7 @@ const errors = computed(() => page.props.errors || {});
         <div class="register-box">
             <div class="card card-outline card-secondary">
                 <div class="card-header text-center">
-                    <Link href="/" class="h1 text-decoration-none text-black mb-0">
+                    <Link href="/" class="h1 text-decoration-none auth-brand mb-0">
                         My<span class="text-danger">App</span>
                     </Link>
                 </div>
@@ -45,7 +45,7 @@ const errors = computed(() => page.props.errors || {});
                                 <Btn variant="black" class="btn-block font-weight-bold">Đăng ký</Btn>
                             </div>
                             <div class="col-md-6 d-flex align-items-center justify-content-md-end justify-content-center">
-                                <Link :href="route('login.form')" class="text-dark" style="text-decoration: none;">
+                                <Link :href="route('login.form')" class="auth-link">
                                     Tôi đã có tài khoản
                                 </Link>
                             </div>

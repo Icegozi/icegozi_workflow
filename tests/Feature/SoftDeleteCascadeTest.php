@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Attachment;
 use App\Models\Board;
 use App\Models\BoardPermission;
 use App\Models\Column;
@@ -12,6 +13,7 @@ use App\Models\Task;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -76,6 +78,33 @@ class SoftDeleteCascadeTest extends TestCase
         $this->assertFalse($viewer->hasBoardPermission($trashed, 'board_viewer'));
         // ...kể cả owner.
         $this->assertFalse($owner->hasBoardPermission($trashed, 'board_viewer'));
+    }
+
+    public function test_i1_xoa_mem_task_giu_lai_file_dinh_kem(): void
+    {
+        Storage::fake('public');
+        $owner = User::factory()->create();
+        $board = Board::create(['name' => 'Dự án X', 'user_id' => $owner->id]);
+        $column = Column::create(['name' => 'To do', 'position' => 0, 'board_id' => $board->id]);
+        $task = Task::create(['title' => 'Việc', 'column_id' => $column->id]);
+
+        $path = 'attachments/task_' . $task->id . '/tep.png';
+        Storage::disk('public')->put($path, 'noi-dung-anh');
+        $att = Attachment::create([
+            'file_name' => 'tep.png',
+            'file_path' => $path,
+            'file_size' => 12,
+            'mime_type' => 'image/png',
+            'task_id' => $task->id,
+            'user_id' => $owner->id,
+        ]);
+
+        // Xoá mềm task (cascade qua board cũng vậy) KHÔNG được xoá file vật lý.
+        $task->delete();
+
+        $this->assertNull(Attachment::find($att->id));
+        $this->assertNotNull(Attachment::withTrashed()->find($att->id)->deleted_at);
+        Storage::disk('public')->assertExists($path); // FILE còn -> khôi phục được, không mất dữ liệu
     }
 
     public function test_i4_xoa_user_la_xoa_cung_giai_phong_email(): void

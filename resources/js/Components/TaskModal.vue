@@ -169,8 +169,8 @@ const copyLink = async () => {
 
                     <div class="info-row">
                         <span class="info-label">Độ ưu tiên</span>
-                        <span v-if="priority" class="priority-pill" :style="{ color: priority.color, backgroundColor: priority.bg }">
-                            <span class="dot" :style="{ backgroundColor: priority.color }"></span>{{ priority.label }}
+                        <span v-if="priority" class="priority-pill" :style="{ '--pill': priority.color }">
+                            <span class="dot"></span>{{ priority.label }}
                         </span>
                         <span v-else class="info-empty">—</span>
                     </div>
@@ -433,12 +433,24 @@ const copyLink = async () => {
     font-weight: 600;
     padding: 4px 12px;
     border-radius: 20px;
+    color: var(--pill);
+    background: color-mix(in srgb, var(--pill) 14%, transparent);
 }
 
 .priority-pill .dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
+    background: var(--pill);
+}
+
+[data-theme="dark"] .priority-pill {
+    color: color-mix(in srgb, var(--pill) 62%, white);
+    background: color-mix(in srgb, var(--pill) 22%, transparent);
+}
+
+[data-theme="dark"] .priority-pill .dot {
+    background: color-mix(in srgb, var(--pill) 62%, white);
 }
 
 .label-chip {

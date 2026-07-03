@@ -134,7 +134,7 @@ const visibleCharts = computed(() =>
 .kpi-card { display: flex; align-items: center; gap: 12px; background: var(--app-surface, #fff); border: 1px solid var(--app-border, #e4e6ea); border-radius: 12px; padding: 14px 16px; }
 .kpi-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex: 0 0 auto; }
 .kpi-value { font-size: 1.5rem; font-weight: 800; line-height: 1; color: var(--app-text, #172b4d); }
-.kpi-label { font-size: 0.78rem; color: #7a869a; }
+.kpi-label { font-size: 0.78rem; color: var(--app-text-muted); }
 .chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .chart-wide { grid-column: 1 / -1; }
 

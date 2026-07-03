@@ -295,8 +295,20 @@ a:hover {
     background-color: var(--app-surface) !important;
 }
 
-[data-theme="dark"] .text-dark {
+[data-theme="dark"] .text-dark,
+[data-theme="dark"] .text-black,
+[data-theme="dark"] .text-body,
+[data-theme="dark"] .text-body-emphasis {
     color: var(--app-text) !important;
+}
+
+/* Bootstrap 5.3 tính .text-muted/.text-secondary theo màu chữ SÁNG (chữ đậm mờ) nên ở chế độ
+   tối chúng thành "chữ tối trên nền tối" -> gần như tàng hình (vd dòng "Bạn chưa có bảng…").
+   Ánh xạ sang biến muted của chủ đề để mọi template dùng các class này tự đồng bộ. */
+[data-theme="dark"] .text-muted,
+[data-theme="dark"] .text-secondary,
+[data-theme="dark"] .text-body-secondary {
+    color: var(--app-text-muted) !important;
 }
 
 [data-theme="dark"] .btn-light {
@@ -364,4 +376,48 @@ a:hover {
     border-radius: 14px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
     padding: 1.25rem;
+}
+
+/* ---- Trang xác thực (login/register) ----
+   AdminLTE gán nền sáng cố định cho .login-page/.register-page và view dùng text-black/text-dark,
+   nên ở chế độ tối các phần này vẫn sáng -> lệch. Buộc dùng biến chủ đề để đồng bộ sáng/tối. */
+.login-page,
+.register-page {
+    background-color: var(--app-bg);
+}
+
+/* AdminLTE đặt nền thân thẻ theo biến Bootstrap (--bs-body-bg, luôn trắng) nên ở chế độ tối
+   ô đăng nhập bị trắng lệch hẳn với thẻ/nền tối. Buộc theo surface của chủ đề để đồng bộ. */
+.login-card-body,
+.register-card-body {
+    background-color: var(--app-surface);
+    color: var(--app-text);
+}
+
+.login-box-msg,
+.register-box-msg {
+    color: var(--app-text-muted);
+}
+
+/* Tên thương hiệu ("My...") — trước là text-black nên chìm trên nền tối. */
+.auth-brand {
+    color: var(--app-text) !important;
+}
+
+/* Liên kết phụ (đăng ký / đã có tài khoản) — trước là text-dark. */
+.auth-link {
+    color: var(--app-accent) !important;
+    text-decoration: none;
+}
+
+.auth-link:hover {
+    color: var(--app-accent-dark) !important;
+}
+
+[data-theme="dark"] .auth-link {
+    color: var(--app-accent-2) !important;
+}
+
+[data-theme="dark"] .auth-link:hover {
+    color: #c79461 !important;
 }
