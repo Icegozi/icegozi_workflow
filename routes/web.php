@@ -20,6 +20,7 @@ use App\Http\Controllers\User\MyTaskController;
 use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\OverviewTaskController;
 use App\Http\Controllers\User\ProfileController;
+use App\Http\Controllers\User\TaskAccessController;
 use App\Http\Controllers\User\TaskController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -79,10 +80,24 @@ Route::middleware(['auth', 'active'])->group(function () {
     // --- Task Routes ---
     Route::post('/columns/{column}/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::get('/tasks/{taskCode}/edit', [TaskController::class, 'edit'])->name('tasks.edit');
+    // Permalink đẹp: /b-{board_code}/tasks/{task_code} (task_code tăng dần trong từng board).
+    Route::get('/b-{boardCode}/tasks/{taskCode}', [TaskController::class, 'permalinkShow'])->name('tasks.permalink');
+    // /tasks/{id}: XHR JSON cho frontend; mở trực tiếp trên trình duyệt -> redirect sang URL đẹp.
     Route::get('/tasks/{task}', [TaskController::class, 'show'])->name('tasks.show');
     Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
     Route::post('/tasks/update-position', [TaskController::class, 'updatePosition'])->name('tasks.updatePosition');
+
+    // --- Xin quyền truy cập công việc (permalink /tasks/{id} khi không có quyền) ---
+    Route::get('/tasks/{task}/request-access', [TaskAccessController::class, 'requestForm'])
+        ->name('tasks.request-access');
+    Route::post('/tasks/{task}/request-access', [TaskAccessController::class, 'submitRequest'])
+        ->name('tasks.request-access.submit')
+        ->middleware('throttle:5,60'); // tối đa 5 yêu cầu / giờ / user, chống spam email tới owner
+    // Owner cấp quyền xem 1 chạm qua link đã ký.
+    Route::get('/tasks/{task}/grant/{requester}', [TaskAccessController::class, 'grant'])
+        ->name('tasks.grant')
+        ->middleware('signed');
 
     // --- Label Routes ---
     Route::get('/boards/{board}/labels', [LabelController::class, 'index'])->name('labels.index');
@@ -120,6 +135,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Attachment
     Route::get('/tasks/{task}/attachments', [AttachmentController::class, 'index'])->name('attachments.index');
     Route::post('/tasks/{task}/attachments', [AttachmentController::class, 'store'])->name('attachments.store');
+    // Upload nội tuyến cho ô soạn mô tả / bình luận (chèn ảnh/liên kết Markdown)
+    Route::post('/tasks/{task}/media', [AttachmentController::class, 'uploadInline'])
+        ->name('attachments.uploadInline')
+        ->middleware('throttle:30,1'); // tối đa 30 tệp / phút / user, chống làm cạn ổ đĩa
     Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
     Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])
         ->name('attachments.download');

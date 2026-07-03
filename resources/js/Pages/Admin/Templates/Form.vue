@@ -121,7 +121,7 @@ const submit = () => {
 <style scoped>
 .status-pick {
     background: var(--app-surface);
-    border: 1px solid #ccc;
+    border: 1px solid var(--app-border);
     border-radius: 20px;
     padding: 3px 12px;
     font-size: 0.8rem;
@@ -139,13 +139,13 @@ const submit = () => {
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 1px #ccc;
+    border: 2px solid var(--app-surface);
+    box-shadow: 0 0 0 1px var(--app-border);
     cursor: pointer;
     padding: 0;
 }
 
 .color-dot.sel {
-    box-shadow: 0 0 0 2px #333;
+    box-shadow: 0 0 0 2px var(--app-text);
 }
 </style>

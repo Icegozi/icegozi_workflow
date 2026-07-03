@@ -2,15 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\CascadesSoftDeletes;
 use App\Models\Concerns\TaskRelationships;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Task extends Model
 {
+    use CascadesSoftDeletes;
     use HasFactory;
+    use SoftDeletes;
     use TaskRelationships;
 
     protected $fillable = [
@@ -26,6 +31,52 @@ class Task extends Model
     protected $casts = [
         'due_date' => 'date',
     ];
+
+    protected static function booted(): void
+    {
+        // Xoá mềm task -> xoá mềm luôn các bản ghi con (bình luận, checklist, tệp, lịch sử)
+        // để không còn dữ liệu "mồ côi" vẫn hiện trong các truy vấn khác. Xoá cứng
+        // (forceDelete) thì để FK ON DELETE CASCADE của DB lo.
+        static::deleting(function (Task $task) {
+            if ($task->isForceDeleting()) {
+                return;
+            }
+            // Xoá mềm hàng loạt (1 UPDATE/quan hệ, không nổ event từng dòng): các bảng con này
+            // đều là "lá" (không cascade tiếp) và không có hook deleting cần chạy. Riêng attachment
+            // dùng builder delete nên KHÔNG kích hoạt hook xoá file -> file được giữ (khôi phục được).
+            $task->comments()->delete();
+            $task->checklists()->delete();
+            $task->attachments()->delete();
+            $task->taskHistories()->delete();
+        });
+    }
+
+    /**
+     * Sinh task_code (số tăng dần TRONG board) một cách atomic: đọc max + INSERT nằm
+     * trong CÙNG một transaction với lockForUpdate, nên hai task tạo song song trong
+     * cùng board không thể nhận trùng mã (index task_code không unique nên cần khoá này).
+     */
+    public function save(array $options = []): bool
+    {
+        if ($this->exists || ! empty($this->task_code) || empty($this->column_id)) {
+            return parent::save($options);
+        }
+
+        return DB::transaction(function () use ($options) {
+            $boardId = Column::withTrashed()->where('id', $this->column_id)->value('board_id');
+            $columnIds = Column::withTrashed()->where('board_id', $boardId)->pluck('id');
+            $max = static::withTrashed()
+                ->whereIn('column_id', $columnIds)
+                ->lockForUpdate()
+                ->max('task_code');
+            $this->task_code = ($max ?? 0) + 1;
+            // Ghi board_id để ràng buộc unique(board_id, task_code) ở DB chặn trùng mã
+            // (lưới an toàn nếu khoá lockForUpdate không đủ dưới mức isolation READ COMMITTED).
+            $this->board_id = $boardId;
+
+            return parent::save($options);
+        });
+    }
 
     /**
      * Mã hiển thị kiểu "ICE-0042": tiền tố lấy từ tên board + id có đệm số 0.

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 class Attachment extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'file_name', // Đúng
@@ -117,6 +119,11 @@ class Attachment extends Model
         parent::boot();
 
         static::deleting(function ($attachment) {
+            // CHỈ xoá file vật lý khi XOÁ CỨNG. Với xoá mềm (kể cả cascade từ board/column/task
+            // bị xoá mềm), phải GIỮ file để còn khôi phục được — nếu không sẽ mất dữ liệu người dùng.
+            if (! $attachment->isForceDeleting()) {
+                return;
+            }
             // Sử dụng file_path và disk 'public'
             if ($attachment->file_path && Storage::disk('public')->exists($attachment->file_path)) {
                 Storage::disk('public')->delete($attachment->file_path);

@@ -32,7 +32,14 @@ const grouped = computed(() =>
 // Click task -> mở modal xem trước; từ modal bấm "Chỉnh sửa" mới sang trang edit.
 const modalTaskId = ref(null);
 const modalBoardId = ref(null);
-const openTask = (t) => { modalTaskId.value = t.id; modalBoardId.value = t.board_id; };
+const modalCanEdit = ref(false);
+const modalCanManage = ref(false);
+const openTask = (t) => {
+    modalTaskId.value = t.id;
+    modalBoardId.value = t.board_id;
+    modalCanEdit.value = !!t.can_edit;
+    modalCanManage.value = !!t.can_manage;
+};
 const closeTask = () => { modalTaskId.value = null; };
 </script>
 
@@ -85,7 +92,8 @@ const closeTask = () => { modalTaskId.value = null; };
 
         <!-- Xem trước task; "Chỉnh sửa" trong modal sẽ mở trang edit (và quay lại về đây) -->
         <TaskModal v-if="modalTaskId" :task-id="modalTaskId" :board-id="modalBoardId"
-            :can-edit="true" :edit-query="{ return: 'my-tasks' }" @close="closeTask" />
+            :can-edit="modalCanEdit" :can-manage="modalCanManage"
+            :edit-query="{ return: 'my-tasks' }" @close="closeTask" />
     </AuthenticatedLayout>
 </template>
 
@@ -135,7 +143,7 @@ const closeTask = () => { modalTaskId.value = null; };
 
 .mt-title.done {
     text-decoration: line-through;
-    color: #8993a4;
+    color: var(--app-text-muted);
 }
 
 .mt-task-meta {
@@ -149,7 +157,7 @@ const closeTask = () => { modalTaskId.value = null; };
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.7rem;
     font-weight: 700;
-    color: #7a869a;
+    color: var(--app-text-muted);
 }
 
 .label-chip {
@@ -183,10 +191,14 @@ const closeTask = () => { modalTaskId.value = null; };
 .due {
     font-size: 0.75rem;
     font-weight: 500;
-    color: #44546f;
+    color: var(--app-text);
     white-space: nowrap;
 }
 
 .due-overdue { color: #c9372c; }
 .due-today { color: #976400; }
+
+/* Dark mode: làm sáng màu hạn cho đủ tương phản trên nền tối. */
+[data-theme="dark"] .due-overdue { color: #ff8a84; }
+[data-theme="dark"] .due-today { color: #e0b64d; }
 </style>

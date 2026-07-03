@@ -11,6 +11,7 @@ use App\Models\Task;
 use App\Models\TaskHistory;
 use Auth;
 use DB;
+use Illuminate\Http\Request;
 use Log;
 
 class TaskController extends Controller
@@ -126,13 +127,35 @@ class TaskController extends Controller
         }
     }
 
-    public function show(Task $task)
+    public function show(Request $request, $task)
     {
+        // Resolve thủ công (không dùng route-model-binding) để tự xử lý task không tồn tại
+        // thay vì trả 404 cứng: permalink -> về dashboard; XHR JSON -> 404.
+        $task = Task::find($task);
+
+        // Truy cập bằng trình duyệt (không phải XHR): chuyển sang URL đẹp
+        // /b-{board_code}/tasks/{task_code}; task không còn -> dashboard.
+        if (! $request->expectsJson()) {
+            $board = $task?->column?->board;
+            if (! $board) {
+                return redirect()->route('dashboard');
+            }
+
+            return redirect()->route('tasks.permalink', [
+                'boardCode' => $board->board_code,
+                'taskCode' => $task->task_code,
+            ]);
+        }
+
         $board = $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
         $task->loadDetails();
 
         $this->applyColumnName($task);
         $task->code = Task::buildCode($board->name, $task->id);
+        // Mã hiển thị: board_code + task_code (số thật trong DB), tách với code dùng cho URL.
+        $task->display_code = $board->board_code . '-' . $task->task_code;
+        // board_code để client dựng permalink /b-{board_code}/tasks/{task_code}.
+        $task->board_code = $board->board_code;
         // Định dạng ngày nếu cần
         $task->formatted_due_date = $task->due_date ? $task->due_date->format('d/m/Y') : null;
 
@@ -209,9 +232,9 @@ class TaskController extends Controller
 
         $task->comments->transform(function ($comment) {
             $comment->user_name = $comment->user ? $comment->user->name : 'Người dùng không xác định';
-            $comment->user_avatar = $comment->user
-                ? ('https://i.pravatar.cc/40?u=' . $comment->user->id)
-                : 'https://i.pravatar.cc/40?u=unknown';
+            // Ưu tiên avatar profile của user; không có thì fallback pravatar.
+            $comment->user_avatar = $comment->user?->avatar_url
+                ?: ('https://i.pravatar.cc/40?u=' . ($comment->user?->id ?? 'unknown'));
             $comment->time_ago = $comment->created_at
                 ? $comment->created_at->diffForHumans()
                 : 'Không rõ thời gian';
@@ -247,6 +270,68 @@ class TaskController extends Controller
         $task = Task::findOrFail(Task::idFromCode($taskCode));
         // Viewer cũng mở được trang (read-only) — link thông báo/nhắc hạn trỏ về đây.
         $board = $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
+
+        return $this->renderTaskPage($task, $board);
+    }
+
+    /**
+     * Permalink đẹp: /b-{board_code}/tasks/{task_code}. Tra cứu theo mã board + mã task
+     * (task_code là số tăng dần TRONG board). Không tìm thấy -> về dashboard.
+     */
+    public function permalinkShow($boardCode, $taskCode)
+    {
+        $board = Board::where('board_code', $boardCode)->first();
+        if (! $board) {
+            return redirect()->route('dashboard');
+        }
+
+        // Tra theo board_id trực tiếp (có index + unique với task_code) thay vì join whereHas.
+        // orderBy('id') chỉ là phòng thủ cho dữ liệu cũ trước khi có ràng buộc unique.
+        $task = Task::where('board_id', $board->id)
+            ->where('task_code', $taskCode)
+            ->orderBy('id')
+            ->first();
+        if (! $task) {
+            return redirect()->route('dashboard');
+        }
+
+        return $this->renderTaskView($task, $board);
+    }
+
+    /**
+     * Trang XEM chi tiết (chỉ đọc, không phải form). Có quyền -> trang View;
+     * không quyền -> chuyển tới form xin quyền chủ sở hữu.
+     */
+    private function renderTaskView(Task $task, Board $board)
+    {
+        $user = Auth::user();
+        $canView = $user->hasBoardPermission($board, 'board_viewer')
+            || $user->hasBoardPermission($board, 'board_editor')
+            || $user->hasBoardPermission($board, 'board_member_manager');
+
+        if (! $canView) {
+            return redirect()->route('tasks.request-access', $task->id);
+        }
+
+        // Ai có quyền sửa sẽ thấy nút "Chỉnh sửa" trỏ sang trang Tasks/Edit.
+        $canEdit = $user->hasBoardPermission($board, 'board_editor')
+            || $user->hasBoardPermission($board, 'board_member_manager');
+
+        return \Inertia\Inertia::render('Tasks/View', [
+            'taskId' => $task->id,
+            'boardId' => $board->id,
+            'boardName' => $board->name,
+            'boardCode' => $board->board_code,
+            'taskCode' => $task->task_code,
+            'code' => Task::buildCode($board->name, $task->id),
+            'displayCode' => $board->board_code . '-' . $task->task_code,
+            'canEdit' => $canEdit,
+        ]);
+    }
+
+    /** Dựng trang Inertia Tasks/Edit cho một task đã xác thực quyền. */
+    private function renderTaskPage(Task $task, Board $board)
+    {
         $canEdit = Auth::user()->hasBoardPermission($board, 'board_editor')
             || Auth::user()->hasBoardPermission($board, 'board_member_manager');
 
@@ -263,7 +348,10 @@ class TaskController extends Controller
             'taskId' => $task->id,
             'boardId' => $board->id,
             'boardName' => $board->name,
+            'boardCode' => $board->board_code,
+            'taskCode' => $task->task_code,
             'code' => Task::buildCode($board->name, $task->id),
+            'displayCode' => $board->board_code . '-' . $task->task_code,
             'canEdit' => $canEdit,
             'canManage' => Auth::user()->hasBoardPermission($board, 'board_member_manager'),
             'statuses' => $statuses,

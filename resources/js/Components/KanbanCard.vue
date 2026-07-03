@@ -67,9 +67,9 @@ const hasMeta = computed(() => {
                 <div
                     v-if="priority"
                     class="priority-pill"
-                    :style="{ color: priority.color, backgroundColor: priority.bg }"
+                    :style="{ '--pill': priority.color }"
                 >
-                    <span class="dot" :style="{ backgroundColor: priority.color }"></span>
+                    <span class="dot"></span>
                     {{ priority.label }}
                 </div>
 
@@ -129,7 +129,7 @@ const hasMeta = computed(() => {
 <style scoped>
 .kanban-card {
     background: var(--app-surface);
-    border: 1px solid #f1f2f4;
+    border: 1px solid var(--app-border);
     border-radius: 16px;
     padding: 16px;
     margin-bottom: 12px;
@@ -144,7 +144,7 @@ const hasMeta = computed(() => {
 .kanban-card:hover {
     box-shadow: 0 8px 16px rgba(9, 30, 66, 0.08);
     transform: translateY(-3px);
-    border-color: #e4e6ea;
+    border-color: var(--app-border);
 }
 
 /* Mã công việc */
@@ -153,7 +153,7 @@ const hasMeta = computed(() => {
     font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.5px;
-    color: #7a869a;
+    color: var(--app-text-muted);
 }
 
 /* Nhãn màu */
@@ -204,7 +204,8 @@ const hasMeta = computed(() => {
     line-height: 1.2;
 }
 
-/* Tùy biến Priority mượt mà hơn */
+/* Priority pill: màu suy ra từ --pill (đặt inline). color-mix cho nền nhạt tự hợp cả sáng/tối,
+   dark mode làm sáng chữ để đủ tương phản trên nền tối. */
 .priority-pill {
     display: inline-flex;
     align-items: center;
@@ -213,12 +214,24 @@ const hasMeta = computed(() => {
     font-weight: 600;
     padding: 4px 10px;
     border-radius: 20px;
+    color: var(--pill);
+    background: color-mix(in srgb, var(--pill) 14%, transparent);
 }
 
 .priority-pill .dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
+    background: var(--pill);
+}
+
+[data-theme="dark"] .priority-pill {
+    color: color-mix(in srgb, var(--pill) 62%, white);
+    background: color-mix(in srgb, var(--pill) 22%, transparent);
+}
+
+[data-theme="dark"] .priority-pill .dot {
+    background: color-mix(in srgb, var(--pill) 62%, white);
 }
 
 /* Title lớn hơn, Typography hiện đại */
@@ -244,7 +257,7 @@ const hasMeta = computed(() => {
 
 .assignee-avatar {
     border-radius: 50%;
-    border: 2px solid #fff;
+    border: 2px solid var(--app-surface);
     margin-left: -8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s ease;
@@ -263,9 +276,9 @@ const hasMeta = computed(() => {
     margin-left: -8px;
     font-size: 0.7rem;
     font-weight: 600;
-    color: #44546f;
-    background: #f1f2f4;
-    border: 2px solid #fff;
+    color: var(--app-text);
+    background: rgba(127, 127, 127, 0.08);
+    border: 2px solid var(--app-surface);
     border-radius: 50%;
     width: 28px;
     height: 28px;
@@ -290,26 +303,30 @@ const hasMeta = computed(() => {
     gap: 5px;
     font-size: 0.75rem;
     font-weight: 500;
-    color: #44546f;
+    color: var(--app-text);
     padding: 4px 8px;
     border-radius: 6px;
-    background: #f1f2f4;
+    background: rgba(127, 127, 127, 0.08);
 }
 
-/* Màu sắc hạn chót làm mềm lại */
-.due-overdue {
-    background: #ffeceb;
-    color: #c9372c;
-}
+/* Chip trạng thái ngữ nghĩa: nền nhạt suy ra từ --chip nên hợp cả nền sáng lẫn tối;
+   dark mode làm sáng chữ cho đủ tương phản. */
+.due-overdue { --chip: #e5484d; }
+.due-soon { --chip: #976400; }
+.check-complete { --chip: #1f7a33; }
 
-.due-soon {
-    background: #fff7d6;
-    color: #976400;
-}
-
+.due-overdue,
+.due-soon,
 .check-complete {
-    background: #dcfce0;
-    color: #1f7a33;
+    color: var(--chip);
+    background: color-mix(in srgb, var(--chip) 15%, transparent);
+}
+
+[data-theme="dark"] .due-overdue,
+[data-theme="dark"] .due-soon,
+[data-theme="dark"] .check-complete {
+    color: color-mix(in srgb, var(--chip) 60%, white);
+    background: color-mix(in srgb, var(--chip) 24%, transparent);
 }
 
 /* Nhóm các icon (comment, đính kèm) lại cho gọn */
@@ -325,7 +342,7 @@ const hasMeta = computed(() => {
     align-items: center;
     gap: 4px;
     font-size: 0.8rem;
-    color: #7a869a;
+    color: var(--app-text-muted);
 }
 
 .meta-icon strong {
@@ -335,13 +352,13 @@ const hasMeta = computed(() => {
 
 /* Nhấn mạnh thẻ quá hạn */
 .is-overdue {
-    border-left: 4px solid #663300;
+    border-left: 4px solid var(--app-accent);
 }
 
 /* Hiệu ứng mờ khi Done */
 .is-done {
     opacity: 0.65;
-    background: #fbfbfc;
+    background: var(--app-surface);
     box-shadow: none;
 }
 .is-done:hover {
@@ -349,7 +366,7 @@ const hasMeta = computed(() => {
     box-shadow: 0 4px 12px rgba(9, 30, 66, 0.06);
 }
 .is-done .card-title {
-    color: #8993a4;
+    color: var(--app-text-muted);
     text-decoration: line-through;
 }
 </style>

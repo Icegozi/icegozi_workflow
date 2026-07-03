@@ -22,9 +22,21 @@ class MyTaskController extends Controller
 
         $today = Carbon::today();
 
-        $data = $tasks->map(function (Task $t) use ($today) {
+        // Cache role theo board: nhiều task cùng board -> chỉ hỏi quyền 1 lần (tránh N+1).
+        $roleCache = [];
+
+        $data = $tasks->map(function (Task $t) use ($today, $user, &$roleCache) {
             $board = $t->column?->board;
             $due = $t->due_date ? Carbon::parse($t->due_date)->startOfDay() : null;
+
+            // Quyền thực tế của user trên board của task (để modal ẩn/hiện nút Chỉnh sửa).
+            $role = null;
+            if ($board) {
+                $roleCache[$board->id] ??= $user->getRoleForBoard($board);
+                $role = $roleCache[$board->id];
+            }
+            $canManage = in_array($role, ['owner', 'board_member_manager'], true);
+            $canEdit = $canManage || $role === 'board_editor';
 
             return [
                 'id' => $t->id,
@@ -36,6 +48,8 @@ class MyTaskController extends Controller
                 'due_group' => $this->dueGroup($due, $today),
                 'board_id' => $board?->id,
                 'board_name' => $board?->name,
+                'can_edit' => $canEdit,
+                'can_manage' => $canManage,
                 'column_name' => $t->column?->name,
                 'status' => $t->status ? [
                     'id' => $t->status->id,

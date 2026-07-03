@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -8,13 +8,17 @@ import SelectInput from '@/Components/SelectInput.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import Btn from '@/Components/Btn.vue';
 import MarkdownEditor from '@/Components/MarkdownEditor.vue';
+import TaskComments from '@/Components/TaskComments.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
 
 const props = defineProps({
     taskId: { type: Number, required: true },
     boardId: { type: Number, required: true },
     boardName: { type: String, default: '' },
+    boardCode: { type: Number, required: true },
+    taskCode: { type: Number, required: true },
     code: { type: String, required: true },
+    displayCode: { type: String, required: true },
     canEdit: { type: Boolean, default: false },
     canManage: { type: Boolean, default: false },
     statuses: { type: Array, default: () => [] },
@@ -28,12 +32,10 @@ const description = ref('');
 const dueDate = ref('');
 const priority = ref('normal');
 const statusId = ref(null);
-const newComment = ref('');
 const newChecklistItem = ref('');
 const boardMembers = ref([]);
 const showAssigneePicker = ref(false);
 const saving = ref(false);
-const sending = ref(false);   // chống gửi bình luận trùng (Ctrl+Enter + click)
 
 // ---- Nhãn ----
 const labels = ref([...props.boardLabels]);   // bảng nhãn của board (có thể thêm mới)
@@ -51,11 +53,40 @@ const PRIORITIES = [
 
 const statusOptions = computed(() => props.statuses.map((s) => ({ value: s.id, label: s.name })));
 
+// ---- Permalink công việc (https://{miền}/b-{board_code}/tasks/{task_code}) ----
+// Ziggy trả URL tuyệt đối (kèm host) nên copy ra là link đầy đủ dùng được.
+const taskUrl = computed(() => route('tasks.permalink', { boardCode: props.boardCode, taskCode: props.taskCode }));
+const linkCopied = ref(false);
+const copyLink = async () => {
+    try {
+        await navigator.clipboard.writeText(taskUrl.value);
+    } catch {
+        const el = document.createElement('textarea');
+        el.value = taskUrl.value;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+    }
+    linkCopied.value = true;
+    setTimeout(() => { linkCopied.value = false; }, 1500);
+};
+
 // Nạp task từ server. resetForm=true chỉ dùng khi mở trang: gán lại các ô nhập.
 // Các thao tác phụ (bình luận, checklist, nhãn...) gọi resetForm=false để KHÔNG
 // ghi đè phần người dùng đang gõ dở ở tiêu đề/mô tả (tránh mất dữ liệu chưa lưu).
 const fetchTask = async (resetForm = false) => {
-    const { data } = await axios.get(route('tasks.show', props.taskId));
+    let data;
+    try {
+        ({ data } = await axios.get(route('tasks.show', props.taskId)));
+    } catch (e) {
+        // Task đã bị xoá / không còn -> chuyển về board.
+        if (e.response?.status === 404) {
+            router.visit(route('boards.show', props.boardId));
+            return;
+        }
+        throw e;
+    }
     task.value = data.task;
     if (resetForm) {
         title.value = data.task.title;
@@ -79,61 +110,27 @@ onMounted(async () => {
     loadMembers();   // cần cho cả gợi ý @mention, không chỉ khi canManage
 });
 
-// ---- @mention trong bình luận ----
-const mentionOpen = ref(false);
-const mentionQuery = ref('');
-const selectedMentions = ref([]);   // [{id, name}]
-const mentionMatches = computed(() => {
-    const q = mentionQuery.value.toLowerCase();
-    return boardMembers.value
-        .filter((m) => m.name.toLowerCase().includes(q))
-        .slice(0, 6);
-});
 
-const mentionAt = ref(-1);   // vị trí ký tự '@' đang kích hoạt gợi ý
+const returnTo = () => new URLSearchParams(window.location.search).get('return');
 
-const onCommentInput = () => {
-    const text = newComment.value;
-    const at = text.lastIndexOf('@');
-    // Chỉ mở gợi ý khi '@' đứng đầu hoặc sau khoảng trắng (bỏ qua '@' trong email
-    // như bob@corp.com) và phần sau '@' chưa có khoảng trắng (đang gõ token tên).
-    const triggered = at >= 0
-        && (at === 0 || /\s/.test(text[at - 1]))
-        && !/\s/.test(text.slice(at + 1));
-    if (triggered) {
-        mentionAt.value = at;
-        mentionQuery.value = text.slice(at + 1);
-        mentionOpen.value = true;
-    } else {
-        mentionOpen.value = false;
-        mentionAt.value = -1;
-    }
-};
-// MarkdownEditor phát v-model -> theo dõi để bật gợi ý @mention
-watch(newComment, onCommentInput);
-
-const pickMention = (member) => {
-    const text = newComment.value;
-    // Dùng đúng vị trí '@' đã kích hoạt gợi ý, không dò lại lastIndexOf('@').
-    const at = mentionAt.value;
-    if (at < 0) return;
-    newComment.value = text.slice(0, at) + '@' + member.name + ' ';
-    if (!selectedMentions.value.some((m) => m.id === member.id)) {
-        selectedMentions.value.push({ id: member.id, name: member.name });
-    }
-    mentionOpen.value = false;
-    mentionAt.value = -1;
-};
-
-// Quay lại: nếu tới từ danh sách "Task của tôi" (?return=my-tasks) thì về đó,
-// ngược lại quay về bảng.
+// Quay lại theo nơi đã tới:
+//  - ?return=view     -> về trang XEM chi tiết công việc (/tasks/{id})
+//  - ?return=my-tasks -> về danh sách "Task của tôi"
+//  - còn lại          -> về bảng
 const backToBoard = () => {
-    const ret = new URLSearchParams(window.location.search).get('return');
-    if (ret === 'my-tasks') {
+    const ret = returnTo();
+    if (ret === 'view') {
+        router.visit(route('tasks.permalink', { boardCode: props.boardCode, taskCode: props.taskCode }));
+    } else if (ret === 'my-tasks') {
         router.visit(route('my-tasks.index'));
     } else {
         router.visit(route('boards.show', props.boardId));
     }
+};
+
+// Task đã bị xoá -> luôn về trang board (không về view của chính nó vì đã không còn).
+const backAfterDelete = () => {
+    router.visit(route('boards.show', props.boardId));
 };
 
 const saveTask = async () => {
@@ -158,40 +155,10 @@ const deleteTask = async () => {
     if (!confirm('Xoá công việc này?')) return;
     try {
         await axios.delete(route('tasks.destroy', props.taskId));
-        backToBoard();
+        backAfterDelete();
     } catch (e) {
         alert(e.response?.data?.message || 'Không thể xoá công việc.');
     }
-};
-
-// ---- Bình luận ----
-const addComment = async () => {
-    if (sending.value) return;   // đang gửi -> bỏ qua lần gọi trùng
-    const content = newComment.value.trim();
-    if (!content) return;
-    // Chỉ gửi mention còn xuất hiện dạng "@Tên" trong nội dung
-    const mentions = selectedMentions.value
-        .filter((m) => content.includes('@' + m.name))
-        .map((m) => m.id);
-    sending.value = true;
-    try {
-        await axios.post(route('comments.store', props.taskId), { content, mentions });
-        newComment.value = '';
-        selectedMentions.value = [];
-        mentionOpen.value = false;
-        await fetchTask(false);
-    } catch (e) {
-        alert(e.response?.data?.message || 'Không thể thêm bình luận.');
-    } finally {
-        sending.value = false;
-    }
-};
-const deleteComment = async (c) => {
-    if (!confirm('Xoá bình luận?')) return;
-    try {
-        await axios.delete(`/tasks/${props.taskId}/comments/${c.id}`);
-        await fetchTask(false);
-    } catch (e) { alert(e.response?.data?.message || 'Không thể xoá bình luận.'); }
 };
 
 // ---- Checklist ----
@@ -295,7 +262,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
 </script>
 
 <template>
-    <Head :title="`${code} - Chỉnh sửa`" />
+    <Head :title="`#${displayCode} - Chỉnh sửa`" />
     <AuthenticatedLayout>
         <div class="task-edit">
             <!-- Header -->
@@ -303,7 +270,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                 <Btn type="button" variant="white" icon="fas fa-arrow-left" class="btn-sm" @click="backToBoard">
                     Quay lại
                 </Btn>
-                <span class="task-code">{{ code }}</span>
+                <span class="task-code">#{{ displayCode }}</span>
                 <div class="te-header__title">
                     <div class="text-muted small">{{ boardName }}</div>
                     <h4 class="mb-0 text-truncate">{{ title || 'Công việc' }}</h4>
@@ -332,7 +299,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                         <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
                         <div class="d-flex align-items-center flex-wrap mb-4" style="gap:8px;">
                             <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
-                                <img :src="avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
+                                <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
                                 <span>{{ a.name }}</span>
                                 <button v-if="canManage" class="pill-x" @click="removeAssignee(a)" title="Gỡ">&times;</button>
                             </span>
@@ -346,7 +313,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                         <a v-for="u in boardMembers" :key="u.id" href="#"
                                             class="list-group-item list-group-item-action py-2"
                                             @click.prevent="addAssignee(u)">
-                                            <img :src="avatar(u.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ u.name }}
+                                            <img :src="u.avatar_url || avatar(u.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ u.name }}
                                         </a>
                                         <span v-if="!boardMembers.length" class="list-group-item small text-muted">Không có thành viên.</span>
                                     </div>
@@ -399,7 +366,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                         <!-- Mô tả -->
                         <h6 class="sect"><i class="fas fa-align-left"></i>Mô tả</h6>
                         <div class="mb-4">
-                            <MarkdownEditor v-if="canEdit" v-model="description" :min-rows="4"
+                            <MarkdownEditor v-if="canEdit" v-model="description" :min-rows="4" :task-id="taskId"
                                 placeholder="Thêm mô tả chi tiết hơn... (hỗ trợ Markdown)" />
                             <div v-else-if="description" class="md-content" v-html="renderMarkdown(description)"></div>
                             <div v-else class="text-muted small">Chưa có mô tả.</div>
@@ -434,43 +401,8 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                         </div>
 
                         <!-- Bình luận -->
-                        <h6 class="sect"><i class="fas fa-comments"></i>Bình luận</h6>
-                        <div class="comment-compose position-relative mb-4">
-                            <MarkdownEditor v-model="newComment" :min-rows="2"
-                                placeholder="Viết bình luận... gõ @ để nhắc thành viên"
-                                @submit="addComment" />
-                            <div class="d-flex justify-content-end mt-2">
-                                <Btn type="button" variant="black" icon="fas fa-paper-plane"
-                                    class="btn-sm" :disabled="sending" @click="addComment">
-                                    {{ sending ? 'Đang gửi...' : 'Gửi bình luận' }}
-                                </Btn>
-                            </div>
-                            <div v-if="mentionOpen && mentionMatches.length" class="mention-pop">
-                                <a v-for="m in mentionMatches" :key="m.id" href="#"
-                                    class="list-group-item list-group-item-action py-2 d-flex align-items-center"
-                                    @click.prevent="pickMention(m)">
-                                    <img :src="avatar(m.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ m.name }}
-                                </a>
-                            </div>
-                        </div>
-
-                        <div class="comment-list">
-                            <div v-for="c in task.comments" :key="c.id" class="comment">
-                                <img :src="c.user_avatar || avatar(c.user_name, 40)" class="rounded-circle comment__avatar"
-                                    width="34" height="34">
-                                <div class="comment__body">
-                                    <div class="comment__head">
-                                        <strong>{{ c.user_name }}</strong>
-                                        <small class="text-muted">{{ c.time_ago }}</small>
-                                        <button class="item-x ml-auto" @click="deleteComment(c)" title="Xoá">&times;</button>
-                                    </div>
-                                    <div class="comment__content md-content" v-html="renderMarkdown(c.content)"></div>
-                                </div>
-                            </div>
-                            <div v-if="!task.comments || !task.comments.length" class="text-muted small text-center py-3">
-                                Chưa có bình luận nào.
-                            </div>
-                        </div>
+                        <TaskComments :task-id="taskId" :board-id="boardId"
+                            :comments="task.comments || []" @updated="() => fetchTask(false)" />
                     </div>
                 </div>
 
@@ -489,10 +421,21 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                 <SelectInput v-model="priority" :options="PRIORITIES" class="form-control-sm"
                                     :disabled="!canEdit" />
                             </div>
-                            <div class="form-group mb-0">
+                            <div class="form-group mb-3">
                                 <label class="sect-label">Ngày hết hạn</label>
                                 <TextInput type="date" v-model="dueDate" class="form-control-sm" group-class="mb-0"
                                     :disabled="!canEdit" />
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="sect-label">Liên kết công việc</label>
+                                <div class="task-link">
+                                    <input class="task-link__input" type="text" :value="taskUrl" readonly
+                                        @focus="$event.target.select()">
+                                    <button type="button" class="task-link__btn" :title="linkCopied ? 'Đã sao chép' : 'Sao chép liên kết'"
+                                        @click="copyLink">
+                                        <i :class="linkCopied ? 'fas fa-check' : 'fas fa-copy'"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -604,6 +547,39 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
     letter-spacing: 0.4px;
     color: var(--app-text-muted);
     margin-bottom: 6px;
+}
+
+/* ---------------- Permalink công việc ---------------- */
+.task-link {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.task-link__input {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.78rem;
+    padding: 4px 8px;
+    border: 1px solid var(--app-border, #e4e6ea);
+    border-radius: 6px;
+    background: rgba(127, 127, 127, 0.08);
+    color: var(--app-text-muted);
+}
+
+.task-link__btn {
+    flex-shrink: 0;
+    border: 1px solid var(--app-border, #e4e6ea);
+    background: transparent;
+    color: var(--app-accent, #663300);
+    border-radius: 6px;
+    padding: 0 10px;
+    cursor: pointer;
+}
+
+.task-link__btn:hover {
+    background: var(--app-accent, #663300);
+    color: #fff;
 }
 
 /* ---------------- Người phụ trách ---------------- */

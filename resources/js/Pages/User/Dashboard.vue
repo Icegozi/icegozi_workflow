@@ -254,7 +254,7 @@ const destroy = (board) => {
 .template-card {
     text-align: left;
     background: var(--app-surface);
-    border: 1px solid #e4e6ea;
+    border: 1px solid var(--app-border);
     border-radius: 10px;
     padding: 10px 12px;
     cursor: pointer;
@@ -262,7 +262,7 @@ const destroy = (board) => {
 }
 
 .template-card:hover {
-    border-color: #c1c7d0;
+    border-color: var(--app-border);
 }
 
 .template-card.active {
@@ -275,12 +275,12 @@ const destroy = (board) => {
     align-items: center;
     gap: 8px;
     font-weight: 700;
-    color: #172b4d;
+    color: var(--app-text);
 }
 
 .template-desc {
     font-size: 0.75rem;
-    color: #7a869a;
+    color: var(--app-text-muted);
     margin: 4px 0 6px;
 }
 
@@ -292,8 +292,8 @@ const destroy = (board) => {
 
 .template-col {
     font-size: 0.66rem;
-    background: #f1f2f4;
-    color: #44546f;
+    background: rgba(127, 127, 127, 0.08);
+    color: var(--app-text);
     border-radius: 4px;
     padding: 1px 6px;
 }

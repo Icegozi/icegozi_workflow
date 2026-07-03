@@ -29,7 +29,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick));
      Topbar tạo kiểu qua '.main-header .nav-link'. Ở đây chỉ định kiểu cho item. -->
 <style>
 .main-header .dropdown-item {
-    color: #212529;
+    color: var(--app-text, #212529);
     font-size: 14px;
     transition: background-color 0.3s ease;
     display: flex;
@@ -37,8 +37,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick));
 }
 
 .main-header .dropdown-item:hover {
-    background-color: #f1f1f1;
-    color: #663300;
+    background-color: rgba(127, 127, 127, 0.1);
+    color: var(--app-accent, #663300);
 }
 
 /* Giới hạn bề rộng menu + cắt text (…) khi tên (vd tên board) quá dài -> không vỡ layout */

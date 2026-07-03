@@ -32,7 +32,10 @@ class ProfileUpdateRequest extends FormRequest
 
         return [
             'name' => 'required|string|max:255',
-            'username' => ['required', 'string', 'min:3', 'max:50', 'alpha_dash', Rule::unique('users', 'username')->ignore($id)],
+            'username' => [
+                'required', 'string', 'min:3', 'max:50', 'alpha_dash',
+                Rule::unique('users', 'username')->ignore($id),
+            ],
             'email' => ['required', 'email:rfc,strict', Rule::unique('users', 'email')->ignore($id)],
             'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:10240',
             'social' => 'nullable|array',

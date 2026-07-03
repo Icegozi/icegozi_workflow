@@ -254,8 +254,6 @@ const openActivity = async () => {
                     variant="secondary" outline icon="fas fa-users" class="btn-sm"
                     :title="canManage ? 'Quản lý thành viên' : 'Chỉ người quản lý mới được mời thành viên'">
                     Thành viên</Btn>
-                <Btn v-if="canEdit && viewMode === 'board'" type="button" variant="success"
-                    icon="fas fa-plus" class="btn-sm" @click="openAddColumn">Thêm cột</Btn>
             </div>
         </div>
 
@@ -290,6 +288,8 @@ const openActivity = async () => {
             <button v-if="hasActiveFilter" class="btn btn-sm btn-link text-danger" @click="clearFilters">
                 <i class="fas fa-times mr-1"></i>Xoá lọc
             </button>
+            <Btn v-if="canEdit" type="button" variant="success"
+                icon="fas fa-plus" class="btn-sm ml-auto w-[40px]" @click="openAddColumn">Thêm cột</Btn>
         </div>
 
         <div v-if="viewMode === 'board'" class="kanban-board" id="kanbanBoard">
@@ -418,7 +418,7 @@ const openActivity = async () => {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.7rem;
     font-weight: 700;
-    color: #7a869a;
+    color: var(--app-text-muted);
 }
 
 .my-label {

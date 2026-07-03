@@ -17,7 +17,7 @@ const errors = computed(() => page.props.errors || {});
         <div class="login-box">
             <div class="card card-outline card-secondary">
                 <div class="card-header text-center">
-                    <Link href="/" class="h1 text-decoration-none text-black mb-0">
+                    <Link href="/" class="h1 text-decoration-none auth-brand mb-0">
                         My<span class="text-danger">App</span>
                     </Link>
                 </div>
@@ -43,7 +43,7 @@ const errors = computed(() => page.props.errors || {});
                     </form>
 
                     <p class="mb-0 mt-3">
-                        <Link :href="route('register.form')" class="text-dark" style="text-decoration: none;">
+                        <Link :href="route('register.form')" class="auth-link">
                             Chưa có tài khoản? Đăng ký
                         </Link>
                     </p>
