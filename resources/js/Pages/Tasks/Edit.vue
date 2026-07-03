@@ -105,6 +105,11 @@ const loadMembers = async () => {
     } catch (e) { /* ignore */ }
 };
 
+const assignableMembers = computed(() => {
+    const assigned = new Set((task.value?.assignees || []).map((a) => a.id));
+    return boardMembers.value.filter((u) => !assigned.has(u.id));
+});
+
 onMounted(async () => {
     await fetchTask(true);
     loadMembers();   // cần cho cả gợi ý @mention, không chỉ khi canManage
@@ -192,9 +197,9 @@ const checklistPct = computed(() =>
 
 // ---- Người phụ trách ----
 const addAssignee = async (user) => {
+    showAssigneePicker.value = false;   // đóng ngay để tránh click lần 2 cùng người -> 409
     try {
         await axios.post(route('tasks.assignees.store', props.taskId), { user_id: user.id });
-        showAssigneePicker.value = false;
         await fetchTask(false);
     } catch (e) { alert(e.response?.data?.message || 'Không thể thêm người phụ trách.'); }
 };
@@ -310,12 +315,13 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                 </button>
                                 <div v-if="showAssigneePicker" class="popover-card" style="min-width:210px;">
                                     <div class="list-group list-group-flush">
-                                        <a v-for="u in boardMembers" :key="u.id" href="#"
+                                        <a v-for="u in assignableMembers" :key="u.id" href="#"
                                             class="list-group-item list-group-item-action py-2"
                                             @click.prevent="addAssignee(u)">
                                             <img :src="u.avatar_url || avatar(u.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ u.name }}
                                         </a>
                                         <span v-if="!boardMembers.length" class="list-group-item small text-muted">Không có thành viên.</span>
+                                        <span v-else-if="!assignableMembers.length" class="list-group-item small text-muted">Mọi thành viên đã được giao.</span>
                                     </div>
                                 </div>
                             </div>
