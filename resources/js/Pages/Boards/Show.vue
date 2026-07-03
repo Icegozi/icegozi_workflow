@@ -232,8 +232,8 @@ const openActivity = async () => {
 <template>
     <Head :title="`${board.name} - Kanban`" />
     <AuthenticatedLayout>
-        <div class="board-header p-3 mb-2 border-bottom d-flex justify-content-between align-items-center flex-wrap">
-            <h3 class="mb-0">{{ board.name }}</h3>
+        <div class="board-header p-3 mb-2 border-bottom d-flex justify-content-between align-items-center flex-wrap" style="row-gap: 1rem;">
+            <h3 class="mb-0 text-truncate mr-3" style="min-width:0; max-width:100%;" :title="board.name">{{ board.name }}</h3>
             <div class="d-flex align-items-center" style="gap:8px;">
                 <div class="btn-group btn-group-sm" role="group">
                     <button class="btn" :class="viewMode === 'board' ? 'btn-dark' : 'btn-outline-secondary'"
@@ -261,7 +261,7 @@ const openActivity = async () => {
         <div v-if="viewMode === 'board'" class="filter-bar d-flex flex-wrap align-items-center px-3 mb-2" style="gap:8px;">
             <div class="input-group input-group-sm" style="width:220px;">
                 <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
-                <input type="text" class="form-control" v-model="filters.q" placeholder="Tìm tiêu đề / mã...">
+                <input type="text" class="form-control" v-model="filters.q" placeholder="Tìm tiêu đề / mã..." maxlength="255">
             </div>
             <select class="form-control form-control-sm" style="width:auto;" v-model="filters.priority">
                 <option value="">Tất cả</option>

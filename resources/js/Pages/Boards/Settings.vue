@@ -68,10 +68,10 @@ const cancelInvite = (inv) => {
             <header class="sp-header">
                 <div class="sp-header__main">
                     <Btn :href="route('boards.show', board.id)" variant="white" icon="fas fa-arrow-left"
-                        class="btn-sm">Quay lại bảng</Btn>
+                        class="btn-sm sp-back">Quay lại bảng</Btn>
                     <div class="sp-heading">
                         <span class="sp-eyebrow"><i class="fas fa-users-cog mr-1"></i>Quản lý thành viên</span>
-                        <h1 class="sp-title">{{ board.name }}</h1>
+                        <h1 class="sp-title" :title="board.name">{{ board.name }}</h1>
                     </div>
                 </div>
                 <span class="sp-count"><i class="fas fa-users mr-1"></i>{{ memberCount }} thành viên</span>
@@ -209,6 +209,13 @@ const cancelInvite = (inv) => {
     min-width: 0;
 }
 
+/* Nút "Quay lại bảng" cố định: không co, không ngắt chữ -> luôn 1 dòng dù tên bảng dài.
+   Phần co lại để nhường chỗ là khối tiêu đề (.sp-heading), không phải nút. */
+.sp-back {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
 .sp-eyebrow {
     font-size: 0.72rem;
     font-weight: 700;
@@ -216,13 +223,19 @@ const cancelInvite = (inv) => {
     letter-spacing: 0.5px;
     color: var(--app-accent);
 }
+.sp-heading {
+    min-width: 0;
+}
 
 .sp-title {
     margin: 2px 0 0;
     font-size: 1.4rem;
     font-weight: 700;
     color: var(--app-text);
-    word-break: break-word;
+    /* Cắt 1 dòng kèm dấu … thay vì xuống dòng; tên đầy đủ xem qua tooltip (title). */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .sp-count {

@@ -201,7 +201,10 @@ const addAssignee = async (user) => {
     try {
         await axios.post(route('tasks.assignees.store', props.taskId), { user_id: user.id });
         await fetchTask(false);
-    } catch (e) { alert(e.response?.data?.message || 'Không thể thêm người phụ trách.'); }
+    } catch (e) {
+        showAssigneePicker.value = true;
+        alert(e.response?.data?.message || 'Không thể thêm người phụ trách.');
+    }
 };
 const removeAssignee = async (user) => {
     try {
@@ -277,7 +280,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                 </Btn>
                 <span class="task-code">#{{ displayCode }}</span>
                 <div class="te-header__title">
-                    <div class="text-muted small">{{ boardName }}</div>
+                    <div class="text-muted small text-truncate" :title="boardName">{{ boardName }}</div>
                     <h4 class="mb-0 text-truncate">{{ title || 'Công việc' }}</h4>
                 </div>
             </header>
@@ -358,7 +361,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                         <span v-if="!labels.length" class="text-muted small">Chưa có nhãn nào.</span>
                                     </div>
                                     <div class="small text-muted mb-1">Tạo nhãn mới</div>
-                                    <input type="text" class="form-control form-control-sm mb-2" v-model="newLabelName" placeholder="Tên (tuỳ chọn)">
+                                    <input type="text" class="form-control form-control-sm mb-2" v-model="newLabelName" placeholder="Tên (tuỳ chọn)" maxlength="255">
                                     <div class="d-flex align-items-center mb-2" style="gap:5px;">
                                         <button v-for="c in LABEL_COLORS" :key="c" type="button" class="color-dot"
                                             :class="{ sel: newLabelColor === c }" :style="{ backgroundColor: c }"
@@ -397,7 +400,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                             </div>
                             <div v-if="canEdit" class="input-group input-group-sm mt-2">
                                 <input type="text" class="form-control" v-model="newChecklistItem"
-                                    placeholder="Thêm mục mới..." @keyup.enter="addChecklist">
+                                    placeholder="Thêm mục mới..." maxlength="255" @keyup.enter="addChecklist">
                                 <div class="input-group-append">
                                     <button class="btn btn-outline-secondary" @click="addChecklist">
                                         <i class="fas fa-plus"></i>

@@ -51,7 +51,7 @@ const submit = () => {
                 <div class="d-flex align-items-center" style="gap:6px;">
                     <button v-for="c in COLORS" :key="c" type="button" class="color-dot"
                         :class="{ sel: form.color === c }" :style="{ backgroundColor: c }" @click="form.color = c"></button>
-                    <input type="text" class="form-control form-control-sm ml-2" style="max-width:120px;" v-model="form.color">
+                    <input type="text" class="form-control form-control-sm ml-2" style="max-width:120px;" v-model="form.color" maxlength="255">
                     <span class="status-badge ml-2" :style="{ color: form.color, borderColor: form.color }">{{ form.name || 'Xem trước' }}</span>
                 </div>
             </div>
