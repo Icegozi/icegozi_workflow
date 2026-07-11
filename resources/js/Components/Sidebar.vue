@@ -7,9 +7,6 @@ defineProps({
 
 <template>
     <aside class="app-sidebar d-flex flex-column flex-shrink-0 p-3" :class="bgClass">
-        <a class="sidebar-brand" href="/">My<span>App</span></a>
-        <hr class="sidebar-divider">
-
         <!-- Các mục điều hướng do layout truyền vào qua <slot> (admin & user khác nhau) -->
         <ul class="nav nav-pills flex-column mb-auto gap-1">
             <slot />
@@ -35,30 +32,6 @@ defineProps({
 .app-sidebar.bg,
 .app-sidebar.bg-light {
     background: var(--app-surface) !important;
-}
-
-/* Thương hiệu */
-.app-sidebar .sidebar-brand {
-    display: block;
-    text-align: center;
-    font-size: 1.4rem;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    text-transform: capitalize;
-    text-decoration: none;
-    color: var(--sb-brand);
-    padding: 0.25rem 0;
-}
-
-.app-sidebar .sidebar-brand span {
-    color: var(--sb-accent);
-}
-
-.app-sidebar .sidebar-divider {
-    border: 0;
-    border-top: 1px solid var(--sb-border);
-    margin: 1rem 0;
-    opacity: 1;
 }
 
 /* Mục điều hướng (đến từ slot) */

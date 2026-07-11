@@ -17,12 +17,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libzip-dev \
     libonig-dev \
     libxml2-dev \
+    libsqlite3-dev \
     ca-certificates \
     gnupg \
     passwd \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
     pdo_mysql \
+    pdo_sqlite \
     mbstring \
     bcmath \
     gd \

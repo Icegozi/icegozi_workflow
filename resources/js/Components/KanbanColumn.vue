@@ -94,6 +94,9 @@ const submitTask = () => {
     cursor: pointer;
     transition: background-color 0.2s ease;
     flex-grow: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     margin-bottom: 0;
     padding: 5px 8px;
     font-size: small;

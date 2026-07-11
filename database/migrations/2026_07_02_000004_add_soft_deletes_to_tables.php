@@ -13,7 +13,7 @@ return new class () extends Migration {
         'boards', 'columns', 'tasks', 'comments', 'attachments', 'checklists',
         'task_histories', 'labels', 'statuses', 'permissions',
         'board_invitations', 'notifications',
-        'assignees', 'board_templates', 'chart_settings',
+        'board_templates', 'chart_settings',
     ];
 
     public function up(): void

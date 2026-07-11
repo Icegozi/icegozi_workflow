@@ -65,6 +65,7 @@ const logout = () => {
 
 <template>
     <nav class="main-header navbar navbar-expand border-bottom">
+        <a class="topbar-brand ml-5" href="/">My<span>App</span></a>
         <!-- Điều hướng bên trái (tuỳ layout) -->
         <ul class="navbar-nav">
             <slot />
@@ -191,6 +192,22 @@ const logout = () => {
     display: flex;
     align-items: center;
     justify-content: space-between;
+}
+
+.main-header .topbar-brand {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: capitalize;
+    text-decoration: none;
+    color: var(--app-text, #212529);
+    margin-right: 1.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.main-header .topbar-brand span {
+    color: var(--app-accent, #663300);
 }
 
 .main-header .navbar-nav {

@@ -68,7 +68,7 @@ const submit = () => {
                 <label class="small font-weight-bold">Cột — quy trình triển khai</label>
                 <div v-for="(c, i) in form.columns" :key="i" class="input-group input-group-sm mb-1">
                     <div class="input-group-prepend"><span class="input-group-text">{{ i + 1 }}</span></div>
-                    <input type="text" class="form-control" v-model="form.columns[i]" placeholder="Tên cột...">
+                    <input type="text" class="form-control" v-model="form.columns[i]" placeholder="Tên cột..." maxlength="255">
                     <div class="input-group-append">
                         <button type="button" class="btn btn-outline-danger" @click="removeColumn(i)"
                             :disabled="form.columns.length <= 1">&times;</button>
@@ -95,7 +95,7 @@ const submit = () => {
             <div class="form-group">
                 <label class="small font-weight-bold">Nhãn</label>
                 <div v-for="(l, i) in form.labels" :key="i" class="d-flex align-items-center mb-1" style="gap:6px;">
-                    <input type="text" class="form-control form-control-sm" style="max-width:220px;" v-model="l.name" placeholder="Tên nhãn...">
+                    <input type="text" class="form-control form-control-sm" style="max-width:220px;" v-model="l.name" placeholder="Tên nhãn..." maxlength="255">
                     <button v-for="c in LABEL_COLORS" :key="c" type="button" class="color-dot"
                         :class="{ sel: l.color === c }" :style="{ backgroundColor: c }" @click="l.color = c"></button>
                     <button type="button" class="btn btn-sm btn-outline-danger" @click="removeLabel(i)">&times;</button>

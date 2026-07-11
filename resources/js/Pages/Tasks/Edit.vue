@@ -105,6 +105,11 @@ const loadMembers = async () => {
     } catch (e) { /* ignore */ }
 };
 
+const assignableMembers = computed(() => {
+    const assigned = new Set((task.value?.assignees || []).map((a) => a.id));
+    return boardMembers.value.filter((u) => !assigned.has(u.id));
+});
+
 onMounted(async () => {
     await fetchTask(true);
     loadMembers();   // cần cho cả gợi ý @mention, không chỉ khi canManage
@@ -192,11 +197,14 @@ const checklistPct = computed(() =>
 
 // ---- Người phụ trách ----
 const addAssignee = async (user) => {
+    showAssigneePicker.value = false;   // đóng ngay để tránh click lần 2 cùng người -> 409
     try {
         await axios.post(route('tasks.assignees.store', props.taskId), { user_id: user.id });
-        showAssigneePicker.value = false;
         await fetchTask(false);
-    } catch (e) { alert(e.response?.data?.message || 'Không thể thêm người phụ trách.'); }
+    } catch (e) {
+        showAssigneePicker.value = true;
+        alert(e.response?.data?.message || 'Không thể thêm người phụ trách.');
+    }
 };
 const removeAssignee = async (user) => {
     try {
@@ -272,7 +280,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                 </Btn>
                 <span class="task-code">#{{ displayCode }}</span>
                 <div class="te-header__title">
-                    <div class="text-muted small">{{ boardName }}</div>
+                    <div class="text-muted small text-truncate" :title="boardName">{{ boardName }}</div>
                     <h4 class="mb-0 text-truncate">{{ title || 'Công việc' }}</h4>
                 </div>
             </header>
@@ -310,12 +318,13 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                 </button>
                                 <div v-if="showAssigneePicker" class="popover-card" style="min-width:210px;">
                                     <div class="list-group list-group-flush">
-                                        <a v-for="u in boardMembers" :key="u.id" href="#"
+                                        <a v-for="u in assignableMembers" :key="u.id" href="#"
                                             class="list-group-item list-group-item-action py-2"
                                             @click.prevent="addAssignee(u)">
                                             <img :src="u.avatar_url || avatar(u.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ u.name }}
                                         </a>
                                         <span v-if="!boardMembers.length" class="list-group-item small text-muted">Không có thành viên.</span>
+                                        <span v-else-if="!assignableMembers.length" class="list-group-item small text-muted">Mọi thành viên đã được giao.</span>
                                     </div>
                                 </div>
                             </div>
@@ -352,7 +361,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                         <span v-if="!labels.length" class="text-muted small">Chưa có nhãn nào.</span>
                                     </div>
                                     <div class="small text-muted mb-1">Tạo nhãn mới</div>
-                                    <input type="text" class="form-control form-control-sm mb-2" v-model="newLabelName" placeholder="Tên (tuỳ chọn)">
+                                    <input type="text" class="form-control form-control-sm mb-2" v-model="newLabelName" placeholder="Tên (tuỳ chọn)" maxlength="255">
                                     <div class="d-flex align-items-center mb-2" style="gap:5px;">
                                         <button v-for="c in LABEL_COLORS" :key="c" type="button" class="color-dot"
                                             :class="{ sel: newLabelColor === c }" :style="{ backgroundColor: c }"
@@ -391,7 +400,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                             </div>
                             <div v-if="canEdit" class="input-group input-group-sm mt-2">
                                 <input type="text" class="form-control" v-model="newChecklistItem"
-                                    placeholder="Thêm mục mới..." @keyup.enter="addChecklist">
+                                    placeholder="Thêm mục mới..." maxlength="255" @keyup.enter="addChecklist">
                                 <div class="input-group-append">
                                     <button class="btn btn-outline-secondary" @click="addChecklist">
                                         <i class="fas fa-plus"></i>
