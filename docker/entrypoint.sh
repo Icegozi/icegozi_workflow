@@ -5,6 +5,14 @@ cd /var/www/html
 
 echo "[entrypoint] Starting initialization..."
 
+# Vite writes this marker while the dev server is running. Because public/ is
+# bind-mounted, an unclean container stop can leave it behind and make Laravel
+# request HMR assets from an inactive port instead of using public/build.
+if [ -f public/hot ]; then
+    echo "[entrypoint] Removing stale Vite hot file..."
+    rm -f public/hot
+fi
+
 # -----------------------------------------------------------------------------
 # Ensure .env exists
 # -----------------------------------------------------------------------------

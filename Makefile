@@ -161,6 +161,27 @@ test: ## Chạy PHPUnit
 	$(EXEC_T) php artisan test
 
 # =============================================================================
+#  Chất lượng mã / Git hooks
+# =============================================================================
+.PHONY: quality
+quality: ## Kiểm tra cú pháp, Pint, PHPMD và PHPCS
+	./scripts/php-quality.sh check
+
+.PHONY: quality-fix
+quality-fix: ## Tự sửa style PHP bằng Pint và PHPCBF, sau đó kiểm tra lại
+	./scripts/php-quality.sh fix
+
+.PHONY: pre-push
+pre-push: ## Chạy toàn bộ kiểm tra bắt buộc trước khi push
+	./scripts/pre-push.sh
+
+.PHONY: hooks
+hooks: ## Cài Git hooks dùng chung của repository
+	git config core.hooksPath .githooks
+	chmod +x .githooks/pre-push scripts/pre-push.sh scripts/php-quality.sh
+	@printf "$(GREEN)[hooks]$(RESET) Đã cài pre-push hook.\n"
+
+# =============================================================================
 #  Dọn dẹp
 # =============================================================================
 .PHONY: clean
