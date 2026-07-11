@@ -46,4 +46,32 @@
     color: var(--app-text-muted);
     text-align: center;
 }
+
+@media (max-width: 575.98px) {
+    .auth-page {
+        align-items: flex-start;
+        padding: 14px 10px;
+    }
+
+    .auth-box {
+        width: 100%;
+        margin: auto 0;
+    }
+
+    .auth-card {
+        border-radius: 14px;
+    }
+
+    .auth-card .card-header {
+        padding: 14px;
+    }
+
+    .auth-card-body {
+        padding: 16px 14px;
+    }
+
+    .auth-message {
+        padding: 0 0 16px;
+    }
+}
 </style>

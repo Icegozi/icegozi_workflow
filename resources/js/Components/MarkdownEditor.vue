@@ -399,4 +399,39 @@ defineExpose({ focus: () => ta.value?.focus() });
 [data-theme="dark"] .md-tab.active { color: var(--app-accent-2); }
 [data-theme="dark"] .md-preview :deep(a) { color: var(--app-accent-2); }
 [data-theme="dark"] .md-preview :deep(blockquote) { background: rgba(165, 118, 63, 0.12); border-left-color: var(--app-accent-2); }
+
+@media (max-width: 575.98px) {
+    .md-head {
+        align-items: stretch;
+        padding: 6px;
+    }
+
+    .md-toolbar {
+        width: 100%;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 3px;
+    }
+
+    .md-btn {
+        width: 38px;
+        height: 38px;
+        flex: 0 0 38px;
+    }
+
+    .md-tabs {
+        width: 100%;
+    }
+
+    .md-tab {
+        min-height: 38px;
+        flex: 1;
+    }
+
+    .md-textarea,
+    .md-body {
+        padding: 12px;
+        font-size: 16px;
+    }
+}
 </style>

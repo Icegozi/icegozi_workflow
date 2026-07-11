@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -54,23 +54,7 @@ const PRIORITIES = [
 const statusOptions = computed(() => props.statuses.map((s) => ({ value: s.id, label: s.name })));
 
 // ---- Permalink công việc (https://{miền}/b-{board_code}/tasks/{task_code}) ----
-// Ziggy trả URL tuyệt đối (kèm host) nên copy ra là link đầy đủ dùng được.
 const taskUrl = computed(() => route('tasks.permalink', { boardCode: props.boardCode, taskCode: props.taskCode }));
-const linkCopied = ref(false);
-const copyLink = async () => {
-    try {
-        await navigator.clipboard.writeText(taskUrl.value);
-    } catch {
-        const el = document.createElement('textarea');
-        el.value = taskUrl.value;
-        document.body.appendChild(el);
-        el.select();
-        document.execCommand('copy');
-        document.body.removeChild(el);
-    }
-    linkCopied.value = true;
-    setTimeout(() => { linkCopied.value = false; }, 1500);
-};
 
 // Nạp task từ server. resetForm=true chỉ dùng khi mở trang: gán lại các ô nhập.
 // Các thao tác phụ (bình luận, checklist, nhãn...) gọi resetForm=false để KHÔNG
@@ -440,10 +424,10 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                 <div class="task-link">
                                     <input class="task-link__input" type="text" :value="taskUrl" readonly
                                         @focus="$event.target.select()">
-                                    <button type="button" class="task-link__btn" :title="linkCopied ? 'Đã sao chép' : 'Sao chép liên kết'"
-                                        @click="copyLink">
-                                        <i :class="linkCopied ? 'fas fa-check' : 'fas fa-copy'"></i>
-                                    </button>
+                                    <Link :href="taskUrl" class="task-link__btn" title="Xem chi tiết công việc"
+                                        aria-label="Xem chi tiết công việc">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </Link>
                                 </div>
                             </div>
                         </div>
@@ -577,13 +561,19 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
 }
 
 .task-link__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    width: 38px;
+    aspect-ratio: 1 / 1;
     border: 1px solid var(--app-border, #e4e6ea);
     background: transparent;
     color: var(--app-accent, #663300);
     border-radius: 6px;
-    padding: 0 10px;
+    padding: 0;
     cursor: pointer;
+    text-decoration: none;
 }
 
 .task-link__btn:hover {
@@ -852,5 +842,77 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
 [data-theme="dark"] .md-content :deep(blockquote) {
     background: rgba(165, 118, 63, 0.12);
     border-left-color: var(--app-accent-2);
+}
+
+@media (max-width: 575.98px) {
+    .te-header {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+    }
+
+    .te-header__title {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .te-header__title h4 {
+        font-size: 1.05rem;
+        line-height: 1.35;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+    }
+
+    .te-header .task-code {
+        grid-column: 2;
+        grid-row: 2;
+        justify-self: start;
+        margin-left: 0;
+    }
+
+    .te-body {
+        margin-right: -6px;
+        margin-left: -6px;
+    }
+
+    .te-body > [class*="col-"] {
+        padding-right: 6px;
+        padding-left: 6px;
+    }
+
+    .panel {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    .task-side {
+        position: static;
+        margin-top: 12px;
+    }
+
+    .popover-card {
+        right: 0;
+        left: 0;
+        min-width: 0 !important;
+        width: min(100%, 300px);
+    }
+
+    .mention-pop {
+        right: 0;
+        min-width: 0;
+    }
+
+    .comment {
+        gap: 8px;
+    }
+
+    .comment__head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0;
+    }
 }
 </style>

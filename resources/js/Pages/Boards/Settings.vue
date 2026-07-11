@@ -149,15 +149,15 @@ const cancelInvite = (inv) => {
                                 <!-- Chủ sở hữu luôn đứng đầu -->
                                 <template #prepend>
                                     <tr>
-                                        <td>
+                                        <td data-label="Thành viên">
                                             <div class="member-cell">
                                                 <img :src="avatar(owner.email)" class="member-avatar" alt="">
                                                 <strong>{{ owner.name }}</strong>
                                             </div>
                                         </td>
-                                        <td>{{ owner.email }}</td>
-                                        <td><span class="owner-badge"><i class="fas fa-crown mr-1"></i>Chủ sở hữu</span></td>
-                                        <td v-if="canManage"></td>
+                                        <td data-label="Email">{{ owner.email }}</td>
+                                        <td data-label="Vai trò"><span class="owner-badge"><i class="fas fa-crown mr-1"></i>Chủ sở hữu</span></td>
+                                        <td v-if="canManage" data-label="Hành động"></td>
                                     </tr>
                                 </template>
                                 <template #cell-name="{ row }">
@@ -404,5 +404,52 @@ const cancelInvite = (inv) => {
 [data-theme="dark"] .owner-badge {
     color: #fbbf24;
     background: rgba(251, 191, 36, 0.15);
+}
+
+@media (max-width: 575.98px) {
+    .sp-header {
+        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+    }
+
+    .sp-header__main {
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .sp-back {
+        width: 42px;
+        min-width: 42px;
+        padding-right: 0;
+        padding-left: 0;
+        font-size: 0;
+    }
+
+    .sp-back i {
+        margin-right: 0 !important;
+        font-size: 0.85rem;
+    }
+
+    .sp-title {
+        font-size: 1.1rem;
+    }
+
+    .sp-count {
+        align-self: flex-start;
+        margin-left: 52px;
+        padding: 5px 11px;
+    }
+
+    .panel__head,
+    .panel__body {
+        padding: 12px;
+    }
+
+    .invite-item {
+        align-items: flex-start;
+        padding: 12px;
+    }
 }
 </style>

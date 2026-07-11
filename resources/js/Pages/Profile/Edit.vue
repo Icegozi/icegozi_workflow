@@ -181,4 +181,23 @@ const submit = () => {
     object-fit: cover;
     border: 3px solid var(--app-border, #e4e6ea);
 }
+
+@media (max-width: 575.98px) {
+    .profile-page > p {
+        line-height: 1.5;
+    }
+
+    .avatar-preview {
+        width: 112px;
+        height: 112px;
+    }
+
+    .profile-page .card-body {
+        padding: 14px;
+    }
+
+    .profile-page form > .d-flex.justify-content-end > * {
+        width: 100%;
+    }
+}
 </style>

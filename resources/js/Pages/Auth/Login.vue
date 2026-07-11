@@ -32,7 +32,7 @@ const errors = computed(() => page.props.errors || {});
                             icon="fas fa-user" required autofocus />
                         <TextInput type="password" name="password" placeholder="Mật khẩu" icon="fas fa-lock" required />
 
-                        <div class="row align-items-center">
+                        <div class="auth-actions row align-items-center">
                             <div class="col-7">
                                 <Checkbox id="remember" name="remember" value="1" label="Ghi nhớ đăng nhập" />
                             </div>
@@ -52,3 +52,17 @@ const errors = computed(() => page.props.errors || {});
         </div>
     </GuestLayout>
 </template>
+
+<style scoped>
+@media (max-width: 575.98px) {
+    .auth-actions {
+        gap: 12px;
+    }
+
+    .auth-actions > div {
+        flex: 0 0 100%;
+        width: 100%;
+        max-width: 100%;
+    }
+}
+</style>

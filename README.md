@@ -111,19 +111,18 @@ Sau khi chạy xong, mở:
 ### Nạp dữ liệu mẫu (tuỳ chọn)
 
 ```bash
-make seed      # đổ dữ liệu mẫu: người dùng, bảng, quyền
+make seed      # tạo tài khoản quản trị mặc định
 # hoặc làm mới sạch:
 make fresh     # ⚠ XOÁ toàn bộ DB rồi migrate lại + seed
 ```
 
 > Các **quyền** (`board_viewer`, `board_editor`, `board_member_manager`) được seed tự động qua migration nên luôn có sẵn kể cả khi không chạy `make seed`.
 
-#### Tài khoản demo (chỉ có khi đã `make seed`/`make fresh`)
+#### Tài khoản quản trị mặc định (sau `make seed`/`make fresh`)
 
-| Email | Mật khẩu | Vai trò |
+| Tên đăng nhập | Mật khẩu | Vai trò |
 |---|---|---|
-| `a@example.com` | `password123` | Người dùng thường |
-| `b@example.com` | `password123` | **Quản trị viên** |
+| `admin` | `password` | **Quản trị viên** |
 
 ### Các lệnh Make thường dùng
 
@@ -145,7 +144,7 @@ make tinker          # REPL Laravel
 make migrate         # chạy migration
 make migrate-status  # trạng thái migration
 make rollback        # lùi batch migration gần nhất
-make seed            # đổ dữ liệu mẫu
+make seed            # tạo/cập nhật tài khoản admin mặc định
 
 # Tiện ích Laravel (truyền lệnh tự do)
 make artisan c="route:list"

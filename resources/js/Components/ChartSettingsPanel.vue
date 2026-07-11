@@ -118,4 +118,21 @@ const move = (index, dir) => {
     font-size: 0.65rem;
     padding: 1px 5px;
 }
+
+@media (max-width: 575.98px) {
+    .chart-row {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        padding: 8px;
+    }
+
+    .chart-row > select {
+        flex: 1 0 100%;
+        width: 100% !important;
+    }
+
+    .reorder .btn {
+        min-height: 30px;
+    }
+}
 </style>

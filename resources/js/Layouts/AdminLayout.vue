@@ -17,7 +17,7 @@ const isRouteActive = (routeName) => {
         <!-- Topbar -->
         <Topbar></Topbar>
 
-        <div class="d-flex flex-grow-1" id="admin-bg">
+        <div class="app-shell-body d-flex flex-grow-1" id="admin-bg">
             <!-- Sidebar -->
             <Sidebar bg-class="bg-light">
                 <li class="nav-item">
@@ -71,7 +71,7 @@ const isRouteActive = (routeName) => {
             </Sidebar>
 
             <!-- Content -->
-            <main class="layout-content flex-grow-1 p-3">
+            <main class="layout-content app-main-content flex-grow-1 p-3">
                 <div class="cute-border w-100 h-100"><slot /></div>
             </main>
         </div>

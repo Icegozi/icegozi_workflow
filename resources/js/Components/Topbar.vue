@@ -65,7 +65,7 @@ const logout = () => {
 
 <template>
     <nav class="app-topbar navbar navbar-expand border-bottom">
-        <a class="topbar-brand ml-5" href="/">My<span>App</span></a>
+        <a class="topbar-brand ml-5" href="/" aria-label="MyApp - Trang chủ">My<span>App</span></a>
         <!-- Điều hướng bên trái (tuỳ layout) -->
         <ul class="navbar-nav">
             <slot />
@@ -105,7 +105,7 @@ const logout = () => {
             <li class="nav-item d-flex align-items-center">
                 <Link :href="route('profile.edit')" class="nav-link d-flex align-items-center" title="Hồ sơ cá nhân">
                     <img :src="userAvatar" class="rounded-circle mr-2 topbar-avatar" width="28" height="28" alt="avatar">
-                    <span>{{ user?.name }}</span>
+                    <span class="topbar-user-name">{{ user?.name }}</span>
                 </Link>
             </li>
             <li class="nav-item">

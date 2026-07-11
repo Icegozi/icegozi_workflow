@@ -10,6 +10,7 @@ import TaskModal from '@/Components/TaskModal.vue';
 import Modal from '@/Components/Modal.vue';
 import TextInput from '@/Components/TextInput.vue';
 import Btn from '@/Components/Btn.vue';
+import ResponsiveSelect from '@/Components/ResponsiveSelect.vue';
 
 const props = defineProps({
     board: { type: Object, required: true },
@@ -152,6 +153,29 @@ const allAssignees = computed(() => {
 });
 const boardLabels = computed(() => props.board.labels || []);
 
+const priorityFilterOptions = [
+    { value: '', label: 'Tất cả' },
+    { value: 'urgent', label: 'Khẩn cấp' },
+    { value: 'high', label: 'Cao' },
+    { value: 'normal', label: 'Bình thường' },
+    { value: 'low', label: 'Thấp' },
+];
+const assigneeFilterOptions = computed(() => [
+    { value: '', label: 'Mọi người' },
+    ...allAssignees.value.map((assignee) => ({ value: assignee.id, label: assignee.name })),
+]);
+const labelFilterOptions = computed(() => [
+    { value: '', label: 'Tất cả' },
+    ...boardLabels.value.map((label) => ({ value: label.id, label: label.name || 'Nhãn' })),
+]);
+const dueFilterOptions = [
+    { value: '', label: 'Tất cả' },
+    { value: 'overdue', label: 'Quá hạn' },
+    { value: 'soon', label: 'Sắp tới (≤2 ngày)' },
+    { value: 'future', label: 'Còn hạn' },
+    { value: 'none', label: 'Không có hạn' },
+];
+
 const dueStateOf = (task) => {
     if (!task.due_date) return 'none';
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -263,28 +287,31 @@ const openActivity = async () => {
                 <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
                 <input type="text" class="form-control" v-model="filters.q" placeholder="Tìm tiêu đề / mã..." maxlength="255">
             </div>
-            <select class="form-control form-control-sm" style="width:auto;" v-model="filters.priority">
-                <option value="">Tất cả</option>
-                <option value="urgent">Khẩn cấp</option>
-                <option value="high">Cao</option>
-                <option value="normal">Bình thường</option>
-                <option value="low">Thấp</option>
-            </select>
-            <select class="form-control form-control-sm" style="width:auto;" v-model="filters.assignee">
-                <option value="">Mọi người</option>
-                <option v-for="a in allAssignees" :key="a.id" :value="a.id">{{ a.name }}</option>
-            </select>
-            <select v-if="boardLabels.length" class="form-control form-control-sm" style="width:auto;" v-model="filters.label">
-                <option value="">Tất cả</option>
-                <option v-for="l in boardLabels" :key="l.id" :value="l.id">{{ l.name || 'Nhãn' }}</option>
-            </select>
-            <select class="form-control form-control-sm" style="width:auto;" v-model="filters.due">
-                <option value="">Tất cả</option>
-                <option value="overdue">Quá hạn</option>
-                <option value="soon">Sắp tới (≤2 ngày)</option>
-                <option value="future">Còn hạn</option>
-                <option value="none">Không có hạn</option>
-            </select>
+            <ResponsiveSelect
+                v-model="filters.priority"
+                class="filter-select"
+                aria-label="Lọc theo độ ưu tiên"
+                :options="priorityFilterOptions"
+            />
+            <ResponsiveSelect
+                v-model="filters.assignee"
+                class="filter-select"
+                aria-label="Lọc theo người thực hiện"
+                :options="assigneeFilterOptions"
+            />
+            <ResponsiveSelect
+                v-if="boardLabels.length"
+                v-model="filters.label"
+                class="filter-select"
+                aria-label="Lọc theo nhãn"
+                :options="labelFilterOptions"
+            />
+            <ResponsiveSelect
+                v-model="filters.due"
+                class="filter-select"
+                aria-label="Lọc theo hạn công việc"
+                :options="dueFilterOptions"
+            />
             <button v-if="hasActiveFilter" class="btn btn-sm btn-link text-danger" @click="clearFilters">
                 <i class="fas fa-times mr-1"></i>Xoá lọc
             </button>
@@ -486,6 +513,16 @@ const openActivity = async () => {
 @media (max-width: 575.98px) {
     .kanban-board {
         gap: 12px;
+    }
+
+    .my-task {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 11px;
+    }
+
+    .my-task__meta {
+        flex-wrap: wrap;
     }
 }
 </style>

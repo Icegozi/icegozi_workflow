@@ -1,0 +1,88 @@
+/* Điều chỉnh các pattern cấp trang xuất hiện ở nhiều module. */
+@media (max-width: 767.98px) {
+    .app-main-content .d-flex.justify-content-between.align-items-center.mb-3,
+    .app-main-content .d-flex.justify-content-between.align-items-center.mb-4 {
+        align-items: stretch !important;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .app-main-content .d-flex.justify-content-between.align-items-center.mb-3 > h3,
+    .app-main-content .d-flex.justify-content-between.align-items-center.mb-4 > h3 {
+        flex: 1 1 190px;
+    }
+
+    .board-header {
+        align-items: stretch !important;
+        padding: 8px 4px 12px !important;
+    }
+
+    .board-header > h3 {
+        width: 100%;
+        margin-right: 0 !important;
+    }
+
+    .board-header > .d-flex {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .board-header .btn-group {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .board-header .btn-group > .btn {
+        flex: 1 0 auto;
+    }
+
+    .filter-bar {
+        padding: 4px 0 10px !important;
+        gap: 7px !important;
+    }
+
+    .filter-bar .input-group {
+        width: 100% !important;
+    }
+
+    .filter-bar select.form-control,
+    .filter-bar .filter-select {
+        width: calc(50% - 4px) !important;
+        min-width: 0;
+    }
+
+    .filter-bar > .btn:last-child {
+        width: 100%;
+        margin-left: 0 !important;
+    }
+
+    .kanban-board {
+        max-width: calc(100vw - 44px) !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x mandatory;
+        padding: 2px 2px 14px;
+    }
+
+    .kanban-board .kanban-column {
+        width: calc(100vw - 64px) !important;
+        min-width: calc(100vw - 64px) !important;
+        scroll-snap-align: start;
+    }
+
+    .request-access {
+        margin: 10px auto !important;
+    }
+
+    .request-access .card-body {
+        padding: 20px 14px;
+    }
+}
+
+@media (max-width: 399.98px) {
+    .filter-bar select.form-control,
+    .filter-bar .filter-select {
+        width: 100% !important;
+    }
+}

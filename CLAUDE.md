@@ -44,7 +44,7 @@ PHPUnit defines two suites, `Unit` and `Feature` (`phpunit.xml`). Only example t
 ### Authorization is the central concept — and it is NOT Laravel Policies
 Access control is a custom board-level RBAC implemented through a pivot chain, **not** `app/Policies` and **not** Laravel Gates.
 
-- Three roles are seeded (`PermissionSeeder`): `board_viewer`, `board_editor`, `board_member_manager`.
+- Three board roles are defined by `PermissionSeeder` for focused tests: `board_viewer`, `board_editor`, `board_member_manager`. The default `DatabaseSeeder` intentionally creates only the administrator account.
 - The relationship chain is: `User` ↔ `permission_users` (pivot model `PermissionUser`) ↔ `board_permissions` (pivot model `BoardPermission`) ↔ `Board`. A user's role on a specific board exists only if there is a `permission_users` row (user+permission) **and** a `board_permissions` row linking that to the board.
 - The board **owner** (`boards.user_id`) implicitly has every permission — this is special-cased everywhere (e.g. `User::hasBoardPermission()` returns `true` immediately for the owner, and board member/assignee queries always union in `board.user_id`).
 - Controllers enforce access by calling `authorizeBoardAccess($board, [roles])` or `authorizeTaskAccess($task, [roles])` at the top of each action; these abort 403 unless `User::hasBoardPermission()` passes for one of the listed roles.

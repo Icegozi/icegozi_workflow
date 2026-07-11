@@ -364,10 +364,41 @@ const closeTask = () => { modalTaskId.value = null; };
 
 /* ---- Responsive: màn hẹp thì meta xuống hàng dưới ---- */
 @media (max-width: 575.98px) {
+    .mt-page {
+        padding: 4px 0 20px;
+    }
+
+    .mt-hero {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+        padding: 14px 14px 14px 18px;
+    }
+
+    .mt-hero__icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .mt-hero__title {
+        font-size: 1.25rem;
+    }
+
+    .mt-count {
+        margin-left: 50px;
+        padding: 5px 11px;
+    }
+
+    .mt-group {
+        margin-bottom: 20px;
+    }
+
     .mt-task {
         flex-direction: column;
         align-items: stretch;
         gap: 10px;
+        padding: 12px;
     }
     .mt-task-meta {
         justify-content: flex-start;

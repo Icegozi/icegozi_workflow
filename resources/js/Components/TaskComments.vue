@@ -244,4 +244,27 @@ const deleteComment = async (c) => {
 [data-theme="dark"] .md-content :deep(blockquote) {
     background: rgba(165, 118, 63, 0.12);
 }
+
+@media (max-width: 575.98px) {
+    .mention-pop {
+        right: 0;
+        left: 0;
+        min-width: 0;
+    }
+
+    .comment {
+        gap: 8px;
+    }
+
+    .comment__avatar {
+        width: 30px;
+        height: 30px;
+    }
+
+    .comment__head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0;
+    }
+}
 </style>

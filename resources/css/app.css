@@ -1,5 +1,6 @@
 @import 'bootstrap/dist/css/bootstrap.css';
 @import './theme/vendor/fontawesome-free/css/all.css';
+@import './mobile/index.css';
 
 html,
 body {

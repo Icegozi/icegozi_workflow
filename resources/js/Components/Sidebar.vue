@@ -45,6 +45,7 @@ onBeforeUnmount(() => {
     <aside
         class="workflow-sidebar d-flex flex-column flex-shrink-0 p-3"
         :class="[bgClass, { 'is-collapsed': isCollapsed }]"
+        aria-label="Điều hướng chính"
     >
         <button
             type="button"
@@ -62,7 +63,7 @@ onBeforeUnmount(() => {
         </button>
 
         <!-- Các mục điều hướng do layout truyền vào qua <slot> (admin & user khác nhau) -->
-        <ul class="nav nav-pills flex-column mb-auto gap-1">
+        <ul class="nav nav-pills flex-column mb-auto gap-1" role="list">
             <slot />
         </ul>
     </aside>
