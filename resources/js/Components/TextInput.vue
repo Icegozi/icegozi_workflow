@@ -8,6 +8,7 @@ defineProps({
     type: { type: String, default: 'text' },
     icon: { type: String, default: null },
     groupClass: { type: String, default: 'mb-3' },
+    maxlength: { type: [String, Number], default: 255 },
 });
 
 defineEmits(['update:modelValue']);
@@ -19,6 +20,7 @@ defineEmits(['update:modelValue']);
             :type="type"
             class="form-control"
             :value="modelValue"
+            :maxlength="maxlength"
             v-bind="$attrs"
             @input="$emit('update:modelValue', $event.target.value)"
         >

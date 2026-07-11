@@ -2,39 +2,52 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BoardRelationships;
+use App\Models\Concerns\CascadesSoftDeletes;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Board extends Model
 {
+    use BoardRelationships;
+    use CascadesSoftDeletes;
     use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = ['name', 'description', 'user_id'];
 
-    public function user()
+    protected static function booted(): void
     {
-        return $this->belongsTo(User::class);
+        // Xoá mềm board -> xoá mềm luôn column (kéo theo task và các con của task) để board
+        // "đã xoá" không để lại dữ liệu vẫn hiện trong truy vấn xuyên bảng (vd. "Task của tôi").
+        // Xoá cứng (forceDelete) thì để FK ON DELETE CASCADE của DB lo.
+        static::deleting(function (Board $board) {
+            if ($board->isForceDeleting()) {
+                return;
+            }
+            $board->columns()->get()->each->delete();
+        });
     }
 
-    public function columns(): HasMany
+    /**
+     * Sinh board_code (số tăng dần toàn hệ thống, unique) một cách atomic: đọc max + INSERT
+     * nằm trong CÙNG transaction với lockForUpdate để hai board tạo song song không nhận
+     * trùng mã (nếu không sẽ vi phạm unique và trả 500).
+     */
+    public function save(array $options = []): bool
     {
-        // Mặc định sắp xếp các cột theo vị trí 'position'
-        return $this->hasMany(Column::class)->orderBy('position', 'asc');
-    }
+        if ($this->exists || ! empty($this->board_code)) {
+            return parent::save($options);
+        }
 
-    public function owner(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
+        return DB::transaction(function () use ($options) {
+            $this->board_code = (static::withTrashed()->lockForUpdate()->max('board_code') ?? 0) + 1;
 
-    public function invitations(): HasMany
-    {
-        return $this->hasMany(BoardInvitation::class);
+            return parent::save($options);
+        });
     }
 
     // Lấy tất cả board theo user_id
@@ -79,19 +92,6 @@ class Board extends Model
     public static function getBoardData(int $id)
     {
         return self::with(['user', 'columns.tasks'])->findOrFail($id);
-    }
-
-    public function boardPermissionUsers(): HasManyThrough
-    {
-        // Board -> board_permissions -> permission_users
-        return $this->hasManyThrough(
-            PermissionUser::class,
-            BoardPermission::class,
-            'board_id',
-            'id',
-            'id',
-            'permission_user_id'
-        );
     }
 
     public function getMembersWithRoles()

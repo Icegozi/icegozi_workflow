@@ -5,6 +5,14 @@ cd /var/www/html
 
 echo "[entrypoint] Starting initialization..."
 
+# Vite writes this marker while the dev server is running. Because public/ is
+# bind-mounted, an unclean container stop can leave it behind and make Laravel
+# request HMR assets from an inactive port instead of using public/build.
+if [ -f public/hot ]; then
+    echo "[entrypoint] Removing stale Vite hot file..."
+    rm -f public/hot
+fi
+
 # -----------------------------------------------------------------------------
 # Ensure .env exists
 # -----------------------------------------------------------------------------
@@ -19,9 +27,10 @@ fi
 git config --global --add safe.directory /var/www/html >/dev/null 2>&1 || true
 
 # -----------------------------------------------------------------------------
-# Prepare runtime cache directory
+# Prepare runtime directories (must exist before composer/artisan write to them)
 # -----------------------------------------------------------------------------
-mkdir -p storage/framework/cache
+mkdir -p storage/framework/cache storage/framework/sessions \
+    storage/framework/views storage/logs bootstrap/cache
 
 # -----------------------------------------------------------------------------
 # Composer dependencies (install only when composer.lock changes)
@@ -78,14 +87,6 @@ if ! grep -q '^APP_KEY=base64:' .env; then
 fi
 
 # -----------------------------------------------------------------------------
-# Permissions
-# -----------------------------------------------------------------------------
-mkdir -p storage bootstrap/cache
-
-chown -R www-data:www-data storage bootstrap/cache || true
-chmod -R 775 storage bootstrap/cache || true
-
-# -----------------------------------------------------------------------------
 # Wait for MySQL
 # -----------------------------------------------------------------------------
 if [ "${DB_CONNECTION:-mysql}" = "mysql" ]; then
@@ -133,6 +134,16 @@ if [ "${APP_ENV:-local}" != "local" ]; then
     php artisan route:cache
     php artisan view:cache
 fi
+
+# -----------------------------------------------------------------------------
+# Permissions (LAST: the artisan/composer steps above run as root and may have
+# created root-owned files in storage/. Re-own everything to www-data — which
+# was remapped to the host UID/GID at build time — so both php-fpm AND the host
+# user can read/write. Done last so nothing root-creates files afterwards.)
+# -----------------------------------------------------------------------------
+echo "[entrypoint] Fixing permissions on storage and bootstrap/cache..."
+chown -R www-data:www-data storage bootstrap/cache || true
+chmod -R ug+rwX storage bootstrap/cache || true
 
 echo "[entrypoint] Initialization completed."
 

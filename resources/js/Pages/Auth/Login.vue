@@ -17,19 +17,22 @@ const errors = computed(() => page.props.errors || {});
         <div class="login-box">
             <div class="card card-outline card-secondary">
                 <div class="card-header text-center">
-                    <a href="#" class="h1"><b>My</b>App</a>
+                    <Link href="/" class="h1 text-decoration-none auth-brand mb-0">
+                        My<span class="text-danger">App</span>
+                    </Link>
                 </div>
                 <div class="card-body login-card-body">
                     <p class="login-box-msg">Đăng nhập để bắt đầu phiên làm việc</p>
 
-                    <div v-if="errors.email" class="alert alert-danger small p-2">{{ errors.email }}</div>
+                    <div v-if="errors.login" class="alert alert-danger small p-2">{{ errors.login }}</div>
 
                     <form :action="route('login')" method="POST">
                         <input type="hidden" name="_token" :value="csrf">
-                        <TextInput type="email" name="email" placeholder="Email" icon="fas fa-envelope" required autofocus />
+                        <TextInput type="text" name="login" placeholder="Email hoặc tên đăng nhập"
+                            icon="fas fa-user" required autofocus />
                         <TextInput type="password" name="password" placeholder="Mật khẩu" icon="fas fa-lock" required />
 
-                        <div class="row">
+                        <div class="row align-items-center">
                             <div class="col-7">
                                 <Checkbox id="remember" name="remember" value="1" label="Ghi nhớ đăng nhập" />
                             </div>
@@ -40,7 +43,7 @@ const errors = computed(() => page.props.errors || {});
                     </form>
 
                     <p class="mb-0 mt-3">
-                        <Link :href="route('register.form')" class="text-dark" style="text-decoration: none;">
+                        <Link :href="route('register.form')" class="auth-link">
                             Chưa có tài khoản? Đăng ký
                         </Link>
                     </p>
@@ -49,3 +52,8 @@ const errors = computed(() => page.props.errors || {});
         </div>
     </GuestLayout>
 </template>
+<style>   
+.app-sidebar .sidebar-brand span {
+    color: var(--sb-accent);
+}
+</style>

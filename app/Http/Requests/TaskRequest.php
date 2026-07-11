@@ -33,6 +33,7 @@ class TaskRequest extends FormRequest
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'priority' => ['nullable', Rule::in(['low', 'normal', 'high', 'urgent'])],
+            'status_id' => ['nullable', 'exists:statuses,id'],
             'due_date' => $dueDateRules,
         ];
     }

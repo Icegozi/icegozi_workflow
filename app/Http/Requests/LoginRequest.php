@@ -14,6 +14,14 @@ class LoginRequest extends FormRequest
         return true;
     }
 
+    /** Tương thích ngược: client cũ gửi 'email' -> ánh xạ sang 'login'. */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->filled('login') && $this->filled('email')) {
+            $this->merge(['login' => $this->input('email')]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -22,8 +30,17 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => 'required|email',
+            // Định danh đăng nhập: có thể là email hoặc username.
+            'login' => 'required|string',
             'password' => 'required',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'login.required' => 'Vui lòng nhập email hoặc tên đăng nhập.',
+            'password.required' => 'Vui lòng nhập mật khẩu.',
         ];
     }
 }

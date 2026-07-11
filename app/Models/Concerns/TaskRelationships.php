@@ -6,6 +6,8 @@ use App\Models\Attachment;
 use App\Models\Checklist;
 use App\Models\Column;
 use App\Models\Comment;
+use App\Models\Label;
+use App\Models\Status;
 use App\Models\TaskHistory;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +19,16 @@ trait TaskRelationships
     public function column(): BelongsTo
     {
         return $this->belongsTo(Column::class);
+    }
+
+    public function status(): BelongsTo
+    {
+        return $this->belongsTo(Status::class);
+    }
+
+    public function labels(): BelongsToMany
+    {
+        return $this->belongsToMany(Label::class, 'label_task')->withTimestamps();
     }
 
     public function attachments(): HasMany

@@ -76,7 +76,7 @@ class AttachmentController extends Controller
                             $task->taskHistories()->create([
                                 'user_id' => Auth::id(),
                                 'action' => 'attachment_added',
-                                'note' => "Đã thêm đính kèm: {$originalName}",
+                                'note' => 'Đã thêm đính kèm: ' . e($originalName),
                             ]);
 
                             return $attachment;
@@ -164,7 +164,7 @@ class AttachmentController extends Controller
                 $task->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'attachment_deleted',
-                    'note' => "Đã xoá đính kèm: {$originalName}",
+                    'note' => 'Đã xoá đính kèm: ' . e($originalName),
                 ]);
             });
 
@@ -207,6 +207,53 @@ class AttachmentController extends Controller
                 'success' => false,
                 'message' => 'Đã xảy ra lỗi khi tải tệp đính kèm.',
             ], 500);
+        }
+    }
+
+    /**
+     * Upload nội tuyến cho ô soạn (mô tả / bình luận): lưu 1 tệp rồi trả về URL
+     * để chèn Markdown ảnh/liên kết. Cho phép cả quyền xem (để bình luận đính kèm được).
+     */
+    public function uploadInline(Request $request, Task $task)
+    {
+        $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
+        $request->validate([
+            'file' => 'required|file|max:10240|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,'
+                . 'png,jpg,jpeg,gif,bmp,webp,zip,rar,7z,txt,csv',
+        ]);
+
+        try {
+            $file = $request->file('file');
+            $originalName = $file->getClientOriginalName();
+
+            // Đặt tên theo hash nội dung (content-addressed): cùng một tệp/ảnh -> cùng hash
+            // -> cùng đường dẫn. Nhờ vậy dán 1 ảnh nhiều lần (mô tả, bình luận...) chỉ lưu
+            // MỘT bản trong storage; lần sau chỉ tái sử dụng, không ghi trùng.
+            $ext = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'bin');
+            $hash = hash_file('sha256', $file->getRealPath());
+            $path = 'editor/' . $hash . '.' . $ext;
+
+            if (! Storage::disk('public')->exists($path)) {
+                $stored = $file->storeAs('editor', $hash . '.' . $ext, 'public');
+                if (! $stored) {
+                    return response()->json(['success' => false, 'message' => 'Không thể lưu tệp.'], 500);
+                }
+            }
+
+            $mime = (string) $file->getMimeType();
+
+            return response()->json([
+                'success' => true,
+                'name' => $originalName,
+                // URL TƯƠNG ĐỐI (/storage/...) thay vì tuyệt đối: để ảnh xem được từ mọi
+                // máy/tên miền truy cập app, không bị "khoá" vào APP_URL (vd localhost).
+                'url' => '/storage/' . $path,
+                'is_image' => str_starts_with($mime, 'image/'),
+            ]);
+        } catch (Exception $e) {
+            Log::error("Inline upload failed for task {$task->id}: " . $e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Không thể tải tệp lên.'], 500);
         }
     }
 }

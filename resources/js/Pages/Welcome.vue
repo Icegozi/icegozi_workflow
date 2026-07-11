@@ -1,9 +1,12 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount } from 'vue';
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import { useTheme } from '@/composables/useTheme';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user || null);
+
+const { theme, toggle: toggleTheme } = useTheme();
 
 const logout = () => router.post(route('logout'));
 const goRegister = () => router.visit(route('register.form'));
@@ -57,6 +60,10 @@ const stats = [
                 </nav>
 
                 <div class="lp-header__actions">
+                    <button type="button" class="lp-btn lp-btn--icon" @click="toggleTheme"
+                        :title="theme === 'dark' ? 'Chuyển chế độ sáng' : 'Chuyển chế độ tối'">
+                        <i class="fa-fw" :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>
+                    </button>
                     <template v-if="!user">
                         <Link class="lp-btn lp-btn--ghost" :href="route('login.form')">Đăng nhập</Link>
                         <Link class="lp-btn lp-btn--solid" :href="route('register.form')">Đăng ký</Link>
@@ -192,14 +199,32 @@ const stats = [
 
 <style scoped>
 .lp {
-    --accent: #ff545a;
-    --accent-dark: #f43032;
+    --accent: #663300;
+    --accent-dark: #4d2600;
     --ink: #2d333a;
     --muted: #6c757d;
+    --bg: #ffffff;
     --bg-alt: #f8fafb;
+    --surface: #ffffff;
+    --border: #eef0f3;
+    --header-bg: rgba(255, 255, 255, 0.95);
     font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
     color: var(--ink);
     line-height: 1.6;
+    transition: color 0.25s ease;
+}
+
+/* Chế độ tối cho trang chào mừng: chỉ đảo biến, các phần vốn tối (hero/stats/footer) giữ nguyên */
+:global([data-theme="dark"]) .lp {
+    --accent: #c68a4e;
+    --accent-dark: #a5763f;
+    --ink: #e6e8eb;
+    --muted: #9aa0a6;
+    --bg: #15171a;
+    --bg-alt: #1a1d21;
+    --surface: #1d2024;
+    --border: #2c3036;
+    --header-bg: rgba(21, 23, 26, 0.95);
 }
 
 .lp *,
@@ -232,10 +257,27 @@ const stats = [
 .lp-btn:hover { transform: translateY(-2px); }
 
 .lp-btn--solid { background: var(--accent); color: #fff; }
-.lp-btn--solid:hover { background: var(--accent-dark); box-shadow: 0 8px 18px rgba(255, 84, 90, 0.35); }
+.lp-btn--solid:hover { background: var(--accent-dark); box-shadow: 0 8px 18px rgba(102, 51, 0, 0.35); }
 
-.lp-btn--ghost { color: var(--ink); border-color: #e3e6ea; background: #fff; }
+.lp-btn--ghost { color: var(--ink); border-color: var(--border); background: var(--surface); }
 .lp-btn--ghost:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Nút icon (toggle theme): không viền/nền, chỉ đậm màu khi hover.
+   Rộng cố định + căn giữa để đổi giữa icon mặt trăng/mặt trời không làm xê dịch topbar. */
+.lp-btn--icon {
+    width: 44px;
+    padding: 10px 0;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 18px;
+}
+.lp-btn--icon:hover {
+    background: transparent;
+    color: var(--accent);
+    transform: none;
+}
 
 .lp-btn--light { background: rgba(255, 255, 255, 0.15); color: #fff; border-color: rgba(255, 255, 255, 0.6); }
 .lp-btn--light:hover { background: #fff; color: var(--ink); }
@@ -257,9 +299,9 @@ const stats = [
     position: sticky;
     top: 0;
     z-index: 50;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--header-bg);
     backdrop-filter: blur(8px);
-    border-bottom: 1px solid #eef0f3;
+    border-bottom: 1px solid var(--border);
 }
 
 .lp-header__inner {
@@ -277,7 +319,7 @@ const stats = [
 }
 
 .lp-nav a {
-    color: #5b636b;
+    color: var(--muted);
     font-weight: 500;
     text-decoration: none;
     transition: color 0.2s ease;
@@ -356,8 +398,8 @@ const stats = [
 
 /* Thẻ tính năng */
 .lp-card {
-    background: #fff;
-    border: 1px solid #eef0f3;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 14px;
     padding: 32px 26px;
     text-align: center;
@@ -372,7 +414,7 @@ const stats = [
     display: grid;
     place-items: center;
     border-radius: 50%;
-    background: rgba(255, 84, 90, 0.1);
+    background: rgba(102, 51, 0, 0.1);
     color: var(--accent);
     font-size: 26px;
 }
@@ -382,7 +424,7 @@ const stats = [
 /* Bước thực hiện */
 .lp-step {
     position: relative;
-    background: #fff;
+    background: var(--surface);
     border-radius: 14px;
     padding: 40px 28px 30px;
     text-align: center;

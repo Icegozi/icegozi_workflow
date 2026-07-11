@@ -13,6 +13,7 @@ trait UserAuthentication
         $user = new self();
         $user->forceFill([
             'name' => $data['name'],
+            'username' => $data['username'] ?? null,
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'is_admin' => false,
@@ -22,15 +23,29 @@ trait UserAuthentication
         return $user;
     }
 
+    /**
+     * Đăng nhập bằng username HOẶC email. $credentials['login'] là định danh nhập vào;
+     * nếu là email hợp lệ thì tra theo cột email, ngược lại tra theo username.
+     */
     public static function login(array $credentials, bool $remember = false): bool
     {
-        $user = self::where('email', $credentials['email'])->first();
+        $login = $credentials['login'] ?? $credentials['email'] ?? null;
+        if (! $login) {
+            return false;
+        }
+
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+        if ($field === 'username') {
+            $login = mb_strtolower($login);
+        }
+
+        $user = self::where($field, $login)->first();
 
         if (! $user || $user->status !== 'active') {
             return false;
         }
 
-        if (Auth::attempt($credentials, $remember)) {
+        if (Auth::attempt([$field => $login, 'password' => $credentials['password']], $remember)) {
             session()->regenerate();
 
             return true;

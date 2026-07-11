@@ -9,21 +9,32 @@ const props = defineProps({
     outline: { type: Boolean, default: false },
     icon: { type: String, default: null },
     href: { type: String, default: null },
+    disabled: { type: Boolean, default: false },
 });
 
 const palette = { white: 'light', black: 'dark', red: 'danger' };
 
 const klass = computed(() => {
     const color = palette[props.variant] || props.variant;
-    return 'btn ' + (props.outline ? 'btn-outline-' : 'btn-') + color;
+    return 'btn app-btn ' + (props.outline ? 'btn-outline-' : 'btn-') + color;
 });
 </script>
 
 <template>
-    <Link v-if="href" :href="href" :class="klass">
-        <i v-if="icon" :class="icon" class="mr-1"></i><slot />
+    <!-- Khi disabled thì luôn render <button disabled> (kể cả có href) để không điều hướng được. -->
+    <Link v-if="href && !disabled" :href="href" :class="klass">
+        <i v-if="icon" :class="icon"></i><slot />
     </Link>
-    <button v-else :type="type" :class="klass">
-        <i v-if="icon" :class="icon" class="mr-1"></i><slot />
+    <button v-else :type="type" :class="klass" :disabled="disabled">
+        <i v-if="icon" :class="icon"></i><slot />
     </button>
 </template>
+
+<style scoped>
+.app-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+</style>

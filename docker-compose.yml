@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
     image: icegozi-workflow:latest
     container_name: icegozi_app
     restart: unless-stopped

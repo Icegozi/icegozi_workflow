@@ -1,8 +1,3 @@
-/* ------------------------------------------------------------------
- * Chỉ giữ vendor + reset tối thiểu ở cấp global.
- * Toàn bộ CSS custom đã chuyển vào <style scoped> của từng component Vue.
- * Vite tự minify khi build nên dùng bản non-min cho nguồn.
- * ------------------------------------------------------------------ */
 @import 'bootstrap/dist/css/bootstrap.css';
 @import './theme/vendor/fontawesome-free/css/all.css';
 @import './theme/vendor/adminlte.css';
@@ -13,5 +8,416 @@ body {
 }
 
 body {
-    background-color: #f4f6f9;
+    background-color: var(--app-bg);
+}
+
+:root {
+    --app-bg: #f4f6f9;          /* nền chung sáng */
+    --app-surface: #ffffff;     /* topbar / footer / thẻ nội dung */
+    --app-accent: #663300;      /* nâu thương hiệu */
+    --app-accent-2: #a5763f;    /* nâu nhạt (gradient) */
+    --app-accent-dark: #4d2600; /* nâu đậm (hover/active) */
+    --app-text: #212529;        /* chữ đậm trên nền sáng */
+    --app-text-muted: #6c757d;
+    --app-border: #e9ecef;
+    --app-scrollbar-thumb: rgba(102, 51, 0, 0.32);        /* nâu mờ hợp chủ đề */
+    --app-scrollbar-thumb-hover: rgba(102, 51, 0, 0.55);
+}
+
+:root[data-theme="dark"] {
+    --app-bg: #15171a;
+    --app-surface: #1d2024;
+    --app-text: #e6e8eb;
+    --app-text-muted: #9aa0a6;
+    --app-border: #2c3036;
+    --app-scrollbar-thumb: rgba(165, 118, 63, 0.42);      /* nâu nhạt trên nền tối */
+    --app-scrollbar-thumb-hover: rgba(165, 118, 63, 0.65);
+}
+
+/* ------- Thanh cuộn thân thiện, đồng bộ chủ đề (mọi màn + modal) ------- */
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-scrollbar-thumb) transparent;
+}
+
+/* WebKit (Chrome/Edge/Safari) */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--app-scrollbar-thumb);
+    border-radius: 8px;
+    border: 2px solid transparent;   /* tạo khoảng đệm -> nhìn thon, bo tròn */
+    background-clip: padding-box;
+    transition: background-color 0.15s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--app-scrollbar-thumb-hover);
+    background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+    accent-color: var(--app-accent);
+}
+
+.form-control:focus,
+.custom-select:focus,
+.form-check-input:focus {
+    border-color: var(--app-accent);
+    box-shadow: 0 0 0 0.2rem rgba(102, 51, 0, 0.25);
+}
+
+.input-group-text {
+    background-color: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-text-muted);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -5px;
+    margin-left: -5px;
+}
+
+.form-row > .col,
+.form-row > [class*="col-"] {
+    padding-right: 5px;
+    padding-left: 5px;
+}
+
+.btn-block {
+    display: block;
+    width: 100%;
+}
+
+.btn-block + .btn-block {
+    margin-top: 0.5rem;
+}
+
+.mr-0 { margin-right: 0 !important; }
+.mr-1 { margin-right: 0.25rem !important; }
+.mr-2 { margin-right: 0.5rem !important; }
+.mr-3 { margin-right: 1rem !important; }
+.mr-4 { margin-right: 1.5rem !important; }
+.mr-5 { margin-right: 3rem !important; }
+.mr-auto { margin-right: auto !important; }
+
+.ml-0 { margin-left: 0 !important; }
+.ml-1 { margin-left: 0.25rem !important; }
+.ml-2 { margin-left: 0.5rem !important; }
+.ml-3 { margin-left: 1rem !important; }
+.ml-4 { margin-left: 1.5rem !important; }
+.ml-5 { margin-left: 3rem !important; }
+.ml-auto { margin-left: auto !important; }
+
+.pr-0 { padding-right: 0 !important; }
+.pr-1 { padding-right: 0.25rem !important; }
+.pr-2 { padding-right: 0.5rem !important; }
+.pr-3 { padding-right: 1rem !important; }
+.pr-4 { padding-right: 1.5rem !important; }
+.pr-5 { padding-right: 3rem !important; }
+
+.pl-0 { padding-left: 0 !important; }
+.pl-1 { padding-left: 0.25rem !important; }
+.pl-2 { padding-left: 0.5rem !important; }
+.pl-3 { padding-left: 1rem !important; }
+.pl-4 { padding-left: 1.5rem !important; }
+.pl-5 { padding-left: 3rem !important; }
+
+.badge-secondary { background-color: #6c757d; color: #fff; }
+.badge-success { background-color: #198754; color: #fff; }
+.badge-danger { background-color: #dc3545; color: #fff; }
+.badge-warning { background-color: #ffc107; color: #212529; }
+.badge-info { background-color: #0dcaf0; color: #212529; }
+.badge-dark { background-color: #212529; color: #fff; }
+.badge-light { background-color: #f1f3f5; color: #212529; }
+
+a {
+    color: var(--app-accent);
+}
+
+a:hover {
+    color: var(--app-accent-dark);
+}
+
+.btn-primary {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:not(:disabled):not(.disabled):active,
+.btn-primary:not(:disabled):not(.disabled).active {
+    background-color: var(--app-accent-dark);
+    border-color: var(--app-accent-dark);
+}
+
+.btn-outline-primary {
+    color: var(--app-accent);
+    border-color: var(--app-accent);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:not(:disabled):not(.disabled):active {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
+    color: #fff;
+}
+
+.btn-link {
+    color: var(--app-accent);
+}
+
+.btn-link:hover {
+    color: var(--app-accent-dark);
+}
+
+.text-primary {
+    color: var(--app-accent) !important;
+}
+
+.btn-primary:focus,
+.btn-outline-primary:focus,
+.btn-primary.focus,
+.btn-outline-primary.focus {
+    box-shadow: 0 0 0 0.2rem rgba(102, 51, 0, 0.35);
+}
+
+.badge-primary {
+    background-color: var(--app-accent);
+}
+
+.page-link {
+    color: var(--app-accent);
+}
+
+.page-item.active .page-link {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
+    color: #fff;
+}
+
+.bg-accent {
+    background-color: var(--app-accent) !important;
+    color: #fff;
+}
+
+.text-accent {
+    color: var(--app-accent) !important;
+}
+
+.border-accent {
+    border-color: var(--app-accent) !important;
+}
+
+[data-theme="dark"] body {
+    color: var(--app-text);
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .list-group-item,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .card-header,
+[data-theme="dark"] .card-footer {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .custom-select,
+[data-theme="dark"] textarea.form-control,
+[data-theme="dark"] .input-group-text {
+    background-color: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .input-group-text {
+    color: var(--app-text-muted);
+}
+
+[data-theme="dark"] .form-control:disabled,
+[data-theme="dark"] .form-control[readonly] {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: var(--app-text-muted);
+}
+
+[data-theme="dark"] .table {
+    color: var(--app-text);
+}
+
+[data-theme="dark"] .table td,
+[data-theme="dark"] .table th {
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--app-text);
+}
+
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--app-text);
+}
+
+[data-theme="dark"] .bg-light {
+    background-color: var(--app-bg) !important;
+    color: var(--app-text);
+}
+
+[data-theme="dark"] .bg-white {
+    background-color: var(--app-surface) !important;
+}
+
+[data-theme="dark"] .text-dark,
+[data-theme="dark"] .text-black,
+[data-theme="dark"] .text-body,
+[data-theme="dark"] .text-body-emphasis {
+    color: var(--app-text) !important;
+}
+
+/* Bootstrap 5.3 tính .text-muted/.text-secondary theo màu chữ SÁNG (chữ đậm mờ) nên ở chế độ
+   tối chúng thành "chữ tối trên nền tối" -> gần như tàng hình (vd dòng "Bạn chưa có bảng…").
+   Ánh xạ sang biến muted của chủ đề để mọi template dùng các class này tự đồng bộ. */
+[data-theme="dark"] .text-muted,
+[data-theme="dark"] .text-secondary,
+[data-theme="dark"] .text-body-secondary {
+    color: var(--app-text-muted) !important;
+}
+
+[data-theme="dark"] .btn-light {
+    background-color: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .btn-light:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .btn-outline-dark {
+    color: var(--app-text);
+    border-color: var(--app-text);
+}
+
+[data-theme="dark"] .btn-outline-dark:hover,
+[data-theme="dark"] .btn-outline-dark:focus,
+[data-theme="dark"] .btn-outline-dark:not(:disabled):not(.disabled):active {
+    background-color: var(--app-text);
+    border-color: var(--app-text);
+    color: var(--app-bg);
+}
+
+[data-theme="dark"] .btn-dark {
+    background-color: var(--app-text);
+    border-color: var(--app-text);
+    color: var(--app-bg);
+}
+
+[data-theme="dark"] .btn-dark:hover,
+[data-theme="dark"] .btn-dark:focus,
+[data-theme="dark"] .btn-dark:not(:disabled):not(.disabled):active {
+    background-color: #ffffff;
+    border-color: #ffffff;
+    color: #15171a;
+}
+
+[data-theme="dark"] .close {
+    color: var(--app-text);
+    text-shadow: none;
+}
+
+[data-theme="dark"] hr {
+    border-color: var(--app-border);
+}
+
+[data-theme="dark"] .badge-light {
+    background-color: var(--app-bg);
+    color: var(--app-text);
+}
+
+.client-bg,
+#admin-bg {
+    background-color: var(--app-bg);
+    background-image: radial-gradient(circle at 100% 0%, rgba(102, 51, 0, 0.05), transparent 40%);
+    background-attachment: fixed;
+}
+
+.cute-border {
+    background: var(--app-surface);
+    color: var(--app-text);
+    border: 1px solid var(--app-border);
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    padding: 1.25rem;
+}
+
+/* ---- Trang xác thực (login/register) ----
+   AdminLTE gán nền sáng cố định cho .login-page/.register-page và view dùng text-black/text-dark,
+   nên ở chế độ tối các phần này vẫn sáng -> lệch. Buộc dùng biến chủ đề để đồng bộ sáng/tối. */
+.login-page,
+.register-page {
+    background-color: var(--app-bg);
+}
+
+/* AdminLTE đặt nền thân thẻ theo biến Bootstrap (--bs-body-bg, luôn trắng) nên ở chế độ tối
+   ô đăng nhập bị trắng lệch hẳn với thẻ/nền tối. Buộc theo surface của chủ đề để đồng bộ. */
+.login-card-body,
+.register-card-body {
+    background-color: var(--app-surface);
+    color: var(--app-text);
+}
+
+.login-box-msg,
+.register-box-msg {
+    color: var(--app-text-muted);
+}
+
+/* Tên thương hiệu ("My...") — trước là text-black nên chìm trên nền tối. */
+.auth-brand {
+    color: var(--app-text) !important;
+}
+
+/* Liên kết phụ (đăng ký / đã có tài khoản) — trước là text-dark. */
+.auth-link {
+    color: var(--app-accent) !important;
+    text-decoration: none;
+}
+
+.auth-link:hover {
+    color: var(--app-accent-dark) !important;
+}
+
+[data-theme="dark"] .auth-link {
+    color: var(--app-accent-2) !important;
+}
+
+[data-theme="dark"] .auth-link:hover {
+    color: #c79461 !important;
 }

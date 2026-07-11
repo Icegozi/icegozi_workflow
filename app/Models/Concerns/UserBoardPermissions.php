@@ -29,6 +29,13 @@ trait UserBoardPermissions
 
     public function hasBoardPermission(Board $board, string $permissionName): bool
     {
+        // Board đã xoá mềm -> không ai còn quyền (kể cả owner). Cần chặn tại đây vì các
+        // truy vấn RBAC dùng DB::table()/join thô KHÔNG áp global scope của SoftDeletes,
+        // nên pivot board_permissions còn sót vẫn có thể cấp quyền cho board đã xoá.
+        if ($board->trashed()) {
+            return false;
+        }
+
         if ($board->user_id === $this->id) {
             return true;
         }
