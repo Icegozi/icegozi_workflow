@@ -64,7 +64,7 @@ const logout = () => {
 </script>
 
 <template>
-    <nav class="main-header navbar navbar-expand border-bottom">
+    <nav class="app-topbar navbar navbar-expand border-bottom">
         <a class="topbar-brand ml-5" href="/">My<span>App</span></a>
         <!-- Điều hướng bên trái (tuỳ layout) -->
         <ul class="navbar-nav">
@@ -118,10 +118,10 @@ const logout = () => {
 </template>
 
 <!-- Không dùng scoped: các link điều hướng đến từ <slot> (do layout cha render),
-     nên cần selector global, giới hạn phạm vi bằng tiền tố .main-header. -->
+     nên cần selector global, giới hạn phạm vi bằng tiền tố .app-topbar. -->
 <style>
 /* Chuông thông báo */
-.main-header .notif-badge {
+.app-topbar .notif-badge {
     position: absolute;
     top: 2px;
     right: 0;
@@ -137,12 +137,12 @@ const logout = () => {
     text-align: center;
 }
 
-.main-header .topbar-avatar {
+.app-topbar .topbar-avatar {
     object-fit: cover;
     border: 1px solid var(--app-border, #e4e6ea);
 }
 
-.main-header .notif-panel {
+.app-topbar .notif-panel {
     position: absolute;
     top: 120%;
     right: 0;
@@ -155,35 +155,35 @@ const logout = () => {
     background: var(--app-surface, #fff);
 }
 
-.main-header .notif-head {
+.app-topbar .notif-head {
     border-bottom: 1px solid var(--app-border, #eee);
 }
 
-.main-header .notif-list {
+.app-topbar .notif-list {
     max-height: 380px;
     overflow-y: auto;
 }
 
-.main-header .notif-item {
+.app-topbar .notif-item {
     color: var(--app-text, #212529);
     border-bottom: 1px solid rgba(127, 127, 127, 0.12);
     text-decoration: none;
 }
 
-.main-header .notif-item:hover {
+.app-topbar .notif-item:hover {
     background: rgba(127, 127, 127, 0.1);
 }
 
-.main-header .notif-item.unread {
+.app-topbar .notif-item.unread {
     background: rgba(102, 51, 0, 0.08);
 }
 
-.main-header .notif-msg {
+.app-topbar .notif-msg {
     font-size: 0.82rem;
     line-height: 1.35;
 }
 
-.main-header.navbar {
+.app-topbar.navbar {
     background-color: var(--app-surface, #ffffff);
     color: var(--app-text, #212529);
     padding: 0.5rem 1rem;
@@ -194,7 +194,7 @@ const logout = () => {
     justify-content: space-between;
 }
 
-.main-header .topbar-brand {
+.app-topbar .topbar-brand {
     font-size: 1.4rem;
     font-weight: 800;
     letter-spacing: 0.5px;
@@ -206,16 +206,16 @@ const logout = () => {
     align-items: center;
 }
 
-.main-header .topbar-brand span {
+.app-topbar .topbar-brand span {
     color: var(--app-accent, #663300);
 }
 
-.main-header .navbar-nav {
+.app-topbar .navbar-nav {
     display: flex;
     align-items: center;
 }
 
-.main-header .navbar-nav.ml-auto .nav-item {
+.app-topbar .navbar-nav.ml-auto .nav-item {
     margin-left: 15px;
     font-weight: 500;
     color: var(--app-text, #212529);
@@ -223,19 +223,19 @@ const logout = () => {
     align-items: center;
 }
 
-.main-header .navbar-nav.ml-auto .nav-link {
+.app-topbar .navbar-nav.ml-auto .nav-link {
     display: flex;
     align-items: center;
     padding: 8px;
     color: var(--app-text, #212529);
 }
 
-.main-header .navbar-nav.ml-auto .nav-link i {
+.app-topbar .navbar-nav.ml-auto .nav-link i {
     font-size: 16px;
 }
 
 /* Áp cho link bên trái (slot), nút dropdown và link bên phải */
-.main-header .nav-link {
+.app-topbar .nav-link {
     color: var(--app-text, #212529);
     font-size: 14px;
     transition: color 0.3s ease, background-color 0.3s ease;
@@ -243,7 +243,7 @@ const logout = () => {
     align-items: center;
 }
 
-.main-header .nav-link:hover {
+.app-topbar .nav-link:hover {
     color: var(--app-accent, #663300);
     background-color: rgba(0, 0, 0, 0.05);
     border-radius: 5px;

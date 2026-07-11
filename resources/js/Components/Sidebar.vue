@@ -43,7 +43,7 @@ onBeforeUnmount(() => {
 
 <template>
     <aside
-        class="app-sidebar d-flex flex-column flex-shrink-0 p-3"
+        class="workflow-sidebar d-flex flex-column flex-shrink-0 p-3"
         :class="[bgClass, { 'is-collapsed': isCollapsed }]"
     >
         <button
@@ -69,7 +69,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
-.app-sidebar {
+.workflow-sidebar {
     --sb-width: 250px;
     width: var(--sb-width);
     min-width: var(--sb-width);
@@ -93,7 +93,7 @@ onBeforeUnmount(() => {
         padding 0.2s ease;
 }
 
-.app-sidebar.is-collapsed {
+.workflow-sidebar.is-collapsed {
     --sb-width: 72px;
     padding-right: 0.75rem !important;
     padding-left: 0.75rem !important;
@@ -123,18 +123,18 @@ onBeforeUnmount(() => {
     outline: none;
 }
 
-.app-sidebar.is-collapsed .sidebar-toggle {
+.workflow-sidebar.is-collapsed .sidebar-toggle {
     align-self: center;
 }
 
 /* Cả hai biến thể đều bám theme; !important để ghi đè .bg-light của Bootstrap */
-.app-sidebar.bg,
-.app-sidebar.bg-light {
+.workflow-sidebar.bg,
+.workflow-sidebar.bg-light {
     background: var(--app-surface) !important;
 }
 
 /* Mục điều hướng (đến từ slot) */
-.app-sidebar .nav-link {
+.workflow-sidebar .nav-link {
     display: flex;
     align-items: center;
     gap: 0.65rem;
@@ -146,48 +146,48 @@ onBeforeUnmount(() => {
     transition: background-color 0.18s ease, color 0.18s ease;
 }
 
-.app-sidebar .nav-link i {
+.workflow-sidebar .nav-link i {
     width: 1.1rem;
     text-align: center;
     flex-shrink: 0;
 }
 
-.app-sidebar .nav-label {
+.workflow-sidebar .nav-label {
     white-space: nowrap;
 }
 
-.app-sidebar.is-collapsed .nav-link {
+.workflow-sidebar.is-collapsed .nav-link {
     justify-content: center;
     gap: 0;
     padding-right: 0.65rem;
     padding-left: 0.65rem;
 }
 
-.app-sidebar.is-collapsed .nav-label,
-.app-sidebar.is-collapsed .dropdown-toggle::after,
-.app-sidebar.is-collapsed .dropdown-menu {
+.workflow-sidebar.is-collapsed .nav-label,
+.workflow-sidebar.is-collapsed .dropdown-toggle::after,
+.workflow-sidebar.is-collapsed .dropdown-menu {
     display: none;
 }
 
-.app-sidebar .nav-link:hover,
-.app-sidebar .nav-link:focus {
+.workflow-sidebar .nav-link:hover,
+.workflow-sidebar .nav-link:focus {
     background-color: var(--sb-hover-bg);
     color: var(--sb-accent);
 }
 
-.app-sidebar .nav-link.active,
-.app-sidebar .nav-link.active:hover {
+.workflow-sidebar .nav-link.active,
+.workflow-sidebar .nav-link.active:hover {
     background: linear-gradient(135deg, var(--sb-accent), var(--app-accent-2, #a5763f));
     color: #ffffff !important;
     box-shadow: 0 4px 12px rgba(102, 51, 0, 0.35);
 }
 
 /* Dropdown: trải dọc ngay trong sidebar thay vì nổi đè lên */
-.app-sidebar .dropdown-toggle::after {
+.workflow-sidebar .dropdown-toggle::after {
     margin-left: auto;
 }
 
-.app-sidebar .dropdown-menu {
+.workflow-sidebar .dropdown-menu {
     position: static;
     float: none;
     width: 100%;
@@ -199,7 +199,7 @@ onBeforeUnmount(() => {
     box-shadow: none;
 }
 
-.app-sidebar .dropdown-item {
+.workflow-sidebar .dropdown-item {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -210,12 +210,12 @@ onBeforeUnmount(() => {
     transition: background-color 0.18s ease, color 0.18s ease;
 }
 
-.app-sidebar .dropdown-item:hover {
+.workflow-sidebar .dropdown-item:hover {
     background-color: var(--sb-hover-bg);
     color: var(--sb-accent);
 }
 
-.app-sidebar .dropdown-item.disabled {
+.workflow-sidebar .dropdown-item.disabled {
     color: var(--app-text-muted);
 }
 </style>

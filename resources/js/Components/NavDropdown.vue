@@ -26,9 +26,9 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick));
 </template>
 
 <!-- Không scoped: các mục đến từ <slot>. Nút mở dropdown (.nav-link) đã được
-     Topbar tạo kiểu qua '.main-header .nav-link'. Ở đây chỉ định kiểu cho item. -->
+     Topbar tạo kiểu qua '.app-topbar .nav-link'. Ở đây chỉ định kiểu cho item. -->
 <style>
-.main-header .dropdown-item {
+.app-topbar .dropdown-item {
     color: var(--app-text, #212529);
     font-size: 14px;
     transition: background-color 0.3s ease;
@@ -36,7 +36,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick));
     align-items: center;
 }
 
-.main-header .dropdown-item:hover {
+.app-topbar .dropdown-item:hover {
     background-color: rgba(127, 127, 127, 0.1);
     color: var(--app-accent, #663300);
 }

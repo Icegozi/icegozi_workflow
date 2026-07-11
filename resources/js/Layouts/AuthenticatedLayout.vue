@@ -48,11 +48,11 @@ const isRouteActive = (routeName) => {
             </Sidebar>
 
             <!-- Content -->
-            <div class="content-wrapper flex-grow-1 p-3">
+            <main class="layout-content flex-grow-1 p-3">
                 <div class="cute-border w-100 h-100">
                     <slot />
                 </div>
-            </div>
+            </main>
         </div>
 
         <!-- Footer -->
@@ -61,7 +61,7 @@ const isRouteActive = (routeName) => {
 </template>
 
 <style scoped>
-.content-wrapper {
+.layout-content {
     flex: 1;
     /* min-width:0 cho phép con (vd bảng Kanban) cuộn ngang trong vùng này
        thay vì nong rộng cả trang ra ngoài viewport */

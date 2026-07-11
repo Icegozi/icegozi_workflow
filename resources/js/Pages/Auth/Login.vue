@@ -14,15 +14,15 @@ const errors = computed(() => page.props.errors || {});
 <template>
     <Head title="Đăng nhập" />
     <GuestLayout>
-        <div class="login-box">
-            <div class="card card-outline card-secondary">
+        <div class="auth-box">
+            <div class="card auth-card">
                 <div class="card-header text-center">
                     <Link href="/" class="h1 text-decoration-none auth-brand mb-0">
                         My<span class="text-danger">App</span>
                     </Link>
                 </div>
-                <div class="card-body login-card-body">
-                    <p class="login-box-msg">Đăng nhập để bắt đầu phiên làm việc</p>
+                <div class="card-body auth-card-body">
+                    <p class="auth-message">Đăng nhập để bắt đầu phiên làm việc</p>
 
                     <div v-if="errors.login" class="alert alert-danger small p-2">{{ errors.login }}</div>
 
@@ -52,8 +52,3 @@ const errors = computed(() => page.props.errors || {});
         </div>
     </GuestLayout>
 </template>
-<style>   
-.app-sidebar .sidebar-brand span {
-    color: var(--sb-accent);
-}
-</style>

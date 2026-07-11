@@ -80,7 +80,7 @@ User (Người dùng)
 |---|---|
 | Backend | Laravel 10, PHP 8.2 |
 | CSDL | MySQL 8 |
-| Frontend | Blade + Bootstrap 5 + jQuery (AdminLTE), Vite (cho `app.css`/`app.js`) |
+| Frontend | Inertia.js + Vue 3, Bootstrap 5, Vite |
 | Hạ tầng | Docker (Nginx + PHP-FPM + Supervisor trong 1 image), Docker Compose |
 | Mail (dev) | Mailpit |
 

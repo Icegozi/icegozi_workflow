@@ -2,7 +2,6 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import Topbar from '@/Components/Topbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
-import NavDropdown from '@/Components/NavDropdown.vue';
 import Footer from '@/Components/Footer.vue';
 
 const page = usePage();
@@ -72,9 +71,9 @@ const isRouteActive = (routeName) => {
             </Sidebar>
 
             <!-- Content -->
-            <div class="content-wrapper flex-grow-1 p-3">
+            <main class="layout-content flex-grow-1 p-3">
                 <div class="cute-border w-100 h-100"><slot /></div>
-            </div>
+            </main>
         </div>
 
         <Footer />
@@ -82,7 +81,7 @@ const isRouteActive = (routeName) => {
 </template>
 
 <style scoped>
-.content-wrapper {
+.layout-content {
     flex: 1;
     background-image: none;
     margin: 0;
