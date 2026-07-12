@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -12,9 +12,9 @@ const props = defineProps({
     profile: { type: Object, required: true },
 });
 
-const page = usePage();
 // User thường dùng layout người dùng; admin dùng layout quản trị.
 const layout = computed(() => (props.profile.is_admin ? AdminLayout : AuthenticatedLayout));
+const dashboardUrl = computed(() => route(props.profile.is_admin ? 'admin.dashboard' : 'user.dashboard'));
 
 const form = useForm({
     name: props.profile.name,
@@ -66,8 +66,15 @@ const submit = () => {
     <Head title="Hồ sơ cá nhân" />
     <component :is="layout">
         <div class="profile-page">
-            <h3 class="mb-1">Hồ sơ cá nhân</h3>
-            <p class="text-muted small mb-4">Cập nhật ảnh đại diện, thông tin đăng nhập và liên kết mạng xã hội.</p>
+            <div class="profile-heading">
+                <Link :href="dashboardUrl" class="profile-back" title="Quay lại bảng" aria-label="Quay lại bảng">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                </Link>
+                <div>
+                    <h3 class="mb-1">Hồ sơ cá nhân</h3>
+                    <p class="text-muted small mb-4">Cập nhật ảnh đại diện, thông tin đăng nhập và liên kết mạng xã hội.</p>
+                </div>
+            </div>
 
             <div v-if="form.recentlySuccessful" class="alert alert-success py-2 small">
                 <i class="fas fa-check-circle mr-1"></i>Đã lưu thay đổi.
@@ -166,6 +173,20 @@ const submit = () => {
     margin: 0 auto;
 }
 
+.profile-heading {
+    display: flex;
+    align-items: flex-start;
+}
+
+.profile-heading > div {
+    min-width: 0;
+    flex: 1;
+}
+
+.profile-back {
+    display: none;
+}
+
 .section-title {
     font-weight: 700;
     font-size: 0.8rem;
@@ -183,8 +204,26 @@ const submit = () => {
 }
 
 @media (max-width: 575.98px) {
-    .profile-page > p {
+    .profile-heading {
+        gap: 10px;
+    }
+
+    .profile-heading p {
         line-height: 1.5;
+    }
+
+    .profile-back {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        flex: 0 0 42px;
+        border: 1px solid var(--app-border);
+        border-radius: 50%;
+        color: var(--app-text);
+        text-decoration: none;
+        background: var(--app-surface);
     }
 
     .avatar-preview {

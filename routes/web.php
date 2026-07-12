@@ -111,10 +111,10 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // --- Thông báo (in-app) ---
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])
-        ->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])
         ->name('notifications.readAll');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])
+        ->name('notifications.read');
 
     // --- Nhật ký hoạt động của bảng ---
     Route::get('/boards/{board}/activity', [BoardController::class, 'activity'])->name('boards.activity');

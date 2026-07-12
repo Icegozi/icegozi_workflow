@@ -64,7 +64,7 @@ Models frequently expose **static query helpers** (e.g. `Board::getBoardsByUser`
 
 ### Other notes
 - Sanctum is installed and `routes/api.php` is auth:sanctum-guarded, but the app is currently almost entirely server-rendered web routes (`routes/web.php`); API surface is minimal.
-- Notifications: custom `App\Models\Notification` (a DB table the app reads directly) alongside Laravel's `app/Notifications/` (e.g. `BoardInvitationNotification`). Don't assume the standard `notifications` morphable table semantics.
+- Notifications: custom `App\Models\Notification` (a DB table the app reads directly) is used for in-app board invitations and alerts. Laravel notification classes under `app/Notifications/` are reserved for flows that still send mail, such as task-access requests.
 
 ## Deployment gotchas (learned the hard way)
 

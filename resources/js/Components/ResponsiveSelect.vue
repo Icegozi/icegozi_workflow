@@ -1,99 +1,694 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue';
+import {
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    useId,
+    watch,
+} from 'vue';
+
+defineOptions({
+    inheritAttrs: false,
+});
 
 const props = defineProps({
-    modelValue: { type: [String, Number], default: '' },
-    options: { type: Array, required: true },
-    ariaLabel: { type: String, required: true },
-    disabled: { type: Boolean, default: false },
+    modelValue: {
+        type: [String, Number, null],
+        default: null,
+    },
+
+    options: {
+        type: Array,
+        required: true,
+    },
+
+    ariaLabel: {
+        type: String,
+        required: true,
+    },
+
+    placeholder: {
+        type: String,
+        default: null,
+    },
+
+    disabled: {
+        type: Boolean,
+        default: false,
+    },
+
+    placement: {
+        type: String,
+        default: 'auto',
+        validator: (value) =>
+            ['auto', 'top', 'bottom'].includes(value),
+    },
 });
 
 const emit = defineEmits(['update:modelValue']);
 
 const root = ref(null);
 const trigger = ref(null);
-const optionButtons = ref([]);
+const menu = ref(null);
+
 const open = ref(false);
+const resolvedPlacement = ref('bottom');
+
+const menuPosition = ref({
+    top: 0,
+    left: 0,
+    width: 0,
+    maxHeight: 240,
+});
+
 const listboxId = `responsive-select-${useId()}`;
 
-const valuesMatch = (left, right) => String(left ?? '') === String(right ?? '');
-const selectedIndex = computed(() => props.options.findIndex((option) => valuesMatch(option.value, props.modelValue)));
-const selectedOption = computed(() => props.options[selectedIndex.value] ?? props.options[0] ?? null);
+const MENU_GAP = 4;
+const VIEWPORT_PADDING = 8;
+const MAX_MENU_HEIGHT = 240;
+const MIN_USABLE_HEIGHT = 80;
+
+let animationFrameId = null;
+
+const valuesMatch = (left, right) => {
+    return String(left ?? '') === String(right ?? '');
+};
+
+const selectedIndex = computed(() => {
+    return props.options.findIndex((option) =>
+        valuesMatch(
+            option.value,
+            props.modelValue
+        )
+    );
+});
+
+const selectedOption = computed(() => {
+    if (selectedIndex.value < 0) {
+        return null;
+    }
+
+    return (
+        props.options[selectedIndex.value] ??
+        null
+    );
+});
+
+const displayedLabel = computed(() => {
+    return (
+        selectedOption.value?.label ??
+        props.placeholder ??
+        ''
+    );
+});
+
+const menuStyle = computed(() => ({
+    position: 'fixed',
+    top: `${menuPosition.value.top}px`,
+    left: `${menuPosition.value.left}px`,
+    width: `${menuPosition.value.width}px`,
+    maxHeight: `${menuPosition.value.maxHeight}px`,
+}));
+
+const getViewport = () => {
+    const viewport = window.visualViewport;
+
+    return {
+        top: viewport?.offsetTop ?? 0,
+        left: viewport?.offsetLeft ?? 0,
+        width:
+            viewport?.width ??
+            window.innerWidth,
+        height:
+            viewport?.height ??
+            window.innerHeight,
+    };
+};
+
+const calculateMenuPosition = async () => {
+    if (
+        !open.value ||
+        !trigger.value ||
+        !menu.value
+    ) {
+        return;
+    }
+
+    await nextTick();
+
+    const triggerRect =
+        trigger.value.getBoundingClientRect();
+
+    const viewport = getViewport();
+
+    const viewportBottom =
+        viewport.top + viewport.height;
+
+    const viewportRight =
+        viewport.left + viewport.width;
+
+    const availableBelow = Math.max(
+        0,
+        viewportBottom -
+            triggerRect.bottom -
+            MENU_GAP -
+            VIEWPORT_PADDING
+    );
+
+    const availableAbove = Math.max(
+        0,
+        triggerRect.top -
+            viewport.top -
+            MENU_GAP -
+            VIEWPORT_PADDING
+    );
+
+    const desiredHeight = Math.min(
+        menu.value.scrollHeight ||
+            MAX_MENU_HEIGHT,
+        MAX_MENU_HEIGHT
+    );
+
+    /*
+     * Chọn hướng.
+     */
+    if (props.placement === 'top') {
+        resolvedPlacement.value = 'top';
+    } else if (
+        props.placement === 'bottom'
+    ) {
+        resolvedPlacement.value = 'bottom';
+    } else if (
+        availableBelow >= desiredHeight
+    ) {
+        resolvedPlacement.value = 'bottom';
+    } else if (
+        availableAbove >= desiredHeight
+    ) {
+        resolvedPlacement.value = 'top';
+    } else {
+        resolvedPlacement.value =
+            availableAbove > availableBelow
+                ? 'top'
+                : 'bottom';
+    }
+
+    const availableHeight =
+        resolvedPlacement.value === 'top'
+            ? availableAbove
+            : availableBelow;
+
+    const maxHeight = Math.max(
+        Math.min(
+            MIN_USABLE_HEIGHT,
+            Math.max(
+                availableAbove,
+                availableBelow
+            )
+        ),
+        Math.min(
+            MAX_MENU_HEIGHT,
+            Math.floor(availableHeight)
+        )
+    );
+
+    /*
+     * Menu dùng fixed nên cần lấy kích thước
+     * sau khi max-height được cập nhật.
+     */
+    menuPosition.value.maxHeight =
+        maxHeight;
+
+    await nextTick();
+
+    const actualMenuHeight = Math.min(
+        menu.value.scrollHeight,
+        maxHeight
+    );
+
+    let top;
+
+    if (
+        resolvedPlacement.value === 'top'
+    ) {
+        top =
+            triggerRect.top -
+            actualMenuHeight -
+            MENU_GAP;
+    } else {
+        top =
+            triggerRect.bottom +
+            MENU_GAP;
+    }
+
+    /*
+     * Không cho menu vượt viewport theo chiều dọc.
+     */
+    top = Math.max(
+        viewport.top + VIEWPORT_PADDING,
+        Math.min(
+            top,
+            viewportBottom -
+                actualMenuHeight -
+                VIEWPORT_PADDING
+        )
+    );
+
+    let left = triggerRect.left;
+    let width = triggerRect.width;
+
+    /*
+     * Không cho menu vượt viewport theo chiều ngang.
+     */
+    if (
+        left + width >
+        viewportRight - VIEWPORT_PADDING
+    ) {
+        left =
+            viewportRight -
+            width -
+            VIEWPORT_PADDING;
+    }
+
+    left = Math.max(
+        viewport.left + VIEWPORT_PADDING,
+        left
+    );
+
+    width = Math.min(
+        width,
+        viewport.width -
+            VIEWPORT_PADDING * 2
+    );
+
+    menuPosition.value = {
+        top,
+        left,
+        width,
+        maxHeight,
+    };
+};
+
+const schedulePositionUpdate = () => {
+    if (!open.value) {
+        return;
+    }
+
+    if (animationFrameId !== null) {
+        cancelAnimationFrame(
+            animationFrameId
+        );
+    }
+
+    animationFrameId =
+        requestAnimationFrame(() => {
+            animationFrameId = null;
+            calculateMenuPosition();
+        });
+};
+
+const getOptionButtons = () => {
+    if (!menu.value) {
+        return [];
+    }
+
+    return Array.from(
+        menu.value.querySelectorAll(
+            '.responsive-select__option:not(:disabled)'
+        )
+    );
+};
 
 const focusOption = async (index) => {
     await nextTick();
-    optionButtons.value[index]?.focus();
+
+    const buttons = getOptionButtons();
+
+    if (!buttons.length) {
+        return;
+    }
+
+    const option =
+        props.options[index] ??
+        props.options[0];
+
+    const button =
+        buttons.find((element) =>
+            valuesMatch(
+                element.dataset.value,
+                option?.value
+            )
+        ) ?? buttons[0];
+
+    button?.focus();
 };
 
-const showOptions = () => {
-    if (props.disabled) return;
+const showOptions = async () => {
+    if (
+        props.disabled ||
+        props.options.length === 0
+    ) {
+        return;
+    }
+
     open.value = true;
-    focusOption(Math.max(selectedIndex.value, 0));
+
+    await nextTick();
+    await calculateMenuPosition();
+
+    focusOption(
+        Math.max(selectedIndex.value, 0)
+    );
 };
 
-const hideOptions = ({ restoreFocus = false } = {}) => {
+const hideOptions = ({
+    restoreFocus = false,
+} = {}) => {
     open.value = false;
-    if (restoreFocus) nextTick(() => trigger.value?.focus());
+
+    if (restoreFocus) {
+        nextTick(() => {
+            trigger.value?.focus();
+        });
+    }
 };
 
 const toggleOptions = () => {
     if (open.value) {
         hideOptions();
-        return;
-    }
-    showOptions();
-};
-
-const selectOption = (option) => {
-    emit('update:modelValue', option.value);
-    hideOptions({ restoreFocus: true });
-};
-
-const onTriggerKeydown = (event) => {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
+    } else {
         showOptions();
     }
 };
 
-const onOptionKeydown = (event, index) => {
-    let nextIndex = null;
+const selectOption = (option) => {
+    if (option.disabled) {
+        return;
+    }
 
-    if (event.key === 'ArrowDown') nextIndex = (index + 1) % props.options.length;
-    if (event.key === 'ArrowUp') nextIndex = (index - 1 + props.options.length) % props.options.length;
-    if (event.key === 'Home') nextIndex = 0;
-    if (event.key === 'End') nextIndex = props.options.length - 1;
+    emit(
+        'update:modelValue',
+        option.value
+    );
 
-    if (nextIndex !== null) {
+    hideOptions({
+        restoreFocus: true,
+    });
+};
+
+const onNativeChange = (event) => {
+    const value = event.target.value;
+
+    const matchedOption =
+        props.options.find((option) =>
+            valuesMatch(
+                option.value,
+                value
+            )
+        );
+
+    emit(
+        'update:modelValue',
+        matchedOption
+            ? matchedOption.value
+            : value
+    );
+};
+
+const onTriggerKeydown = (event) => {
+    if (
+        [
+            'ArrowDown',
+            'ArrowUp',
+            'Enter',
+            ' ',
+        ].includes(event.key)
+    ) {
         event.preventDefault();
-        focusOption(nextIndex);
+        showOptions();
         return;
     }
 
     if (event.key === 'Escape') {
         event.preventDefault();
-        hideOptions({ restoreFocus: true });
+
+        hideOptions({
+            restoreFocus: true,
+        });
+    }
+};
+
+const findEnabledOptionIndex = (
+    currentIndex,
+    direction
+) => {
+    const total = props.options.length;
+
+    if (!total) {
+        return null;
+    }
+
+    let index = currentIndex;
+
+    for (
+        let attempt = 0;
+        attempt < total;
+        attempt += 1
+    ) {
+        index =
+            (
+                index +
+                direction +
+                total
+            ) % total;
+
+        if (
+            !props.options[index]?.disabled
+        ) {
+            return index;
+        }
+    }
+
+    return null;
+};
+
+const onOptionKeydown = (
+    event,
+    index,
+    option
+) => {
+    let nextIndex = null;
+
+    if (event.key === 'ArrowDown') {
+        nextIndex =
+            findEnabledOptionIndex(
+                index,
+                1
+            );
+    }
+
+    if (event.key === 'ArrowUp') {
+        nextIndex =
+            findEnabledOptionIndex(
+                index,
+                -1
+            );
+    }
+
+    if (event.key === 'Home') {
+        nextIndex =
+            props.options.findIndex(
+                (item) =>
+                    !item.disabled
+            );
+    }
+
+    if (event.key === 'End') {
+        for (
+            let optionIndex =
+                props.options.length - 1;
+            optionIndex >= 0;
+            optionIndex -= 1
+        ) {
+            if (
+                !props.options[
+                    optionIndex
+                ]?.disabled
+            ) {
+                nextIndex = optionIndex;
+                break;
+            }
+        }
+    }
+
+    if (
+        nextIndex !== null &&
+        nextIndex >= 0
+    ) {
+        event.preventDefault();
+        focusOption(nextIndex);
+        return;
+    }
+
+    if (
+        event.key === 'Enter' ||
+        event.key === ' '
+    ) {
+        event.preventDefault();
+        selectOption(option);
+        return;
+    }
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+
+        hideOptions({
+            restoreFocus: true,
+        });
+
+        return;
+    }
+
+    if (event.key === 'Tab') {
+        hideOptions();
     }
 };
 
 const onDocumentPointerDown = (event) => {
-    if (open.value && !root.value?.contains(event.target)) hideOptions();
+    if (!open.value) {
+        return;
+    }
+
+    const clickedRoot =
+        root.value?.contains(event.target);
+
+    const clickedMenu =
+        menu.value?.contains(event.target);
+
+    if (!clickedRoot && !clickedMenu) {
+        hideOptions();
+    }
 };
 
-onMounted(() => document.addEventListener('pointerdown', onDocumentPointerDown));
-onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPointerDown));
+watch(
+    () => props.placement,
+    () => {
+        schedulePositionUpdate();
+    }
+);
+
+watch(
+    () => props.options.length,
+    () => {
+        schedulePositionUpdate();
+    }
+);
+
+watch(
+    () => props.disabled,
+    (disabled) => {
+        if (disabled) {
+            hideOptions();
+        }
+    }
+);
+
+onMounted(() => {
+    document.addEventListener(
+        'pointerdown',
+        onDocumentPointerDown
+    );
+
+    window.addEventListener(
+        'scroll',
+        schedulePositionUpdate,
+        true
+    );
+
+    window.addEventListener(
+        'resize',
+        schedulePositionUpdate
+    );
+
+    window.visualViewport?.addEventListener(
+        'resize',
+        schedulePositionUpdate
+    );
+
+    window.visualViewport?.addEventListener(
+        'scroll',
+        schedulePositionUpdate
+    );
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener(
+        'pointerdown',
+        onDocumentPointerDown
+    );
+
+    window.removeEventListener(
+        'scroll',
+        schedulePositionUpdate,
+        true
+    );
+
+    window.removeEventListener(
+        'resize',
+        schedulePositionUpdate
+    );
+
+    window.visualViewport?.removeEventListener(
+        'resize',
+        schedulePositionUpdate
+    );
+
+    window.visualViewport?.removeEventListener(
+        'scroll',
+        schedulePositionUpdate
+    );
+
+    if (animationFrameId !== null) {
+        cancelAnimationFrame(
+            animationFrameId
+        );
+    }
+});
 </script>
 
 <template>
-    <div ref="root" class="responsive-select">
+    <div
+        ref="root"
+        class="responsive-select"
+        :class="{
+            'is-open': open,
+            'is-disabled': disabled,
+        }"
+    >
         <select
-            class="form-control form-control-sm responsive-select__native"
-            :value="modelValue"
+            class="form-control responsive-select__native"
+            :value="modelValue ?? ''"
             :aria-label="ariaLabel"
             :disabled="disabled"
-            @change="$emit('update:modelValue', $event.target.value)"
+            v-bind="$attrs"
+            @change="onNativeChange"
         >
-            <option v-for="option in options" :key="String(option.value)" :value="option.value">
+            <option
+                v-if="placeholder !== null"
+                value=""
+                disabled
+            >
+                {{ placeholder }}
+            </option>
+
+            <option
+                v-for="option in options"
+                :key="String(option.value)"
+                :value="option.value"
+                :disabled="option.disabled"
+            >
                 {{ option.label }}
             </option>
         </select>
@@ -101,7 +696,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
         <button
             ref="trigger"
             type="button"
-            class="form-control form-control-sm responsive-select__trigger"
+            class="form-control responsive-select__trigger"
             :aria-label="ariaLabel"
             aria-haspopup="listbox"
             :aria-expanded="open"
@@ -110,50 +705,124 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
             @click="toggleOptions"
             @keydown="onTriggerKeydown"
         >
-            <span class="responsive-select__value">{{ selectedOption?.label }}</span>
-            <i class="fas fa-chevron-down responsive-select__chevron" aria-hidden="true"></i>
+            <span
+                class="responsive-select__value"
+                :class="{
+                    'is-placeholder':
+                        !selectedOption,
+                }"
+            >
+                {{ displayedLabel }}
+            </span>
+
+            <i
+                class="fas fa-chevron-down responsive-select__chevron"
+                aria-hidden="true"
+            ></i>
         </button>
 
-        <div v-if="open" :id="listboxId" class="responsive-select__menu" role="listbox" :aria-label="ariaLabel">
-            <button
-                v-for="(option, index) in options"
-                :key="String(option.value)"
-                :ref="(element) => { if (element) optionButtons[index] = element; }"
-                type="button"
-                class="responsive-select__option"
-                :class="{ 'is-selected': valuesMatch(option.value, modelValue) }"
-                role="option"
-                :aria-selected="valuesMatch(option.value, modelValue)"
-                @click="selectOption(option)"
-                @keydown="onOptionKeydown($event, index)"
+        <Teleport to="body">
+            <div
+                v-if="open"
+                :id="listboxId"
+                ref="menu"
+                class="responsive-select__menu"
+                :class="{
+                    'responsive-select__menu--top':
+                        resolvedPlacement ===
+                        'top',
+                    'responsive-select__menu--bottom':
+                        resolvedPlacement ===
+                        'bottom',
+                }"
+                :style="menuStyle"
+                role="listbox"
+                :aria-label="ariaLabel"
             >
-                {{ option.label }}
-            </button>
-        </div>
+                <button
+                    v-for="(option, index) in options"
+                    :key="String(option.value)"
+                    type="button"
+                    class="responsive-select__option"
+                    :class="{
+                        'is-selected':
+                            valuesMatch(
+                                option.value,
+                                modelValue
+                            ),
+                    }"
+                    :data-value="
+                        String(option.value)
+                    "
+                    :disabled="option.disabled"
+                    role="option"
+                    :aria-selected="
+                        valuesMatch(
+                            option.value,
+                            modelValue
+                        )
+                    "
+                    @click="
+                        selectOption(option)
+                    "
+                    @keydown="
+                        onOptionKeydown(
+                            $event,
+                            index,
+                            option
+                        )
+                    "
+                >
+                    <span
+                        class="responsive-select__option-label"
+                    >
+                        {{ option.label }}
+                    </span>
+
+                    <i
+                        v-if="
+                            valuesMatch(
+                                option.value,
+                                modelValue
+                            )
+                        "
+                        class="fas fa-check responsive-select__check"
+                        aria-hidden="true"
+                    ></i>
+                </button>
+            </div>
+        </Teleport>
     </div>
 </template>
 
 <style scoped>
 .responsive-select {
     position: relative;
-    display: inline-block;
+    display: block;
+    width: 100%;
     min-width: 0;
+    max-width: 100%;
 }
 
 .responsive-select__native {
-    width: auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.responsive-select__trigger,
+.responsive-select__trigger {
+    display: none;
+}
+
 .responsive-select__menu {
     display: none;
 }
 
 @media (max-width: 767.98px) {
-    .responsive-select {
-        display: block;
-    }
-
     .responsive-select__native {
         display: none;
     }
@@ -162,8 +831,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
         display: flex;
         align-items: center;
         justify-content: space-between;
+
         width: 100%;
         min-width: 0;
+        max-width: 100%;
+
         color: var(--app-text);
         text-align: left;
         background: var(--app-surface);
@@ -171,64 +843,108 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
 
     .responsive-select__value {
         min-width: 0;
+        flex: 1 1 auto;
+
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .responsive-select__value.is-placeholder {
+        color: var(--app-text-muted);
     }
 
     .responsive-select__chevron {
         flex: 0 0 auto;
         margin-left: 10px;
+
         color: var(--app-text-muted);
         font-size: 0.7rem;
+
         transition: transform 0.15s ease;
     }
 
-    .responsive-select__trigger[aria-expanded="true"] .responsive-select__chevron {
+    .responsive-select__trigger[aria-expanded='true']
+        .responsive-select__chevron {
         transform: rotate(180deg);
     }
+}
 
-    .responsive-select__menu {
-        position: absolute;
-        top: calc(100% + 4px);
-        right: 0;
-        left: 0;
-        z-index: 1060;
-        display: block;
-        width: 100%;
-        min-width: 0;
-        max-width: 100%;
-        max-height: min(240px, calc(100dvh - 120px));
-        padding: 4px;
-        overflow-x: hidden;
-        overflow-y: auto;
-        border: 1px solid var(--app-border);
-        border-radius: 6px;
-        background: var(--app-surface);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
-    }
+/*
+ * Menu được Teleport ra body.
+ * Scoped style vẫn áp dụng vì Vue gắn scope attribute.
+ */
+.responsive-select__menu {
+    z-index: 9999;
 
-    .responsive-select__option {
-        display: block;
-        width: 100%;
-        min-width: 0;
-        padding: 9px 10px;
-        overflow: hidden;
-        border: 0;
-        border-radius: 4px;
-        color: var(--app-text);
-        text-align: left;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        background: transparent;
-    }
+    display: block;
 
-    .responsive-select__option:hover,
-    .responsive-select__option:focus,
-    .responsive-select__option.is-selected {
-        color: #fff;
-        outline: 0;
-        background: var(--app-accent);
-    }
+    min-width: 0;
+
+    padding: 4px;
+
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    border: 1px solid var(--app-border);
+    border-radius: 6px;
+
+    background: var(--app-surface);
+
+    box-shadow:
+        0 8px 24px
+        rgba(0, 0, 0, 0.16);
+
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.responsive-select__option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    width: 100%;
+    min-width: 0;
+
+    gap: 8px;
+    padding: 9px 10px;
+
+    overflow: hidden;
+
+    border: 0;
+    border-radius: 4px;
+
+    color: var(--app-text);
+    text-align: left;
+
+    background: transparent;
+}
+
+.responsive-select__option-label {
+    min-width: 0;
+    flex: 1 1 auto;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.responsive-select__check {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+}
+
+.responsive-select__option:hover,
+.responsive-select__option:focus,
+.responsive-select__option.is-selected {
+    color: #fff;
+    outline: 0;
+    background: var(--app-accent);
+}
+
+.responsive-select__option:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 </style>

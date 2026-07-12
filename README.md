@@ -64,7 +64,7 @@ User (Người dùng)
 - **Nhật ký hoạt động (TaskHistory)**: tự động ghi lại mọi thay đổi trên thẻ.
 
 ### Quản lý thành viên bảng
-- **Mời thành viên qua email** kèm vai trò; lời mời gửi bằng **liên kết có chữ ký số** (signed URL), hết hạn sau 7 ngày.
+- **Mời tài khoản đã đăng ký qua thông báo trong ứng dụng** kèm vai trò; lời mời dùng **liên kết có chữ ký số** (signed URL), hết hạn sau 7 ngày.
 - Chấp nhận lời mời (kiểm tra đúng email + người mời vẫn còn quyền).
 - Cập nhật vai trò / gỡ thành viên / huỷ lời mời đang chờ.
 
@@ -104,7 +104,7 @@ Sau khi chạy xong, mở:
 |---|---|---|
 | Ứng dụng | http://localhost:8888 | Cổng đặt bởi `APP_PORT` trong `.env` |
 | MySQL | `127.0.0.1:2204` | Cổng đặt bởi `DB_PORT` |
-| Mailpit (xem email) | http://localhost:8025 | Giao diện web đọc email mời thành viên |
+| Mailpit (xem email) | http://localhost:8025 | Giao diện web đọc email hệ thống trong môi trường phát triển |
 
 > **Lưu ý về cổng mail:** `MAIL_PORT=1025` là cổng **SMTP** để app *gửi* email (không mở bằng trình duyệt). Còn `http://localhost:8025` là **giao diện web** để *xem* email.
 
@@ -198,7 +198,7 @@ php artisan serve               # http://127.0.0.1:8000
 APP_ENV=production
 APP_DEBUG=false
 APP_KEY=base64:...            # sinh bằng: php artisan key:generate --show
-APP_URL=https://your-domain   # PHẢI đúng domain thật (ảnh hưởng link trong email mời)
+APP_URL=https://your-domain   # PHẢI đúng domain thật (ảnh hưởng các signed URL)
 APP_PORT=8080                 # cổng host map ra ngoài
 
 # CSDL (đặt mật khẩu mạnh)
