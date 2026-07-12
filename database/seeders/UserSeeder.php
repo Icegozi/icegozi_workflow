@@ -13,19 +13,21 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::table('users')->updateOrInsert(
-            ['username' => 'admin'],
-            [
-                'name' => 'Administrator',
-                'email' => 'admin@example.com',
-                'email_verified_at' => now(),
-                'is_admin' => true,
-                'status' => 'active',
-                'password' => Hash::make('password'),
-                'remember_token' => null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]
-        );
+        if (DB::table('users')->where('username', 'admin')->exists()) {
+            return;
+        }
+
+        DB::table('users')->insert([
+            'username' => 'admin',
+            'name' => 'Administrator',
+            'email' => 'admin@example.com',
+            'email_verified_at' => now(),
+            'is_admin' => true,
+            'status' => 'active',
+            'password' => Hash::make('password'),
+            'remember_token' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

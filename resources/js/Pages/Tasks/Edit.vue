@@ -55,6 +55,22 @@ const statusOptions = computed(() => props.statuses.map((s) => ({ value: s.id, l
 
 // ---- Permalink công việc (https://{miền}/b-{board_code}/tasks/{task_code}) ----
 const taskUrl = computed(() => route('tasks.permalink', { boardCode: props.boardCode, taskCode: props.taskCode }));
+const linkCopied = ref(false);
+const copyLink = async () => {
+    try {
+        await navigator.clipboard.writeText(taskUrl.value);
+    } catch {
+        const el = document.createElement('textarea');
+        el.value = taskUrl.value;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+    }
+
+    linkCopied.value = true;
+    window.setTimeout(() => { linkCopied.value = false; }, 1500);
+};
 
 // Nạp task từ server. resetForm=true chỉ dùng khi mở trang: gán lại các ô nhập.
 // Các thao tác phụ (bình luận, checklist, nhãn...) gọi resetForm=false để KHÔNG
@@ -424,6 +440,12 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                 <div class="task-link">
                                     <input class="task-link__input" type="text" :value="taskUrl" readonly
                                         @focus="$event.target.select()">
+                                    <button type="button" class="task-link__btn"
+                                        :title="linkCopied ? 'Đã sao chép' : 'Sao chép liên kết'"
+                                        :aria-label="linkCopied ? 'Đã sao chép liên kết' : 'Sao chép liên kết'"
+                                        @click="copyLink">
+                                        <i :class="linkCopied ? 'fas fa-check' : 'fas fa-copy'"></i>
+                                    </button>
                                     <Link :href="taskUrl" class="task-link__btn" title="Xem chi tiết công việc"
                                         aria-label="Xem chi tiết công việc">
                                         <i class="fas fa-external-link-alt"></i>
