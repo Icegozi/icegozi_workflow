@@ -14,6 +14,7 @@ Railway đã có GitHub Autodeploy, vì vậy dự án không cần GitHub Actio
    APP_DEBUG=false
    APP_KEY=base64:...             # tạo bằng: php artisan key:generate --show
    APP_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}
+   PORT=80
    LOG_CHANNEL=stderr
    LOG_STDERR_FORMATTER=\Monolog\Formatter\JsonFormatter
    DB_CONNECTION=mysql
@@ -32,7 +33,7 @@ Railway đã có GitHub Autodeploy, vì vậy dự án không cần GitHub Actio
 
 ## Cấu hình trong repository
 
-`railway.toml` buộc Railway dùng Railpack thay vì Docker Compose; Railpack tự nhận diện Laravel. Nó chạy `npm run build`, sau đó chạy `railway/init-app.sh` trước khi deploy để migrate database và tạo cache Laravel. Nếu migrate thất bại, deployment mới sẽ không được phát hành.
+`railway.toml` bảo Railway build bằng `Dockerfile`. Dockerfile cài Composer/NPM dependency và build Vite ngay trong image, nên `railway/init-app.sh` có thể chạy migration và tạo cache Laravel trong pre-deploy container. Nếu migrate thất bại, deployment mới sẽ không được phát hành.
 
 `docker-compose.yml` vẫn giữ nguyên cho môi trường local; Railway không sử dụng nó cho service production.
 

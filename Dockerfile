@@ -47,8 +47,21 @@ RUN groupmod -o -g "${PGID}" www-data \
 
 WORKDIR /var/www/html
 
-# Copy source code
+# Copy source code and bake production dependencies into the image. Railway
+# executes pre-deploy commands in a separate container, without this image's
+# entrypoint, so vendor/ and built Vite assets must already exist here.
 COPY . .
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader \
+    && npm ci \
+    && npm run build \
+    && mkdir -p storage/framework/cache \
+    && sha256sum composer.lock | awk '{print $1}' > storage/framework/cache/.composer.lock.sha256 \
+    && sha256sum package-lock.json | awk '{print $1}' > storage/framework/cache/.package-lock.sha256
 
 # PHP / Nginx / Supervisor configuration
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/zzz-app.ini
