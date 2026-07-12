@@ -69,6 +69,35 @@ const deleteColumn = async (col) => {
     }
 };
 
+const deleteTask = async (task) => {
+    const confirmed = await showAppConfirm(
+        `Xoá công việc "${task.title}"? Hành động này không thể hoàn tác.`,
+        'danger'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        await axios.delete(route('tasks.destroy', task.id));
+
+        const column = columns.find((item) =>
+            item.tasks.some((itemTask) => itemTask.id === task.id)
+        );
+
+        if (column) {
+            column.tasks = column.tasks.filter(
+                (itemTask) => itemTask.id !== task.id
+            );
+        }
+    } catch (e) {
+        showAppAlert(
+            e.response?.data?.message || 'Không thể xoá công việc.'
+        );
+    }
+};
+
 // ---- Thêm công việc ----
 const saveTask = async (col, title) => {
     const t = (title || '').trim();
@@ -373,6 +402,7 @@ const openActivity = async () => {
                 :can-edit="canEdit" :can-manage="canManage" :match="taskMatches"
                 @rename="() => renameColumn(col)"
                 @delete="() => deleteColumn(col)"
+                @delete-task="deleteTask"
                 @task-change="(e) => onTaskChange(col, e)"
                 @add-task="(title) => saveTask(col, title)"
                 @open-task="openTask" />

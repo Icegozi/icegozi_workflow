@@ -13,7 +13,14 @@ const props = defineProps({
     match: { type: Function, default: null },
 });
 
-const emit = defineEmits(['rename', 'delete', 'task-change', 'add-task', 'open-task']);
+const emit = defineEmits([
+    'rename',
+    'delete',
+    'delete-task',
+    'task-change',
+    'add-task',
+    'open-task',
+]);
 
 // State cục bộ cho form thêm công việc (mỗi cột tự quản)
 const adding = ref(false);
@@ -45,7 +52,13 @@ const submitTask = () => {
         <draggable v-model="col.tasks" :group="'tasks'" item-key="id" :disabled="!canEdit"
             class="column-content" @change="(e) => emit('task-change', e)">
             <template #item="{ element: task }">
-                <KanbanCard v-show="!match || match(task)" :task="task" @open="emit('open-task', task)" />
+                <KanbanCard
+                    v-show="!match || match(task)"
+                    :task="task"
+                    :can-manage="canManage"
+                    @open="emit('open-task', task)"
+                    @delete="emit('delete-task', task)"
+                />
             </template>
         </draggable>
 
