@@ -1,10 +1,8 @@
 <script setup>
-import { ref } from 'vue';
 import draggable from 'vuedraggable';
 import KanbanCard from '@/Components/KanbanCard.vue';
-import TextInput from '@/Components/TextInput.vue';
 import Btn from '@/Components/Btn.vue';
-import Modal from '@/Components/Modal.vue';
+import { showAppPrompt } from '@/composables/useAppAlert';
 
 const props = defineProps({
     col: { type: Object, required: true },
@@ -22,16 +20,16 @@ const emit = defineEmits([
     'open-task',
 ]);
 
-// State cục bộ cho form thêm công việc (mỗi cột tự quản)
-const adding = ref(false);
-const newTitle = ref('');
+const openAddTask = async () => {
+    const title = await showAppPrompt(
+        `Tên công việc mới trong cột "${props.col.name}":`,
+        '',
+        'warning'
+    );
 
-const submitTask = () => {
-    const title = newTitle.value.trim();
-    if (!title) return;
-    emit('add-task', title);
-    newTitle.value = '';
-    adding.value = false;
+    if (title?.trim()) {
+        emit('add-task', title.trim());
+    }
 };
 </script>
 
@@ -64,23 +62,8 @@ const submitTask = () => {
 
         <div v-if="canEdit" class="mt-2">
             <Btn type="button" variant="white" icon="fas fa-plus"
-                class="btn-sm btn-block add-task-btn" @click="adding = true; newTitle = ''">Thêm công việc</Btn>
+                class="btn-sm btn-block add-task-btn" @click="openAddTask">Thêm công việc</Btn>
         </div>
-
-        <!-- Form thêm công việc trong modal -->
-        <Modal v-if="adding" :title="`Thêm công việc · ${col.name}`" max-width="440px"
-            align="center" @close="adding = false">
-            <form class="modal-form" @submit.prevent="submitTask">
-                <div class="form-group">
-                    <label class="small font-weight-bold mb-1">Tiêu đề công việc</label>
-                    <TextInput v-model="newTitle" placeholder="Nhập tiêu đề công việc..." autofocus group-class="mb-0" />
-                </div>
-                <div class="modal-form__actions">
-                    <Btn type="button" variant="white" class="btn-sm mr-2" @click="adding = false">Huỷ</Btn>
-                    <Btn variant="success" icon="fas fa-plus" class="btn-sm px-3">Thêm công việc</Btn>
-                </div>
-            </form>
-        </Modal>
     </div>
 </template>
 

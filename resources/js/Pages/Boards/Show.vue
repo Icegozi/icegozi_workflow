@@ -8,7 +8,6 @@ import BoardCalendar from '@/Components/BoardCalendar.vue';
 import BoardAnalytics from '@/Components/BoardAnalytics.vue';
 import TaskModal from '@/Components/TaskModal.vue';
 import Modal from '@/Components/Modal.vue';
-import TextInput from '@/Components/TextInput.vue';
 import Btn from '@/Components/Btn.vue';
 import ResponsiveSelect from '@/Components/ResponsiveSelect.vue';
 import {
@@ -27,17 +26,15 @@ const props = defineProps({
 const columns = reactive(props.board.columns.map((c) => ({ ...c, tasks: [...c.tasks] })));
 
 // ---- Thêm cột (hiển thị form trong modal) ----
-const showAddColumn = ref(false);
-const newColumnName = ref('');
-const openAddColumn = () => { newColumnName.value = ''; showAddColumn.value = true; };
-const saveColumn = async () => {
-    const name = newColumnName.value.trim();
-    if (!name) return;
+const openAddColumn = async () => {
+    const name = await showAppPrompt('Tên cột mới:', '', 'warning');
+    if (!name?.trim()) return;
+
     try {
-        const { data } = await axios.post(route('columns.store', props.board.id), { name });
+        const { data } = await axios.post(route('columns.store', props.board.id), {
+            name: name.trim(),
+        });
         columns.push({ id: data.column.id, name: data.column.name, position: data.column.position, tasks: [] });
-        newColumnName.value = '';
-        showAddColumn.value = false;
     } catch (e) {
         showAppAlert(e.response?.data?.message || 'Không thể tạo cột.');
     }
@@ -419,20 +416,6 @@ const openActivity = async () => {
 
         <TaskModal v-if="modalTaskId" :task-id="modalTaskId" :can-edit="canEdit" :can-manage="canManage"
             :board-id="board.id" :columns="columns" @close="closeTask" @move-task="moveTaskToColumn" />
-
-        <!-- Thêm cột mới -->
-        <Modal v-if="showAddColumn" title="Thêm cột mới" max-width="420px" align="center" @close="showAddColumn = false">
-            <form class="modal-form" @submit.prevent="saveColumn">
-                <div class="form-group">
-                    <label class="small font-weight-bold mb-1">Tên cột</label>
-                    <TextInput v-model="newColumnName" placeholder="Nhập tên cột..." autofocus group-class="mb-0" />
-                </div>
-                <div class="modal-form__actions">
-                    <Btn type="button" variant="white" class="btn-sm mr-2" @click="showAddColumn = false">Huỷ</Btn>
-                    <Btn variant="black" class="btn-sm px-3">Tạo cột</Btn>
-                </div>
-            </form>
-        </Modal>
 
         <!-- Task của tôi trong bảng này -->
         <Modal v-if="showMyTasks" max-width="620px" align="center" @close="showMyTasks = false">

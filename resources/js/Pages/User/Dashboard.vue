@@ -5,7 +5,11 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import Modal from '@/Components/Modal.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { showAppConfirm } from '@/composables/useAppAlert';
+import {
+    showAppAlert,
+    showAppConfirm,
+    showAppPrompt,
+} from '@/composables/useAppAlert';
 
 const props = defineProps({
     boards: { type: Array, default: () => [] },
@@ -42,19 +46,18 @@ const duplicate = async (board) => {
 };
 
 // --- Đổi tên bảng ---
-const showRename = ref(false);
-const renameId = ref(null);
 const renameForm = useForm({ name: '' });
-const openRename = (board) => {
-    renameId.value = board.id;
-    renameForm.name = board.name;
+const openRename = async (board) => {
+    const name = await showAppPrompt('Tên bảng mới:', board.name, 'warning');
+    if (!name?.trim() || name.trim() === board.name) return;
+
+    renameForm.name = name.trim();
     renameForm.clearErrors();
-    showRename.value = true;
-};
-const submitRename = () => {
-    renameForm.put(route('boards.update', renameId.value), {
+    renameForm.put(route('boards.update', board.id), {
         preserveScroll: true,
-        onSuccess: () => { showRename.value = false; },
+        onError: () => {
+            showAppAlert(renameForm.errors.name || 'Không thể đổi tên bảng.');
+        },
     });
 };
 
@@ -150,20 +153,6 @@ const destroy = async (board) => {
             </form>
         </Modal>
 
-        <!-- Modal đổi tên -->
-        <Modal v-if="showRename" title="Nhập tên bảng mới" max-width="380px" @close="showRename = false">
-            <form class="modal-form" @submit.prevent="submitRename">
-                <div class="form-group">
-                    <TextInput v-model="renameForm.name" placeholder="Nhập tên..."
-                        required maxlength="255" autofocus group-class="" />
-                    <div v-if="renameForm.errors.name" class="text-danger small mt-1">{{ renameForm.errors.name }}</div>
-                </div>
-                <div class="modal-form__actions">
-                    <Btn type="button" variant="white" class="btn-sm mr-2" @click="showRename = false">Huỷ</Btn>
-                    <Btn variant="black" class="btn-sm px-3" :disabled="renameForm.processing">OK</Btn>
-                </div>
-            </form>
-        </Modal>
     </AuthenticatedLayout>
 </template>
 

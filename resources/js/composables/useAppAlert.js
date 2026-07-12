@@ -8,23 +8,60 @@ export const appAlert = reactive({
     inputValue: '',
 });
 
+const alertQueue = [];
 let confirmResolver = null;
+let isDisplaying = false;
 
-export const showAppAlert = (message, type = 'danger') => {
-    appAlert.message = String(message ?? 'Đã xảy ra lỗi không xác định.');
-    appAlert.mode = 'alert';
-    appAlert.type = type;
+const showNextAlert = () => {
+    if (isDisplaying || !alertQueue.length) {
+        return;
+    }
+
+    const nextAlert = alertQueue.shift();
+    isDisplaying = true;
+    confirmResolver = nextAlert.resolve;
+    appAlert.message = nextAlert.message;
+    appAlert.mode = nextAlert.mode;
+    appAlert.type = nextAlert.type;
+    appAlert.inputValue = nextAlert.inputValue;
     appAlert.isOpen = true;
 };
 
-export const showAppConfirm = (message, type = 'warning') => {
-    appAlert.message = String(message ?? 'Bạn có chắc chắn muốn tiếp tục?');
-    appAlert.mode = 'confirm';
-    appAlert.type = type;
-    appAlert.isOpen = true;
+const queueAlert = (alert) => {
+    alertQueue.push(alert);
+    showNextAlert();
+};
 
+const closeCurrentAlert = (value) => {
+    const resolver = confirmResolver;
+
+    confirmResolver = null;
+    isDisplaying = false;
+    appAlert.isOpen = false;
+    resolver?.(value);
+
+    window.setTimeout(showNextAlert, 0);
+};
+
+export const showAppAlert = (message, type = 'danger') => {
+    queueAlert({
+        message: String(message ?? 'Đã xảy ra lỗi không xác định.'),
+        mode: 'alert',
+        type,
+        inputValue: '',
+        resolve: null,
+    });
+};
+
+export const showAppConfirm = (message, type = 'warning') => {
     return new Promise((resolve) => {
-        confirmResolver = resolve;
+        queueAlert({
+            message: String(message ?? 'Bạn có chắc chắn muốn tiếp tục?'),
+            mode: 'confirm',
+            type,
+            inputValue: '',
+            resolve,
+        });
     });
 };
 
@@ -33,29 +70,21 @@ export const showAppPrompt = (
     initialValue = '',
     type = 'warning'
 ) => {
-    appAlert.message = String(message ?? 'Nhập nội dung');
-    appAlert.mode = 'prompt';
-    appAlert.type = type;
-    appAlert.inputValue = String(initialValue ?? '');
-    appAlert.isOpen = true;
-
     return new Promise((resolve) => {
-        confirmResolver = resolve;
+        queueAlert({
+            message: String(message ?? 'Nhập nội dung'),
+            mode: 'prompt',
+            type,
+            inputValue: String(initialValue ?? ''),
+            resolve,
+        });
     });
 };
 
 export const closeAppAlert = () => {
-    appAlert.isOpen = false;
-    confirmResolver?.(appAlert.mode === 'prompt' ? null : false);
-    confirmResolver = null;
+    closeCurrentAlert(appAlert.mode === 'prompt' ? null : false);
 };
 
 export const confirmAppAlert = () => {
-    appAlert.isOpen = false;
-    confirmResolver?.(
-        appAlert.mode === 'prompt'
-            ? appAlert.inputValue
-            : true
-    );
-    confirmResolver = null;
+    closeCurrentAlert(appAlert.mode === 'prompt' ? appAlert.inputValue : true);
 };

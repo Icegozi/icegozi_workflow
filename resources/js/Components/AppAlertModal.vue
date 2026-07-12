@@ -15,13 +15,46 @@ import {
 
 const closeButton = ref(null);
 const promptInput = ref(null);
+const modal = ref(null);
 let previousFocus = null;
 const isConfirm = () => appAlert.mode === 'confirm';
 const isPrompt = () => appAlert.mode === 'prompt';
 
+const getFocusableElements = () => {
+    return [...(modal.value?.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), [href], select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ) || [])];
+};
+
 const onKeydown = (event) => {
-    if (event.key === 'Escape' && appAlert.isOpen) {
+    if (!appAlert.isOpen) {
+        return;
+    }
+
+    if (event.key === 'Escape') {
         closeAppAlert();
+        return;
+    }
+
+    if (event.key !== 'Tab') {
+        return;
+    }
+
+    const focusableElements = getFocusableElements();
+    if (!focusableElements.length) {
+        event.preventDefault();
+        return;
+    }
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements.at(-1);
+
+    if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+    } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
     }
 };
 
@@ -30,6 +63,7 @@ watch(
     async (isOpen) => {
         if (isOpen) {
             previousFocus = document.activeElement;
+            document.querySelector('#app')?.setAttribute('inert', '');
             await nextTick();
             if (isPrompt()) {
                 promptInput.value?.focus();
@@ -42,6 +76,7 @@ watch(
 
         previousFocus?.focus?.();
         previousFocus = null;
+        document.querySelector('#app')?.removeAttribute('inert');
     }
 );
 
@@ -51,6 +86,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     document.removeEventListener('keydown', onKeydown);
+    document.querySelector('#app')?.removeAttribute('inert');
 });
 </script>
 
@@ -62,6 +98,7 @@ onBeforeUnmount(() => {
             @click.self="closeAppAlert"
         >
             <section
+                ref="modal"
                 class="app-alert-modal"
                 :class="`is-${appAlert.type}`"
                 role="alertdialog"
