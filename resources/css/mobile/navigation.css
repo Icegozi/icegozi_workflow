@@ -544,9 +544,9 @@
         --sb-width: auto;
 
         position: fixed;
-        right: 0;
-        bottom: 0;
-        left: 0;
+        right: 10px;
+        bottom: calc(8px + env(safe-area-inset-bottom));
+        left: 10px;
 
         z-index: 1055;
 
@@ -554,25 +554,21 @@
         min-width: 0 !important;
         max-width: none !important;
 
-        height:
-            calc(var(--mobile-nav-height) + env(safe-area-inset-bottom)) !important;
+        height: var(--mobile-nav-height) !important;
 
         min-height: 0 !important;
 
-        max-height:
-            calc(var(--mobile-nav-height) + env(safe-area-inset-bottom)) !important;
+        max-height: var(--mobile-nav-height) !important;
 
         flex-basis: auto !important;
 
-        padding:
-            6px 8px calc(6px + env(safe-area-inset-bottom)) !important;
+        padding: 4px 6px !important;
 
         overflow: hidden;
 
-        border-top: 1px solid var(--app-border);
-        border-right: 0;
-
-        box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.11);
+        border: 1px solid color-mix(in srgb, var(--app-border) 90%, var(--app-accent));
+        border-radius: 18px;
+        box-shadow: 0 10px 28px rgba(56, 31, 10, 0.18);
 
         overscroll-behavior: none;
     }
@@ -595,7 +591,7 @@
         flex-wrap: nowrap !important;
         align-items: stretch;
 
-        gap: 5px !important;
+        gap: 4px !important;
 
         overflow: hidden !important;
 
@@ -627,23 +623,24 @@
         width: 100%;
         height: 100%;
         min-width: 0;
-        min-height: 52px;
+        min-height: 50px;
         max-width: 100%;
 
         flex-direction: column;
         justify-content: center;
 
-        gap: 0;
+        gap: 2px;
 
-        padding: 5px 3px;
+        padding: 4px 3px;
 
         overflow: hidden;
 
-        border-radius: 10px;
+        border-radius: 13px;
 
-        font-size: 0.68rem;
+        font-size: 0.62rem;
         line-height: 1.1;
         text-align: center;
+        font-weight: 650;
     }
 
     .workflow-sidebar .nav-link i {
@@ -651,7 +648,8 @@
 
         flex: 0 0 auto;
 
-        font-size: 1.15rem;
+        font-size: 1rem;
+        transition: transform 0.18s ease;
     }
 
     .workflow-sidebar .nav-label,
@@ -661,7 +659,22 @@
 
     .workflow-sidebar .nav-link.active,
     .workflow-sidebar .nav-link.active:hover {
-        box-shadow: 0 3px 9px rgba(102, 51, 0, 0.25);
+        position: relative;
+        box-shadow: 0 3px 10px rgba(102, 51, 0, 0.3);
+    }
+
+    .workflow-sidebar .nav-link.active i {
+        transform: translateY(-1px) scale(1.08);
+    }
+
+    .workflow-sidebar .nav-link.active::after {
+        content: '';
+        position: absolute;
+        bottom: 4px;
+        width: 14px;
+        height: 2px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.8);
     }
 }
 
