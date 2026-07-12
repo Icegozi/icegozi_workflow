@@ -1,0 +1,8 @@
+/*
+ * Responsive entry point.
+ * Giữ các quy tắc mobile tách khỏi theme desktop để dễ rà soát và bảo trì.
+ */
+@import './foundation.css';
+@import './navigation.css';
+@import './components.css';
+@import './pages.css';

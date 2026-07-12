@@ -27,7 +27,7 @@
     @inertiaHead
 </head>
 
-<body class="hold-transition layout-top-nav">
+<body>
     @inertia
 </body>
 

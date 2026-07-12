@@ -213,7 +213,7 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
                                 <i class="fas fa-link link-chip__icon"></i>
                                 <span class="link-chip__url">{{ taskUrl }}</span>
                                 <span class="link-chip__copy">
-                                    <i :class="linkCopied ? 'fas fa-check text-success' : 'far fa-copy'"></i>
+                                    <i :class="linkCopied ? 'fas fa-check text-success' : 'fas fa-copy'"></i>
                                 </span>
                             </div>
                         </div>
@@ -563,5 +563,58 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
 [data-theme="dark"] .md-content :deep(blockquote) {
     background: rgba(165, 118, 63, 0.12);
     border-left-color: var(--app-accent-2);
+}
+
+@media (max-width: 575.98px) {
+    .tv-toolbar {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .tv-toolbar .flex-grow-1 {
+        display: none;
+    }
+
+    .tv-toolbar .task-code {
+        align-self: center;
+        justify-self: start;
+        margin-left: 0;
+    }
+
+    .tv-body {
+        margin-right: -6px;
+        margin-left: -6px;
+    }
+
+    .tv-body > [class*="col-"] {
+        padding-right: 6px;
+        padding-left: 6px;
+    }
+
+    .tv-title {
+        font-size: 1.12rem;
+        margin-bottom: 16px;
+    }
+
+    .tv-box,
+    .tv-panel {
+        padding: 12px;
+    }
+
+    .tv-side {
+        margin-top: 12px;
+    }
+
+    .comment {
+        gap: 8px;
+    }
+
+    .comment__head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0;
+    }
 }
 </style>

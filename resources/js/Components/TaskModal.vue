@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import Modal from '@/Components/Modal.vue';
 import Btn from '@/Components/Btn.vue';
@@ -187,8 +187,12 @@ const copyLink = async () => {
                             <i class="fas fa-link link-chip__icon"></i>
                             <span class="link-chip__url">{{ taskUrl }}</span>
                             <span class="link-chip__copy">
-                                <i :class="linkCopied ? 'fas fa-check text-success' : 'far fa-copy'"></i>
+                                <i :class="linkCopied ? 'fas fa-check text-success' : 'fas fa-copy'"></i>
                             </span>
+                            <Link :href="taskUrl" class="link-chip__open" title="Xem trang chi tiết công việc"
+                                aria-label="Xem trang chi tiết công việc" @click.stop>
+                                <i class="fas fa-external-link-alt"></i>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -410,7 +414,17 @@ const copyLink = async () => {
     font-size: 0.75rem;
     color: var(--app-text-muted);
 }
-.link-chip:hover .link-chip__copy { color: var(--app-accent); }
+.link-chip__open {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--app-text-muted);
+    font-size: 0.75rem;
+    text-decoration: none;
+}
+.link-chip:hover .link-chip__copy,
+.link-chip__open:hover { color: var(--app-accent); }
 
 .tm-due { color: var(--app-text); font-size: 0.9rem; }
 
@@ -526,5 +540,52 @@ const copyLink = async () => {
 [data-theme="dark"] .md-content :deep(blockquote) {
     background: rgba(165, 118, 63, 0.12);
     border-left-color: var(--app-accent-2);
+}
+
+@media (max-width: 575.98px) {
+    .tm-body {
+        margin-right: -6px;
+        margin-left: -6px;
+    }
+
+    .tm-main,
+    .tm-side {
+        padding-right: 6px;
+        padding-left: 6px;
+    }
+
+    .tm-main {
+        margin-bottom: 12px !important;
+    }
+
+    .tm-title {
+        height: auto;
+        min-height: 22px;
+        padding: 0;
+        font-size: 1.1rem;
+        line-height: 1.35;
+        color: var(--app-text);
+        overflow-wrap: anywhere;
+    }
+
+    .tm-box,
+    .tm-panel {
+        padding: 12px;
+    }
+
+    .comment {
+        gap: 8px;
+    }
+
+    .comment__avatar {
+        width: 30px;
+        height: 30px;
+    }
+
+    .comment__head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0;
+    }
 }
 </style>

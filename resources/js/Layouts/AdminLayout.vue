@@ -1,9 +1,15 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import Topbar from '@/Components/Topbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
-import NavDropdown from '@/Components/NavDropdown.vue';
 import Footer from '@/Components/Footer.vue';
+
+const page = usePage();
+
+const isRouteActive = (routeName) => {
+    void page.url;
+    return route().current(routeName);
+};
 </script>
 
 <template>
@@ -11,35 +17,63 @@ import Footer from '@/Components/Footer.vue';
         <!-- Topbar -->
         <Topbar></Topbar>
 
-        <div class="d-flex flex-grow-1" id="admin-bg">
+        <div class="app-shell-body d-flex flex-grow-1" id="admin-bg">
             <!-- Sidebar -->
             <Sidebar bg-class="bg-light">
                 <li class="nav-item">
-                    <Link :href="route('admin.dashboard')" class="nav-link">
-                        <i class="fas fa-chart-line fa-fw"></i> Thống kê
+                    <Link
+                        :href="route('admin.dashboard')"
+                        class="nav-link"
+                        :class="{ active: isRouteActive('admin.dashboard*') }"
+                        :aria-current="isRouteActive('admin.dashboard*') ? 'page' : undefined"
+                        title="Thống kê"
+                    >
+                        <i class="fas fa-chart-line fa-fw"></i>
+                        <span class="nav-label">Thống kê</span>
                     </Link>
                 </li>
                 <li class="nav-item">
-                    <Link :href="route('admin.user.index')" class="nav-link">
-                        <i class="fas fa-users fa-fw"></i> Tài khoản
+                    <Link
+                        :href="route('admin.user.index')"
+                        class="nav-link"
+                        :class="{ active: isRouteActive('admin.user.*') }"
+                        :aria-current="isRouteActive('admin.user.*') ? 'page' : undefined"
+                        title="Tài khoản"
+                    >
+                        <i class="fas fa-users fa-fw"></i>
+                        <span class="nav-label">Tài khoản</span>
                     </Link>
                 </li>
                 <li class="nav-item">
-                    <Link :href="route('admin.template.index')" class="nav-link">
-                        <i class="fas fa-clone fa-fw"></i> Mẫu bảng
+                    <Link
+                        :href="route('admin.template.index')"
+                        class="nav-link"
+                        :class="{ active: isRouteActive('admin.template.*') }"
+                        :aria-current="isRouteActive('admin.template.*') ? 'page' : undefined"
+                        title="Mẫu bảng"
+                    >
+                        <i class="fas fa-clone fa-fw"></i>
+                        <span class="nav-label">Mẫu bảng</span>
                     </Link>
                 </li>
                 <li class="nav-item">
-                    <Link :href="route('admin.status.index')" class="nav-link">
-                        <i class="fas fa-flag fa-fw"></i> Trạng thái
+                    <Link
+                        :href="route('admin.status.index')"
+                        class="nav-link"
+                        :class="{ active: isRouteActive('admin.status.*') }"
+                        :aria-current="isRouteActive('admin.status.*') ? 'page' : undefined"
+                        title="Trạng thái"
+                    >
+                        <i class="fas fa-flag fa-fw"></i>
+                        <span class="nav-label">Trạng thái</span>
                     </Link>
                 </li>
             </Sidebar>
 
             <!-- Content -->
-            <div class="content-wrapper flex-grow-1 p-3">
+            <main class="layout-content app-main-content flex-grow-1 p-3">
                 <div class="cute-border w-100 h-100"><slot /></div>
-            </div>
+            </main>
         </div>
 
         <Footer />
@@ -47,7 +81,7 @@ import Footer from '@/Components/Footer.vue';
 </template>
 
 <style scoped>
-.content-wrapper {
+.layout-content {
     flex: 1;
     background-image: none;
     margin: 0;

@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -44,6 +44,55 @@ const newLabelName = ref('');
 const LABEL_COLORS = ['#e5484d', '#f76808', '#ffb224', '#18794e', '#006adc', '#8e4ec6', '#7a869a'];
 const newLabelColor = ref(LABEL_COLORS[0]);
 
+
+// ---- Điều khiển picker / bottom sheet ----
+const closeAssigneePicker = () => {
+    showAssigneePicker.value = false;
+};
+
+const closeLabelPanel = () => {
+    showLabelPanel.value = false;
+};
+
+const toggleAssigneePicker = () => {
+    showLabelPanel.value = false;
+    showAssigneePicker.value = !showAssigneePicker.value;
+};
+
+const toggleLabelPanel = () => {
+    showAssigneePicker.value = false;
+    showLabelPanel.value = !showLabelPanel.value;
+};
+
+const closeAllPickers = () => {
+    closeAssigneePicker();
+    closeLabelPanel();
+};
+
+const isMobileViewport = () =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 575.98px)').matches;
+
+let bodyOverflowBeforeSheet = '';
+let bodyScrollLocked = false;
+
+const syncMobileSheetScroll = () => {
+    if (typeof document === 'undefined') return;
+
+    const shouldLock = isMobileViewport()
+        && (showAssigneePicker.value || showLabelPanel.value);
+
+    if (shouldLock && !bodyScrollLocked) {
+        bodyOverflowBeforeSheet = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        bodyScrollLocked = true;
+    } else if (!shouldLock && bodyScrollLocked) {
+        document.body.style.overflow = bodyOverflowBeforeSheet;
+        bodyScrollLocked = false;
+    }
+};
+
+watch([showAssigneePicker, showLabelPanel], syncMobileSheetScroll);
+
 const PRIORITIES = [
     { value: 'low', label: 'Thấp' },
     { value: 'normal', label: 'Bình thường' },
@@ -54,7 +103,6 @@ const PRIORITIES = [
 const statusOptions = computed(() => props.statuses.map((s) => ({ value: s.id, label: s.name })));
 
 // ---- Permalink công việc (https://{miền}/b-{board_code}/tasks/{task_code}) ----
-// Ziggy trả URL tuyệt đối (kèm host) nên copy ra là link đầy đủ dùng được.
 const taskUrl = computed(() => route('tasks.permalink', { boardCode: props.boardCode, taskCode: props.taskCode }));
 const linkCopied = ref(false);
 const copyLink = async () => {
@@ -68,8 +116,9 @@ const copyLink = async () => {
         document.execCommand('copy');
         document.body.removeChild(el);
     }
+
     linkCopied.value = true;
-    setTimeout(() => { linkCopied.value = false; }, 1500);
+    window.setTimeout(() => { linkCopied.value = false; }, 1500);
 };
 
 // Nạp task từ server. resetForm=true chỉ dùng khi mở trang: gán lại các ô nhập.
@@ -256,17 +305,40 @@ const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeUR
 // ---- Đóng popover khi click ra ngoài ----
 const labelWrap = ref(null);
 const assigneeWrap = ref(null);
+
 const onDocClick = (e) => {
+    // Nội dung bottom sheet được Teleport ra body, không xử lý như click ngoài popover.
+    if (e.target.closest?.('.mobile-sheet-layer')) return;
+
     if (showLabelPanel.value && labelWrap.value && !labelWrap.value.contains(e.target)) {
-        showLabelPanel.value = false;
+        closeLabelPanel();
     }
     if (showAssigneePicker.value && assigneeWrap.value && !assigneeWrap.value.contains(e.target)) {
-        showAssigneePicker.value = false;
+        closeAssigneePicker();
     }
 };
+
+const onKeydown = (e) => {
+    if (e.key === 'Escape') closeAllPickers();
+};
+
 // mousedown (không phải click) để không xung đột với nút bật/tắt popover.
-onMounted(() => document.addEventListener('mousedown', onDocClick));
-onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
+onMounted(() => {
+    document.addEventListener('mousedown', onDocClick);
+    window.addEventListener('keydown', onKeydown);
+    window.addEventListener('resize', syncMobileSheetScroll);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('mousedown', onDocClick);
+    window.removeEventListener('keydown', onKeydown);
+    window.removeEventListener('resize', syncMobileSheetScroll);
+
+    if (bodyScrollLocked) {
+        document.body.style.overflow = bodyOverflowBeforeSheet;
+        bodyScrollLocked = false;
+    }
+});
 </script>
 
 <template>
@@ -305,26 +377,43 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
 
                         <!-- Người phụ trách -->
                         <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
-                        <div class="d-flex align-items-center flex-wrap mb-4" style="gap:8px;">
+                        <div class="entity-list assignee-list mb-4">
                             <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
-                                <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
-                                <span>{{ a.name }}</span>
-                                <button v-if="canManage" class="pill-x" @click="removeAssignee(a)" title="Gỡ">&times;</button>
+                                <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle assignee-pill__avatar"
+                                    width="24" height="24" :title="a.name" :alt="a.name">
+                                <span class="assignee-pill__name" :title="a.name">{{ a.name }}</span>
+                                <button v-if="canManage" type="button" class="pill-x"
+                                    @click="removeAssignee(a)" title="Gỡ người phụ trách"
+                                    :aria-label="`Gỡ ${a.name} khỏi công việc`">&times;</button>
                             </span>
-                            <span v-if="!task.assignees || !task.assignees.length" class="text-muted small">Chưa có ai.</span>
-                            <div v-if="canManage" ref="assigneeWrap" class="position-relative d-inline-block">
-                                <button class="btn-round" @click="showAssigneePicker = !showAssigneePicker" title="Thêm người">
+
+                            <span v-if="!task.assignees || !task.assignees.length" class="entity-empty text-muted small">
+                                Chưa có ai.
+                            </span>
+
+                            <div v-if="canManage" ref="assigneeWrap" class="entity-picker assignee-picker">
+                                <button type="button" class="btn-round"
+                                    @click="toggleAssigneePicker"
+                                    title="Thêm người" aria-label="Thêm người phụ trách">
                                     <i class="fas fa-plus"></i>
                                 </button>
-                                <div v-if="showAssigneePicker" class="popover-card" style="min-width:210px;">
+
+                                <div v-if="showAssigneePicker" class="popover-card assignee-popover desktop-picker-panel">
                                     <div class="list-group list-group-flush">
                                         <a v-for="u in assignableMembers" :key="u.id" href="#"
-                                            class="list-group-item list-group-item-action py-2"
+                                            class="list-group-item list-group-item-action assignee-option py-2"
                                             @click.prevent="addAssignee(u)">
-                                            <img :src="u.avatar_url || avatar(u.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ u.name }}
+                                            <img :src="u.avatar_url || avatar(u.email, 24)"
+                                                class="rounded-circle assignee-option__avatar" width="22" height="22"
+                                                :alt="u.name">
+                                            <span class="assignee-option__name">{{ u.name }}</span>
                                         </a>
-                                        <span v-if="!boardMembers.length" class="list-group-item small text-muted">Không có thành viên.</span>
-                                        <span v-else-if="!assignableMembers.length" class="list-group-item small text-muted">Mọi thành viên đã được giao.</span>
+                                        <span v-if="!boardMembers.length" class="list-group-item small text-muted">
+                                            Không có thành viên.
+                                        </span>
+                                        <span v-else-if="!assignableMembers.length" class="list-group-item small text-muted">
+                                            Mọi thành viên đã được giao.
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -332,42 +421,55 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
 
                         <!-- Nhãn -->
                         <h6 class="sect"><i class="fas fa-tags"></i>Nhãn</h6>
-                        <div class="d-flex align-items-center flex-wrap mb-4" style="gap:6px;">
+                        <div class="entity-list label-list mb-4">
                             <span v-for="l in (task.labels || [])" :key="l.id" class="label-chip"
-                                :style="{ backgroundColor: l.color }">
-                                {{ l.name || 'Nhãn' }}
-                                <button v-if="canEdit" class="chip-x" @click="toggleLabel(l)" title="Gỡ nhãn">&times;</button>
+                                :style="{ backgroundColor: l.color }" :title="l.name || 'Nhãn'">
+                                <span class="label-chip__text">{{ l.name || 'Nhãn' }}</span>
+                                <button v-if="canEdit" type="button" class="chip-x"
+                                    @click="toggleLabel(l)" title="Gỡ nhãn"
+                                    :aria-label="`Gỡ nhãn ${l.name || 'Nhãn'}`">&times;</button>
                             </span>
-                            <span v-if="!task.labels || !task.labels.length" class="text-muted small">Chưa gắn nhãn.</span>
 
-                            <div v-if="canEdit" ref="labelWrap" class="position-relative d-inline-block">
-                                <button class="btn btn-sm btn-outline-secondary" @click="showLabelPanel = !showLabelPanel">
+                            <span v-if="!task.labels || !task.labels.length" class="entity-empty text-muted small">
+                                Chưa gắn nhãn.
+                            </span>
+
+                            <div v-if="canEdit" ref="labelWrap" class="entity-picker label-picker">
+                                <button type="button" class="btn btn-sm btn-outline-secondary label-add-btn"
+                                    @click="toggleLabelPanel">
                                     <i class="fas fa-plus mr-1"></i>Nhãn
                                 </button>
-                                <div v-if="showLabelPanel" class="popover-card p-2" style="min-width:240px;">
+
+                                <div v-if="showLabelPanel" class="popover-card label-popover desktop-picker-panel p-2">
                                     <div class="small text-muted mb-1">Chọn nhãn</div>
-                                    <div class="d-flex flex-column mb-2" style="gap:4px; max-height:180px; overflow-y:auto;">
+                                    <div class="label-option-list mb-2">
                                         <div v-for="l in labels" :key="l.id" class="label-row-wrap">
                                             <button type="button" class="label-row" :class="{ active: hasLabel(l.id) }"
                                                 :style="{ backgroundColor: l.color }" @click="toggleLabel(l)">
-                                                <span>{{ l.name || 'Nhãn' }}</span>
-                                                <i v-if="hasLabel(l.id)" class="fas fa-check"></i>
+                                                <span class="label-row__name">{{ l.name || 'Nhãn' }}</span>
+                                                <i v-if="hasLabel(l.id)" class="fas fa-check label-row__check"></i>
                                             </button>
                                             <button type="button" class="label-del" title="Xoá nhãn khỏi bảng"
+                                                :aria-label="`Xoá nhãn ${l.name || 'Nhãn'} khỏi bảng`"
                                                 @click="deleteLabel(l)">
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
                                         </div>
                                         <span v-if="!labels.length" class="text-muted small">Chưa có nhãn nào.</span>
                                     </div>
+
                                     <div class="small text-muted mb-1">Tạo nhãn mới</div>
-                                    <input type="text" class="form-control form-control-sm mb-2" v-model="newLabelName" placeholder="Tên (tuỳ chọn)" maxlength="255">
-                                    <div class="d-flex align-items-center mb-2" style="gap:5px;">
+                                    <input type="text" class="form-control form-control-sm mb-2"
+                                        v-model="newLabelName" placeholder="Tên (tuỳ chọn)" maxlength="255">
+
+                                    <div class="label-color-list mb-2">
                                         <button v-for="c in LABEL_COLORS" :key="c" type="button" class="color-dot"
                                             :class="{ sel: newLabelColor === c }" :style="{ backgroundColor: c }"
-                                            @click="newLabelColor = c"></button>
+                                            @click="newLabelColor = c" :aria-label="`Chọn màu ${c}`"></button>
                                     </div>
-                                    <button class="btn btn-sm btn-success btn-block" @click="createLabel">Tạo &amp; gắn</button>
+
+                                    <button type="button" class="btn btn-sm btn-success btn-block"
+                                        @click="createLabel">Tạo &amp; gắn</button>
                                 </div>
                             </div>
                         </div>
@@ -440,10 +542,16 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                                 <div class="task-link">
                                     <input class="task-link__input" type="text" :value="taskUrl" readonly
                                         @focus="$event.target.select()">
-                                    <button type="button" class="task-link__btn" :title="linkCopied ? 'Đã sao chép' : 'Sao chép liên kết'"
+                                    <button type="button" class="task-link__btn"
+                                        :title="linkCopied ? 'Đã sao chép' : 'Sao chép liên kết'"
+                                        :aria-label="linkCopied ? 'Đã sao chép liên kết' : 'Sao chép liên kết'"
                                         @click="copyLink">
                                         <i :class="linkCopied ? 'fas fa-check' : 'fas fa-copy'"></i>
                                     </button>
+                                    <Link :href="taskUrl" class="task-link__btn" title="Xem chi tiết công việc"
+                                        aria-label="Xem chi tiết công việc">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </Link>
                                 </div>
                             </div>
                         </div>
@@ -477,6 +585,135 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
                 </div>
             </div>
         </div>
+
+        <!-- Bottom sheet chỉ hiển thị trên mobile; desktop vẫn dùng popover tại vị trí nút. -->
+        <Teleport to="body">
+            <Transition name="mobile-sheet">
+                <div v-if="showAssigneePicker" class="mobile-sheet-layer"
+                    @click.self="closeAssigneePicker">
+                    <section class="mobile-bottom-sheet" role="dialog" aria-modal="true"
+                        aria-labelledby="assignee-sheet-title" @click.stop>
+                        <div class="mobile-sheet-handle" aria-hidden="true"></div>
+
+                        <header class="mobile-sheet-header">
+                            <div>
+                                <h5 id="assignee-sheet-title" class="mobile-sheet-title">Người phụ trách</h5>
+                                <p class="mobile-sheet-subtitle">Chọn hoặc gỡ người phụ trách công việc</p>
+                            </div>
+                            <button type="button" class="mobile-sheet-close" aria-label="Đóng"
+                                @click="closeAssigneePicker">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </header>
+
+                        <div class="mobile-sheet-body">
+                            <div v-if="task?.assignees?.length" class="mobile-sheet-section">
+                                <div class="mobile-sheet-section__title">Đang phụ trách</div>
+                                <div class="mobile-person-list">
+                                    <button v-for="a in task.assignees" :key="`selected-${a.id}`" type="button"
+                                        class="mobile-person-row is-selected"
+                                        :disabled="!canManage"
+                                        @click="canManage && removeAssignee(a)">
+                                        <img :src="a.avatar_url || avatar(a.email, 40)" class="rounded-circle"
+                                            width="40" height="40" :alt="a.name">
+                                        <span class="mobile-person-row__content">
+                                            <strong>{{ a.name }}</strong>
+                                            <small v-if="a.email">{{ a.email }}</small>
+                                        </span>
+                                        <i v-if="canManage" class="fas fa-times mobile-person-row__action"></i>
+                                        <i v-else class="fas fa-check mobile-person-row__action"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mobile-sheet-section mb-0">
+                                <div class="mobile-sheet-section__title">Thêm người phụ trách</div>
+                                <div v-if="assignableMembers.length" class="mobile-person-list">
+                                    <button v-for="u in assignableMembers" :key="`available-${u.id}`" type="button"
+                                        class="mobile-person-row" @click="addAssignee(u)">
+                                        <img :src="u.avatar_url || avatar(u.email, 40)" class="rounded-circle"
+                                            width="40" height="40" :alt="u.name">
+                                        <span class="mobile-person-row__content">
+                                            <strong>{{ u.name }}</strong>
+                                            <small v-if="u.email">{{ u.email }}</small>
+                                        </span>
+                                        <i class="fas fa-plus mobile-person-row__action"></i>
+                                    </button>
+                                </div>
+                                <div v-else class="mobile-sheet-empty">
+                                    {{ !boardMembers.length
+                                        ? 'Không có thành viên trong bảng.'
+                                        : 'Mọi thành viên đã được giao.' }}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </Transition>
+
+            <Transition name="mobile-sheet">
+                <div v-if="showLabelPanel" class="mobile-sheet-layer"
+                    @click.self="closeLabelPanel">
+                    <section class="mobile-bottom-sheet" role="dialog" aria-modal="true"
+                        aria-labelledby="label-sheet-title" @click.stop>
+                        <div class="mobile-sheet-handle" aria-hidden="true"></div>
+
+                        <header class="mobile-sheet-header">
+                            <div>
+                                <h5 id="label-sheet-title" class="mobile-sheet-title">Nhãn</h5>
+                                <p class="mobile-sheet-subtitle">Chọn, tạo hoặc xoá nhãn của công việc</p>
+                            </div>
+                            <button type="button" class="mobile-sheet-close" aria-label="Đóng"
+                                @click="closeLabelPanel">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </header>
+
+                        <div class="mobile-sheet-body">
+                            <div class="mobile-sheet-section">
+                                <div class="mobile-sheet-section__title">Chọn nhãn</div>
+                                <div v-if="labels.length" class="mobile-label-list">
+                                    <div v-for="l in labels" :key="`mobile-label-${l.id}`"
+                                        class="mobile-label-row">
+                                        <button type="button" class="mobile-label-select"
+                                            :class="{ active: hasLabel(l.id) }"
+                                            @click="toggleLabel(l)">
+                                            <span class="mobile-label-color" :style="{ backgroundColor: l.color }"></span>
+                                            <span class="mobile-label-name">{{ l.name || 'Nhãn' }}</span>
+                                            <i v-if="hasLabel(l.id)" class="fas fa-check mobile-label-check"></i>
+                                        </button>
+                                        <button type="button" class="mobile-label-delete"
+                                            :aria-label="`Xoá nhãn ${l.name || 'Nhãn'} khỏi bảng`"
+                                            @click="deleteLabel(l)">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div v-else class="mobile-sheet-empty">Chưa có nhãn nào.</div>
+                            </div>
+
+                            <div class="mobile-sheet-section mb-0">
+                                <div class="mobile-sheet-section__title">Tạo nhãn mới</div>
+                                <input type="text" class="form-control mb-3" v-model="newLabelName"
+                                    placeholder="Tên nhãn (tuỳ chọn)" maxlength="255">
+
+                                <div class="mobile-label-colors mb-3">
+                                    <button v-for="c in LABEL_COLORS" :key="`mobile-${c}`" type="button"
+                                        class="mobile-color-dot" :class="{ sel: newLabelColor === c }"
+                                        :style="{ backgroundColor: c }" @click="newLabelColor = c"
+                                        :aria-label="`Chọn màu ${c}`"></button>
+                                </div>
+
+                                <button type="button" class="btn btn-success btn-block mobile-create-label"
+                                    @click="createLabel">
+                                    <i class="fas fa-plus mr-1"></i>Tạo và gắn nhãn
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </Transition>
+        </Teleport>
     </AuthenticatedLayout>
 </template>
 
@@ -577,13 +814,19 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
 }
 
 .task-link__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    width: 38px;
+    aspect-ratio: 1 / 1;
     border: 1px solid var(--app-border, #e4e6ea);
     background: transparent;
     color: var(--app-accent, #663300);
     border-radius: 6px;
-    padding: 0 10px;
+    padding: 0;
     cursor: pointer;
+    text-decoration: none;
 }
 
 .task-link__btn:hover {
@@ -591,16 +834,67 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
     color: #fff;
 }
 
-/* ---------------- Người phụ trách ---------------- */
+/* ---------------- Người phụ trách / Nhãn ---------------- */
+.entity-list {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.entity-picker {
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+}
+
+.entity-empty {
+    line-height: 30px;
+}
+
 .assignee-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    max-width: 100%;
+    min-width: 0;
     background: rgba(127, 127, 127, 0.1);
     border-radius: 20px;
     padding: 3px 10px 3px 3px;
     font-size: 0.82rem;
     color: var(--app-text);
+}
+
+.assignee-pill__avatar {
+    flex: 0 0 auto;
+    object-fit: cover;
+}
+
+.assignee-pill__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.assignee-option {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 8px;
+}
+
+.assignee-option__avatar {
+    flex: 0 0 auto;
+    object-fit: cover;
+}
+
+.assignee-option__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .pill-x,
@@ -642,6 +936,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
     z-index: 30;
     top: calc(100% + 6px);
     left: 0;
+    max-width: calc(100vw - 32px);
     background: var(--app-surface);
     border: 1px solid var(--app-border);
     border-radius: 10px;
@@ -649,11 +944,21 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
     overflow: hidden;
 }
 
+.assignee-popover {
+    min-width: 210px;
+}
+
+.label-popover {
+    min-width: 240px;
+}
+
 /* ---------------- Nhãn ---------------- */
 .label-chip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    max-width: 100%;
+    min-width: 0;
     height: 24px;
     padding: 0 10px;
     border-radius: 6px;
@@ -661,6 +966,29 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
     font-weight: 600;
     color: #fff;
     line-height: 1;
+}
+
+.label-chip__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.label-option-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.label-color-list {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
 .label-row {
@@ -691,6 +1019,19 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
 .label-row-wrap .label-row {
     flex: 1;
     min-width: 0;
+}
+
+.label-row__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.label-row__check {
+    flex: 0 0 auto;
+    margin-left: 8px;
 }
 
 .label-del {
@@ -852,5 +1193,419 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick));
 [data-theme="dark"] .md-content :deep(blockquote) {
     background: rgba(165, 118, 63, 0.12);
     border-left-color: var(--app-accent-2);
+}
+
+/* ---------------- Bottom sheet mobile ---------------- */
+.mobile-sheet-layer {
+    display: none;
+}
+
+.mobile-sheet-enter-active,
+.mobile-sheet-leave-active {
+    transition: opacity 0.2s ease;
+}
+
+.mobile-sheet-enter-active .mobile-bottom-sheet,
+.mobile-sheet-leave-active .mobile-bottom-sheet {
+    transition: transform 0.24s ease;
+}
+
+.mobile-sheet-enter-from,
+.mobile-sheet-leave-to {
+    opacity: 0;
+}
+
+.mobile-sheet-enter-from .mobile-bottom-sheet,
+.mobile-sheet-leave-to .mobile-bottom-sheet {
+    transform: translateY(100%);
+}
+
+@media (max-width: 575.98px) {
+    .te-header {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+    }
+
+    .te-header__title {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .te-header__title h4 {
+        font-size: 1.05rem;
+        line-height: 1.35;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+    }
+
+    .te-header .task-code {
+        grid-column: 2;
+        grid-row: 2;
+        justify-self: start;
+        margin-left: 0;
+    }
+
+    .te-body {
+        margin-right: -6px;
+        margin-left: -6px;
+    }
+
+    .te-body > [class*="col-"] {
+        padding-right: 6px;
+        padding-left: 6px;
+    }
+
+    .panel {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    .task-side {
+        position: static;
+        margin-top: 12px;
+    }
+
+    /* Hai vùng này giữ kiểu chip/pill như desktop nhưng tự xuống dòng trên mobile. */
+    .entity-list {
+        align-items: center;
+        width: 100%;
+        gap: 8px 6px;
+    }
+
+    .assignee-pill,
+    .label-chip {
+        max-width: 100%;
+    }
+
+    .label-chip {
+        height: auto;
+        min-height: 28px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+
+    .assignee-pill__name {
+        max-width: calc(100vw - 120px);
+    }
+
+    .label-chip__text {
+        max-width: calc(100vw - 96px);
+    }
+
+    /* Trên mobile chỉ giữ nút/chip tại trang; danh sách chọn được đưa vào bottom sheet. */
+    .entity-picker {
+        display: inline-block;
+        flex: 0 0 auto;
+        width: auto;
+    }
+
+    .label-add-btn {
+        width: auto;
+    }
+
+    .desktop-picker-panel {
+        display: none !important;
+    }
+
+    .assignee-option,
+    .label-row-wrap {
+        min-width: 0;
+    }
+
+    .pill-x,
+    .chip-x {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        width: 24px;
+        height: 24px;
+        margin-left: 0;
+    }
+
+    .color-dot {
+        width: 26px;
+        height: 26px;
+    }
+
+    .mobile-sheet-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 0;
+        background: rgba(0, 0, 0, 0.48);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+    }
+
+    .mobile-bottom-sheet {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-height: min(86dvh, 760px);
+        overflow: hidden;
+        background: var(--app-surface, #fff);
+        color: var(--app-text, #212529);
+        border: 1px solid var(--app-border, #e4e6ea);
+        border-bottom: 0;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.24);
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    .mobile-sheet-handle {
+        flex: 0 0 auto;
+        width: 42px;
+        height: 5px;
+        margin: 9px auto 2px;
+        border-radius: 999px;
+        background: var(--app-border, #d6d8dc);
+    }
+
+    .mobile-sheet-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 16px 14px;
+        border-bottom: 1px solid var(--app-border, #e4e6ea);
+    }
+
+    .mobile-sheet-title {
+        margin: 0;
+        color: var(--app-text, #212529);
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.35;
+    }
+
+    .mobile-sheet-subtitle {
+        margin: 3px 0 0;
+        color: var(--app-text-muted, #6c757d);
+        font-size: 0.78rem;
+        line-height: 1.4;
+    }
+
+    .mobile-sheet-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        width: 36px;
+        height: 36px;
+        border: 0;
+        border-radius: 50%;
+        background: rgba(127, 127, 127, 0.12);
+        color: var(--app-text-muted, #6c757d);
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    .mobile-sheet-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 16px;
+    }
+
+    .mobile-sheet-section {
+        margin-bottom: 20px;
+    }
+
+    .mobile-sheet-section__title {
+        margin-bottom: 8px;
+        color: var(--app-text-muted, #6c757d);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.45px;
+        text-transform: uppercase;
+    }
+
+    .mobile-person-list,
+    .mobile-label-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .mobile-person-row {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        min-width: 0;
+        gap: 11px;
+        padding: 10px 12px;
+        border: 1px solid var(--app-border, #e4e6ea);
+        border-radius: 12px;
+        background: transparent;
+        color: var(--app-text, #212529);
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .mobile-person-row.is-selected {
+        background: rgba(127, 127, 127, 0.08);
+    }
+
+    .mobile-person-row:disabled {
+        cursor: default;
+        opacity: 1;
+    }
+
+    .mobile-person-row img {
+        flex: 0 0 auto;
+        object-fit: cover;
+    }
+
+    .mobile-person-row__content {
+        display: flex;
+        flex: 1 1 auto;
+        min-width: 0;
+        flex-direction: column;
+    }
+
+    .mobile-person-row__content strong,
+    .mobile-person-row__content small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mobile-person-row__content strong {
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .mobile-person-row__content small {
+        margin-top: 1px;
+        color: var(--app-text-muted, #6c757d);
+        font-size: 0.74rem;
+    }
+
+    .mobile-person-row__action {
+        flex: 0 0 auto;
+        color: var(--app-accent, #663300);
+        font-size: 0.82rem;
+    }
+
+    .mobile-sheet-empty {
+        padding: 18px 14px;
+        border: 1px dashed var(--app-border, #e4e6ea);
+        border-radius: 12px;
+        color: var(--app-text-muted, #6c757d);
+        font-size: 0.82rem;
+        text-align: center;
+    }
+
+    .mobile-label-row {
+        display: flex;
+        align-items: stretch;
+        min-width: 0;
+        gap: 8px;
+    }
+
+    .mobile-label-select {
+        display: flex;
+        align-items: center;
+        flex: 1 1 auto;
+        min-width: 0;
+        gap: 10px;
+        padding: 11px 12px;
+        border: 1px solid var(--app-border, #e4e6ea);
+        border-radius: 12px;
+        background: transparent;
+        color: var(--app-text, #212529);
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .mobile-label-select.active {
+        border-color: var(--app-accent, #663300);
+        box-shadow: 0 0 0 1px var(--app-accent, #663300) inset;
+    }
+
+    .mobile-label-color {
+        flex: 0 0 auto;
+        width: 16px;
+        height: 16px;
+        border-radius: 5px;
+    }
+
+    .mobile-label-name {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.86rem;
+        font-weight: 600;
+    }
+
+    .mobile-label-check {
+        flex: 0 0 auto;
+        color: var(--app-accent, #663300);
+    }
+
+    .mobile-label-delete {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 44px;
+        width: 44px;
+        border: 1px solid var(--app-border, #e4e6ea);
+        border-radius: 12px;
+        background: transparent;
+        color: #e5484d;
+        cursor: pointer;
+    }
+
+    .mobile-label-colors {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 9px;
+    }
+
+    .mobile-color-dot {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        min-width: 0;
+        border: 3px solid var(--app-surface, #fff);
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px var(--app-border, #d6d8dc);
+        cursor: pointer;
+    }
+
+    .mobile-color-dot.sel {
+        box-shadow: 0 0 0 3px var(--app-text, #212529);
+    }
+
+    .mobile-create-label {
+        min-height: 44px;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+
+    .mention-pop {
+        right: 0;
+        min-width: 0;
+    }
+
+    .comment {
+        gap: 8px;
+    }
+
+    .comment__head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0;
+    }
 }
 </style>

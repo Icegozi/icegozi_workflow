@@ -494,4 +494,114 @@ const stats = [
     .lp-nav { display: none; }
     .lp-header__inner { height: 62px; }
 }
+
+@media (max-width: 575.98px) {
+    .lp-container {
+        width: calc(100% - 24px);
+    }
+
+    .lp-header__inner {
+        gap: 6px;
+    }
+
+    .lp-brand {
+        font-size: 20px;
+    }
+
+    .lp-header__actions {
+        gap: 4px;
+    }
+
+    .lp-header__actions .lp-btn {
+        min-height: 42px;
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    .lp-header__actions .lp-btn--icon {
+        width: 38px;
+        padding-right: 0;
+        padding-left: 0;
+    }
+
+    .lp-hero {
+        min-height: calc(100dvh - 62px);
+        padding: 48px 0;
+    }
+
+    .lp-hero h1 {
+        font-size: 30px;
+    }
+
+    .lp-hero h1 br {
+        display: none;
+    }
+
+    .lp-hero p {
+        margin-bottom: 24px;
+        font-size: 15px;
+    }
+
+    .lp-hero__cta {
+        flex-direction: column;
+    }
+
+    .lp-hero__cta .lp-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .lp-section {
+        padding: 52px 0;
+    }
+
+    .lp-head {
+        margin-bottom: 34px;
+    }
+
+    .lp-grid {
+        gap: 14px;
+    }
+
+    .lp-grid--cards,
+    .lp-grid--steps,
+    .lp-grid--stats {
+        grid-template-columns: 1fr;
+    }
+
+    .lp-card {
+        padding: 24px 18px;
+    }
+
+    .lp-stats {
+        padding: 48px 0;
+    }
+
+    .lp-cta {
+        padding: 52px 0;
+    }
+
+    .lp-cta .lp-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .lp-footer__top {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 30px 0;
+    }
+
+    .lp-footer__links {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .lp-footer__bottom .lp-container {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
 </style>

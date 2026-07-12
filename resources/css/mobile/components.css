@@ -1,0 +1,228 @@
+/* Component primitives: bảng, modal, biểu đồ và nội dung có thể cuộn. */
+@media (max-width: 767.98px) {
+    /* Select/dropdown không được lấy bề rộng từ option dài trên màn hình nhỏ. */
+    .app-main-content select.form-control,
+    .app-main-content select.form-select,
+    .app-main-content select.custom-select,
+    .modal-card select.form-control,
+    .modal-card select.form-select,
+    .modal-card select.custom-select {
+        min-width: 0;
+        max-width: 100% !important;
+        overflow: hidden;
+        color: var(--app-text);
+        background-color: var(--app-surface);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        scrollbar-width: thin;
+        scrollbar-color: var(--app-scrollbar-thumb) transparent;
+    }
+
+    /*
+     * Popup của native select do trình duyệt tự tính kích thước. Không ép width
+     * cho option: Chromium sẽ dùng giá trị đó để nới rộng popup vượt viewport.
+     */
+    .app-main-content select option,
+    .modal-card select option {
+        color: var(--app-text);
+        background: var(--app-surface);
+    }
+
+    /* Menu HTML bám đúng chiều rộng control thay vì nở theo nội dung. */
+    .app-main-content .dropdown,
+    .modal-card .dropdown {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .app-main-content .dropdown-menu,
+    .modal-card .dropdown-menu {
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+        max-height: min(280px, calc(100dvh - 120px));
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        color: var(--app-text);
+        background: var(--app-surface);
+        border-color: var(--app-border);
+        scrollbar-width: thin;
+        scrollbar-color: var(--app-scrollbar-thumb) transparent;
+    }
+
+    .app-main-content .dropdown-item,
+    .modal-card .dropdown-item {
+        max-width: 100%;
+        overflow: hidden;
+        color: var(--app-text);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .app-main-content select::-webkit-scrollbar,
+    .modal-card select::-webkit-scrollbar,
+    .app-main-content .dropdown-menu::-webkit-scrollbar,
+    .modal-card .dropdown-menu::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+    }
+
+    .app-main-content select::-webkit-scrollbar-thumb,
+    .modal-card select::-webkit-scrollbar-thumb,
+    .app-main-content .dropdown-menu::-webkit-scrollbar-thumb,
+    .modal-card .dropdown-menu::-webkit-scrollbar-thumb {
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: var(--app-scrollbar-thumb);
+        background-clip: padding-box;
+    }
+
+    .app-main-content select::-webkit-scrollbar-thumb:hover,
+    .modal-card select::-webkit-scrollbar-thumb:hover,
+    .app-main-content .dropdown-menu::-webkit-scrollbar-thumb:hover,
+    .modal-card .dropdown-menu::-webkit-scrollbar-thumb:hover {
+        background: var(--app-scrollbar-thumb-hover);
+        background-clip: padding-box;
+    }
+
+    .dt-wrap {
+        overflow: visible;
+    }
+
+    .dt-wrap .dt {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .dt-wrap .dt thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+    }
+
+    .dt-wrap .dt tbody {
+        display: grid;
+        gap: 10px;
+    }
+
+    .dt-wrap .dt tbody tr {
+        display: block;
+        padding: 6px 10px;
+        border: 1px solid var(--app-border);
+        border-left: 3px solid var(--app-accent);
+        border-radius: 10px;
+        background: var(--app-surface);
+        box-shadow: 0 2px 7px rgba(0, 0, 0, 0.04);
+    }
+
+    .dt-wrap .dt tbody td {
+        display: grid;
+        grid-template-columns: minmax(86px, 38%) minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        width: 100% !important;
+        padding: 8px 0;
+        border-top: 1px solid rgba(127, 127, 127, 0.12);
+        text-align: right !important;
+        overflow-wrap: anywhere;
+    }
+
+    .dt-wrap .dt tbody td:first-child {
+        border-top: 0;
+    }
+
+    .dt-wrap .dt tbody td::before {
+        content: attr(data-label);
+        color: var(--app-text-muted);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.25px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .dt-wrap .dt tbody td > * {
+        min-width: 0;
+        justify-self: end;
+    }
+
+    .dt-wrap .dt tbody .dt-actions {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        gap: 6px;
+        padding-top: 10px;
+    }
+
+    .dt-wrap .dt tbody .dt-actions::before {
+        content: none;
+    }
+
+    .dt-wrap .dt tbody .dt-actions > * {
+        flex: 0 0 auto;
+        margin-right: 0 !important;
+    }
+
+    .dt-wrap .dt tbody .dt-empty {
+        display: block;
+        padding: 24px 8px !important;
+        text-align: center !important;
+        border: 0;
+    }
+
+    .dt-wrap .dt tbody .dt-empty::before {
+        content: none;
+    }
+
+    .modal-backdrop-custom {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+
+    .modal-backdrop-custom .modal-card {
+        max-width: 100% !important;
+        max-height: 92dvh !important;
+        border-radius: 16px 16px 0 0 !important;
+    }
+
+    .modal-backdrop-custom .modal-card__header {
+        min-height: 54px;
+        padding: 10px 14px;
+    }
+
+    .modal-backdrop-custom .modal-card__body {
+        padding: 12px;
+        overscroll-behavior: contain;
+    }
+
+    .modal-backdrop-custom .modal-card__close {
+        width: 42px;
+        height: 42px;
+        padding: 0;
+    }
+
+    .board-calendar {
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+    }
+
+    .board-calendar .cal-grid {
+        min-width: 680px;
+    }
+
+    .chart-card canvas {
+        max-height: 260px;
+    }
+
+    .md-content pre,
+    .markdown-preview pre,
+    .comment__content pre {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+}

@@ -88,4 +88,10 @@
     background-color: var(--app-accent, #663300);
     color: #fff;
 }
+
+@media (max-width: 767.98px) {
+    .footer {
+        display: none;
+    }
+}
 </style>
