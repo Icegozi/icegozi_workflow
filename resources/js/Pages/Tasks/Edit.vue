@@ -348,9 +348,9 @@ onUnmounted(() => {
         <div class="task-edit">
             <!-- Header -->
             <header class="te-header">
-                <Btn type="button" variant="white" icon="fas fa-arrow-left" class="btn-sm" @click="backToBoard">
-                    Quay lại
-                </Btn>
+                <button type="button" class="task-back" title="Quay lại" aria-label="Quay lại" @click="backToBoard">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                </button>
                 <span class="task-code">#{{ displayCode }}</span>
                 <div class="te-header__title">
                     <div class="text-muted small text-truncate" :title="boardName">{{ boardName }}</div>
@@ -732,6 +732,32 @@ onUnmounted(() => {
     padding-bottom: 16px;
     margin-bottom: 20px;
     border-bottom: 1px solid var(--app-border);
+}
+
+/* Đồng bộ nút quay lại dạng icon tròn với trang Hồ sơ cá nhân. */
+.task-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    padding: 0;
+    border: 1px solid var(--app-border);
+    border-radius: 50%;
+    color: var(--app-text);
+    background: var(--app-surface);
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.task-back:hover,
+.task-back:focus-visible {
+    border-color: var(--app-accent);
+    color: #fff;
+    background: var(--app-accent);
+    transform: translateX(-2px);
+    outline: none;
 }
 
 .te-header__title {

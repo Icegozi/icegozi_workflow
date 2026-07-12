@@ -110,9 +110,9 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
         <div class="task-view">
             <!-- Thanh công cụ -->
             <div class="tv-toolbar">
-                <Btn type="button" variant="white" class="btn-sm" icon="fas fa-arrow-left" @click="backToBoard">
-                    Quay lại
-                </Btn>
+                <button type="button" class="task-back" title="Quay lại" aria-label="Quay lại" @click="backToBoard">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                </button>
                 <span class="task-code">#{{ displayCode }}</span>
                 <span class="flex-grow-1"></span>
                 <Btn v-if="canEdit" type="button" variant="black" class="btn-sm" icon="fas fa-pen" @click="goEdit">
@@ -254,6 +254,32 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
     align-items: center;
     gap: 10px;
     margin-bottom: 20px;
+}
+
+/* Đồng bộ nút quay lại dạng icon tròn với trang Hồ sơ cá nhân. */
+.task-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    padding: 0;
+    border: 1px solid var(--app-border);
+    border-radius: 50%;
+    color: var(--app-text);
+    background: var(--app-surface);
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.task-back:hover,
+.task-back:focus-visible {
+    border-color: var(--app-accent);
+    color: #fff;
+    background: var(--app-accent);
+    transform: translateX(-2px);
+    outline: none;
 }
 
 .task-code {

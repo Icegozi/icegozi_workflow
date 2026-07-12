@@ -26,7 +26,8 @@ textarea {
 
 @media (max-width: 767.98px) {
     :root {
-        --mobile-nav-height: 68px;
+        /* Bottom nav nổi, gọn hơn nhưng vẫn đủ vùng chạm an toàn. */
+        --mobile-nav-height: 60px;
         --mobile-gutter: 10px;
         --mobile-radius: 12px;
     }
@@ -46,7 +47,7 @@ textarea {
         max-width: 100vw;
         overflow-x: clip;
         overscroll-behavior-x: none;
-        padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
+        padding-bottom: calc(var(--mobile-nav-height) + 18px + env(safe-area-inset-bottom));
     }
 
     .app-shell-body {
