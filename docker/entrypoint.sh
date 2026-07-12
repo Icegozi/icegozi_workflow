@@ -87,9 +87,14 @@ if ! grep -q '^APP_KEY=base64:' .env; then
 fi
 
 # -----------------------------------------------------------------------------
-# Wait for MySQL
+# Wait for MySQL only when this container will run a database operation.
+#
+# Railway performs migrations in railway/init-app.sh as a pre-deploy command.
+# Waiting here as well delays Nginx/PHP-FPM indefinitely when the database is
+# unavailable, so the service can never satisfy Railway's health check.
 # -----------------------------------------------------------------------------
-if [ "${DB_CONNECTION:-mysql}" = "mysql" ]; then
+if [ "${DB_CONNECTION:-mysql}" = "mysql" ] \
+    && { [ "${RUN_MIGRATIONS:-false}" = "true" ] || [ "${RUN_SEEDERS:-false}" = "true" ]; }; then
     echo "[entrypoint] Waiting for MySQL (${DB_HOST}:${DB_PORT})..."
 
     until php -r "exit(@fsockopen(getenv('DB_HOST'), (int)getenv('DB_PORT')) ? 0 : 1);" >/dev/null 2>&1
@@ -103,7 +108,7 @@ fi
 # -----------------------------------------------------------------------------
 # Run migrations
 # -----------------------------------------------------------------------------
-if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     echo "[entrypoint] Running migrations..."
     php artisan migrate --force
 fi
