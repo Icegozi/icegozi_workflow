@@ -109,6 +109,37 @@ input[type="range"] {
     margin-top: 0.5rem;
 }
 
+/* Nút chỉ chứa một icon luôn giữ tỉ lệ hình vuông. */
+.btn--icon-only {
+    width: 38px;
+    min-height: 38px;
+    height: 38px;
+    padding: 0;
+}
+
+.btn--icon-only.btn-sm,
+.btn-group-sm > .btn--icon-only {
+    width: 32px;
+    min-height: 32px;
+    height: 32px;
+    padding: 0;
+}
+
+@media (max-width: 767.98px) {
+    .btn--icon-only {
+        width: 42px;
+        min-height: 42px;
+        height: 42px;
+    }
+
+    .btn--icon-only.btn-sm,
+    .btn-group-sm > .btn--icon-only {
+        width: 38px;
+        min-height: 38px;
+        height: 38px;
+    }
+}
+
 .mr-0 { margin-right: 0 !important; }
 .mr-1 { margin-right: 0.25rem !important; }
 .mr-2 { margin-right: 0.5rem !important; }

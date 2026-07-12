@@ -33,10 +33,10 @@ const submitTask = () => {
         <div class="column-header d-flex justify-content-between align-items-center mb-2">
             <h5 class="column-title flex-grow-1 mr-2 mb-0">{{ col.name }}</h5>
             <div v-if="canEdit" class="column-actions">
-                <button class="btn btn-sm btn-light" title="Đổi tên cột" @click="emit('rename')">
+                <button class="btn btn-sm btn-light btn--icon-only" title="Đổi tên cột" @click="emit('rename')">
                     <i class="fas fa-pencil-alt"></i>
                 </button>
-                <button v-if="canManage" class="btn btn-sm btn-light" title="Xoá cột" @click="emit('delete')">
+                <button v-if="canManage" class="btn btn-sm btn-light btn--icon-only" title="Xoá cột" @click="emit('delete')">
                     <i class="fas fa-trash-alt"></i>
                 </button>
             </div>

@@ -780,6 +780,8 @@ const cancelInvite = (
 
 .settings-grid {
     align-items: flex-start;
+    margin-right: 0;
+    margin-left: 0;
 }
 
 /* =========================================================
@@ -1167,6 +1169,15 @@ const cancelInvite = (
    ========================================================= */
 
 @media (max-width: 767.98px) {
+    /*
+     * Khi các cột xếp chồng, margin của row đã được triệt tiêu
+     * nên cũng cần bỏ gutter của col để panel thẳng hàng với header.
+     */
+    .settings-grid > [class*='col-'] {
+        padding-right: 0;
+        padding-left: 0;
+    }
+
     /*
      * Trên mobile DataTable thường đổi mỗi tr thành card.
      * Không cố định toàn bộ card ở 56px vì còn nhiều field.

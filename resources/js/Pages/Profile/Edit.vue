@@ -81,7 +81,7 @@ const submit = () => {
             </div>
 
             <form @submit.prevent="submit">
-                <div class="row">
+                <div class="row profile-grid">
                     <!-- Ảnh đại diện -->
                     <div class="col-12 col-lg-4 mb-4">
                         <div class="card shadow-sm h-100">
@@ -178,6 +178,11 @@ const submit = () => {
     align-items: flex-start;
 }
 
+.profile-grid {
+    margin-right: 0;
+    margin-left: 0;
+}
+
 .profile-heading > div {
     min-width: 0;
     flex: 1;
@@ -204,6 +209,11 @@ const submit = () => {
 }
 
 @media (max-width: 575.98px) {
+    .profile-grid > [class*='col-'] {
+        padding-right: 0;
+        padding-left: 0;
+    }
+
     .profile-heading {
         gap: 10px;
     }

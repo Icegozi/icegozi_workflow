@@ -70,7 +70,7 @@ const submit = () => {
                     <div class="input-group-prepend"><span class="input-group-text">{{ i + 1 }}</span></div>
                     <input type="text" class="form-control" v-model="form.columns[i]" placeholder="Tên cột..." maxlength="255">
                     <div class="input-group-append">
-                        <button type="button" class="btn btn-outline-danger" @click="removeColumn(i)"
+                        <button type="button" class="btn btn-outline-danger btn--icon-only" @click="removeColumn(i)"
                             :disabled="form.columns.length <= 1">&times;</button>
                     </div>
                 </div>
@@ -98,7 +98,7 @@ const submit = () => {
                     <input type="text" class="form-control form-control-sm" style="max-width:220px;" v-model="l.name" placeholder="Tên nhãn..." maxlength="255">
                     <button v-for="c in LABEL_COLORS" :key="c" type="button" class="color-dot"
                         :class="{ sel: l.color === c }" :style="{ backgroundColor: c }" @click="l.color = c"></button>
-                    <button type="button" class="btn btn-sm btn-outline-danger" @click="removeLabel(i)">&times;</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger btn--icon-only" @click="removeLabel(i)">&times;</button>
                 </div>
                 <button type="button" class="btn btn-sm btn-light" @click="addLabel"><i class="fas fa-plus mr-1"></i>Thêm nhãn</button>
             </div>

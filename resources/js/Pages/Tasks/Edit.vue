@@ -504,7 +504,7 @@ onUnmounted(() => {
                                 <input type="text" class="form-control" v-model="newChecklistItem"
                                     placeholder="Thêm mục mới..." maxlength="255" @keyup.enter="addChecklist">
                                 <div class="input-group-append">
-                                    <button class="btn btn-outline-secondary" @click="addChecklist">
+                                    <button class="btn btn-outline-secondary btn--icon-only" @click="addChecklist">
                                         <i class="fas fa-plus"></i>
                                     </button>
                                 </div>
