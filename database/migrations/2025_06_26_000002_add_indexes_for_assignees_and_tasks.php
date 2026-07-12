@@ -13,13 +13,19 @@ return new class () extends Migration {
     public function up(): void
     {
         // Dọn dữ liệu trùng tồn đọng trước khi tạo unique index (nếu có).
-        DB::statement('
-            DELETE a1 FROM assignees a1
-            INNER JOIN assignees a2
-                ON a1.task_id = a2.task_id
-               AND a1.user_id = a2.user_id
-               AND a1.id > a2.id
-        ');
+        // Delete duplicate rows in a database-agnostic way so the migration
+        // also works with the SQLite in-memory test database.
+        $duplicateIds = DB::table('assignees as duplicate')
+            ->join('assignees as original', function ($join) {
+                $join->on('duplicate.task_id', '=', 'original.task_id')
+                    ->on('duplicate.user_id', '=', 'original.user_id')
+                    ->whereColumn('duplicate.id', '>', 'original.id');
+            })
+            ->pluck('duplicate.id');
+
+        $duplicateIds->chunk(1000)->each(function ($ids) {
+            DB::table('assignees')->whereIn('id', $ids)->delete();
+        });
 
         Schema::table('assignees', function (Blueprint $table) {
             $table->unique(['task_id', 'user_id'], 'assignees_task_user_unique');

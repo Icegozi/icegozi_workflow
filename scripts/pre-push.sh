@@ -38,10 +38,26 @@ else
     echo "[pre-push] No changed PHP files in app/, routes/, or config/."
 fi
 
+TEST_ENV=(
+    APP_ENV=testing
+    APP_CONFIG_CACHE=/tmp/laravel-pre-push-config.php
+    DB_CONNECTION=sqlite
+    DB_DATABASE=:memory:
+    CACHE_DRIVER=array
+    SESSION_DRIVER=array
+    QUEUE_CONNECTION=sync
+)
+
 if docker compose exec -T app true >/dev/null 2>&1; then
     RUN=(docker compose exec -T app)
+    TEST_RUN=(docker compose exec -T)
+    for environment in "${TEST_ENV[@]}"; do
+        TEST_RUN+=(-e "$environment")
+    done
+    TEST_RUN+=(app)
 else
     RUN=()
+    TEST_RUN=(env "${TEST_ENV[@]}")
     if ! php -r 'exit(extension_loaded("pdo_sqlite") ? 0 : 1);'; then
         echo "[pre-push] Host PHP is missing pdo_sqlite. Start/rebuild Docker with 'make build && make up'." >&2
         exit 1
@@ -49,7 +65,7 @@ else
 fi
 
 echo "[pre-push] Running PHPUnit..."
-"${RUN[@]}" php artisan test
+"${TEST_RUN[@]}" php artisan test
 
 echo "[pre-push] Building frontend..."
 "${RUN[@]}" npm run build
