@@ -44,7 +44,7 @@ const submit = () => {
     <AdminLayout>
         <h3>{{ isEdit ? 'Sửa mẫu bảng' : 'Thêm mẫu bảng' }}</h3>
 
-        <form @submit.prevent="submit" class="mt-3" style="max-width:760px;">
+        <form @submit.prevent="submit" class="template-form mt-3" style="max-width:760px;">
             <div class="form-row">
                 <div class="form-group col-md-8">
                     <label class="small font-weight-bold">Tên mẫu</label>
@@ -94,7 +94,7 @@ const submit = () => {
             <!-- Nhãn -->
             <div class="form-group">
                 <label class="small font-weight-bold">Nhãn</label>
-                <div v-for="(l, i) in form.labels" :key="i" class="d-flex align-items-center mb-1" style="gap:6px;">
+                <div v-for="(l, i) in form.labels" :key="i" class="template-label-row d-flex align-items-center mb-1" style="gap:6px;">
                     <input type="text" class="form-control form-control-sm" style="max-width:220px;" v-model="l.name" placeholder="Tên nhãn..." maxlength="255">
                     <button v-for="c in LABEL_COLORS" :key="c" type="button" class="color-dot"
                         :class="{ sel: l.color === c }" :style="{ backgroundColor: c }" @click="l.color = c"></button>
@@ -147,5 +147,29 @@ const submit = () => {
 
 .color-dot.sel {
     box-shadow: 0 0 0 2px var(--app-text);
+}
+
+@media (max-width: 575.98px) {
+    .template-label-row {
+        flex-wrap: wrap;
+        padding: 8px;
+        border: 1px solid var(--app-border);
+        border-radius: 10px;
+    }
+
+    .template-label-row > input {
+        flex: 1 0 100%;
+        max-width: 100% !important;
+    }
+
+    .template-form > .d-flex.justify-content-end {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .template-form > .d-flex.justify-content-end > * {
+        width: 100%;
+        margin-right: 0 !important;
+    }
 }
 </style>

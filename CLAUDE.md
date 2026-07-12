@@ -44,7 +44,7 @@ PHPUnit defines two suites, `Unit` and `Feature` (`phpunit.xml`). Only example t
 ### Authorization is the central concept — and it is NOT Laravel Policies
 Access control is a custom board-level RBAC implemented through a pivot chain, **not** `app/Policies` and **not** Laravel Gates.
 
-- Three roles are seeded (`PermissionSeeder`): `board_viewer`, `board_editor`, `board_member_manager`.
+- Three board roles are defined by `PermissionSeeder` for focused tests: `board_viewer`, `board_editor`, `board_member_manager`. The default `DatabaseSeeder` intentionally creates only the administrator account.
 - The relationship chain is: `User` ↔ `permission_users` (pivot model `PermissionUser`) ↔ `board_permissions` (pivot model `BoardPermission`) ↔ `Board`. A user's role on a specific board exists only if there is a `permission_users` row (user+permission) **and** a `board_permissions` row linking that to the board.
 - The board **owner** (`boards.user_id`) implicitly has every permission — this is special-cased everywhere (e.g. `User::hasBoardPermission()` returns `true` immediately for the owner, and board member/assignee queries always union in `board.user_id`).
 - Controllers enforce access by calling `authorizeBoardAccess($board, [roles])` or `authorizeTaskAccess($task, [roles])` at the top of each action; these abort 403 unless `User::hasBoardPermission()` passes for one of the listed roles.
@@ -57,14 +57,14 @@ Access control is a custom board-level RBAC implemented through a pivot chain, *
 ### Models carry query logic
 Models frequently expose **static query helpers** (e.g. `Board::getBoardsByUser`, `Board::createBoard`, `Board::getBoardData`) and raw `DB::table()` joins for the permission pivots, rather than keeping all queries in controllers. They alias root-namespace facades (`use DB;`, `use Auth;`, `use Hash;`). When adding board/member queries, prefer the existing helpers like `Board::getAssignedUsersByBoardId()`.
 
-### Frontend is a hybrid — most JS is NOT in the Vite pipeline
-- **Vite** (`vite.config.mjs`) compiles only `resources/css/app.css` and `resources/js/app.js`, loaded via `@vite(...)` in the Blade layouts.
-- **The bulk of the UI** is an AdminLTE + Bootstrap 5 + jQuery theme whose per-feature scripts are **static files in `public/assets/js/`** (`task.js`, `column.js`, `checklist.js`, `comment.js`, `assignee.js`, `permission.js`, …) and vendor plugins in `public/plugins/`. These are loaded through the `asset_min()` helper (`app/helpers.php`), which on-demand minifies a `.css`/`.js` into a sibling `.min.*` (and cache-busts via `filemtime`) **only when the request has a `?minify` query param**. To change board/task behavior in the browser, edit the matching file under `public/assets/js/`, not `resources/js/`.
-- Layouts: `resources/views/layouts/{app,admin,user,board,auth}.blade.php`. Views are grouped under `resources/views/{admin,user,auth,components}`. UI strings localized under `resources/lang/vi`.
+### Frontend uses Inertia and Vue through Vite
+- **Vite** (`vite.config.mjs`) compiles `resources/css/app.css`, `resources/js/app.js`, and the Inertia page components loaded by `resources/views/app.blade.php`.
+- Route-level screens live in `resources/js/Pages`, shared UI in `resources/js/Components`, layouts in `resources/js/Layouts`, and shared composition logic in `resources/js/composables`.
+- Bootstrap 5 supplies the base component/grid utilities. Project-specific theming and compatibility helpers live in `resources/css/app.css`; component-specific behavior and styling should stay with the owning Vue component where practical.
 
 ### Other notes
 - Sanctum is installed and `routes/api.php` is auth:sanctum-guarded, but the app is currently almost entirely server-rendered web routes (`routes/web.php`); API surface is minimal.
-- Notifications: custom `App\Models\Notification` (a DB table the app reads directly) alongside Laravel's `app/Notifications/` (e.g. `BoardInvitationNotification`). Don't assume the standard `notifications` morphable table semantics.
+- Notifications: custom `App\Models\Notification` (a DB table the app reads directly) is used for in-app board invitations and alerts. Laravel notification classes under `app/Notifications/` are reserved for flows that still send mail, such as task-access requests.
 
 ## Deployment gotchas (learned the hard way)
 

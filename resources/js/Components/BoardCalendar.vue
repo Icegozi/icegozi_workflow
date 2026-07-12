@@ -259,7 +259,11 @@ const onDrop = (key, evt) => {
 }
 
 @media (max-width: 575.98px) {
-    .cal-cell { min-height: 78px; }
+    .board-calendar { padding: 8px; }
+    .cal-toolbar { position: sticky; left: 0; width: calc(100vw - 64px); }
+    .cal-nav { width: 100%; justify-content: space-between; }
+    .cal-month { min-width: 0; }
+    .cal-cell { min-height: 92px; }
     .cal-task-code { display: none; }
 }
 </style>

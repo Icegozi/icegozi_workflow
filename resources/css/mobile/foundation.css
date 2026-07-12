@@ -1,0 +1,140 @@
+/* Nền tảng responsive và vùng chạm dùng chung, lấy 360px làm mốc kiểm thử. */
+html {
+    min-width: 320px;
+    overflow-x: hidden;
+}
+
+body {
+    min-width: 320px;
+    overflow-x: hidden;
+}
+
+img,
+svg,
+video,
+canvas {
+    max-width: 100%;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+    touch-action: manipulation;
+}
+
+@media (max-width: 767.98px) {
+    :root {
+        --mobile-nav-height: 68px;
+        --mobile-gutter: 10px;
+        --mobile-radius: 12px;
+    }
+
+    body {
+        font-size: 0.94rem;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    h1 { font-size: 1.65rem; }
+    h2 { font-size: 1.45rem; }
+    h3 { font-size: 1.2rem; }
+    h4 { font-size: 1.08rem; }
+
+    .wrapper {
+        min-height: 100dvh !important;
+        max-width: 100vw;
+        overflow-x: clip;
+        overscroll-behavior-x: none;
+        padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
+    }
+
+    .app-shell-body {
+        display: flex !important;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .app-main-content {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        width: 100%;
+        min-width: 0;
+        padding: var(--mobile-gutter) !important;
+    }
+
+    .cute-border {
+        flex-grow: 1;
+        min-height: 0;
+        height: auto !important;
+        padding: 12px;
+        border-radius: var(--mobile-radius);
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .app-main-content .container,
+    .app-main-content .container-fluid {
+        width: 100%;
+        max-width: 100%;
+        padding-right: 0;
+        padding-left: 0;
+    }
+
+    .app-main-content h1,
+    .app-main-content h2,
+    .app-main-content h3,
+    .app-main-content h4 {
+        overflow-wrap: anywhere;
+    }
+
+    .card-body {
+        padding: 14px;
+    }
+
+    .form-control,
+    .custom-select,
+    .form-select,
+    .input-group-text {
+        min-height: 44px;
+        font-size: 16px; /* Ngăn Safari iOS tự zoom khi focus. */
+    }
+
+    textarea.form-control {
+        min-height: 96px;
+    }
+
+    .btn {
+        min-height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-sm,
+    .btn-group-sm > .btn {
+        min-height: 38px;
+        padding-top: 0.4rem;
+        padding-bottom: 0.4rem;
+    }
+
+    .pagination {
+        max-width: 100%;
+        margin-bottom: 0;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 4px;
+    }
+
+    .page-link {
+        min-width: 40px;
+        min-height: 40px;
+        display: grid;
+        place-items: center;
+    }
+}
+
+@media (max-width: 359.98px) {
+    .app-main-content { padding: 6px !important; }
+    .cute-border { padding: 10px; }
+}

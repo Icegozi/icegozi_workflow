@@ -32,7 +32,7 @@ const submit = () => {
     <AdminLayout>
         <h3>{{ isEdit ? 'Sửa trạng thái' : 'Thêm trạng thái' }}</h3>
 
-        <form @submit.prevent="submit" class="mt-3" style="max-width:560px;">
+        <form @submit.prevent="submit" class="status-form mt-3" style="max-width:560px;">
             <div class="form-group">
                 <label class="small font-weight-bold">Tên trạng thái</label>
                 <TextInput v-model="form.name" required group-class="mb-0" />
@@ -48,7 +48,7 @@ const submit = () => {
 
             <div class="form-group">
                 <label class="small font-weight-bold">Màu</label>
-                <div class="d-flex align-items-center" style="gap:6px;">
+                <div class="status-color-picker d-flex align-items-center" style="gap:6px;">
                     <button v-for="c in COLORS" :key="c" type="button" class="color-dot"
                         :class="{ sel: form.color === c }" :style="{ backgroundColor: c }" @click="form.color = c"></button>
                     <input type="text" class="form-control form-control-sm ml-2" style="max-width:120px;" v-model="form.color" maxlength="255">
@@ -101,5 +101,35 @@ const submit = () => {
     border-radius: 20px;
     border: 1px solid currentColor;
     background: var(--app-surface);
+}
+
+@media (max-width: 575.98px) {
+    .status-color-picker {
+        flex-wrap: wrap;
+    }
+
+    .status-color-picker input {
+        order: 2;
+        flex: 1 0 calc(55% - 6px);
+        max-width: none !important;
+        margin-left: 0 !important;
+    }
+
+    .status-color-picker .status-badge {
+        order: 2;
+        flex: 1 0 auto;
+        margin-left: 0 !important;
+        text-align: center;
+    }
+
+    .status-form > .d-flex.justify-content-end {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .status-form > .d-flex.justify-content-end > * {
+        width: 100%;
+        margin-right: 0 !important;
+    }
 }
 </style>

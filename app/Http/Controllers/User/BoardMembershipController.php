@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\BoardInvitation;
 use App\Models\BoardPermission;
+use App\Models\Notification as InAppNotification;
 use App\Models\Permission;
 use App\Models\PermissionUser;
 use App\Models\User;
-use App\Notifications\BoardInvitationNotification;
 use Auth;
 use DB;
 use Illuminate\Http\Request;
@@ -112,15 +112,20 @@ class BoardMembershipController extends Controller
         }
 
         $request->validate([
-            'email' => 'required|email:rfc,strict',
+            'email' => 'required|email:rfc,strict|exists:users,email',
             // Ensure role is a valid permission name
             'role_permission_name' => 'required|string|exists:permissions,name',
+        ], [
+            'email.exists' => 'Email này chưa có tài khoản trong hệ thống.',
         ]);
 
         $emailToInvite = $request->input('email');
         $permissionNameToGrant = $request->input('role_permission_name');
 
         $invitedUser = User::firstWhere('email', $emailToInvite);
+        if (! $invitedUser) {
+            return back()->withErrors(['email' => 'Email này chưa có tài khoản trong hệ thống.'])->withInput();
+        }
 
         $existingRoleError = $this->checkInviteeAlreadyHasRole($board, $invitedUser, $permissionNameToGrant);
         if ($existingRoleError) {
@@ -134,19 +139,27 @@ class BoardMembershipController extends Controller
             return back()->with('warning', 'Đã có lời mời đang chờ xử lý cho email này.');
         }
 
-        $invitation = $this->createBoardInvitation($board, $emailToInvite, $permissionNameToGrant);
+        try {
+            DB::transaction(function () use ($board, $emailToInvite, $permissionNameToGrant, $invitedUser) {
+                $invitation = $this->createBoardInvitation($board, $emailToInvite, $permissionNameToGrant);
+                $this->sendInAppInvitation($invitation, $invitedUser);
+            });
+        } catch (\Throwable $e) {
+            \Log::error('Failed to create board invitation notification: ' . $e->getMessage());
 
-        return $this->sendInvitationNotification($invitation, $emailToInvite);
+            return back()->with('error', 'Không thể gửi thông báo mời. Vui lòng thử lại.');
+        }
+
+        return back()->with('success', 'Lời mời đã được gửi qua thông báo tới ' . $emailToInvite);
     }
 
     // Trả về redirect lỗi nếu người được mời là chủ sở hữu hoặc đã có vai trò tương đương/cao hơn; ngược lại null.
-    private function checkInviteeAlreadyHasRole(Board $board, ?User $invitedUser, string $permissionNameToGrant)
+    private function checkInviteeAlreadyHasRole(Board $board, User $invitedUser, string $permissionNameToGrant)
     {
-        if ($invitedUser && $invitedUser->id === $board->user_id) {
+        if ($invitedUser->id === $board->user_id) {
             return back()->with('error', 'Người dùng này đã là chủ sở hữu của bảng.');
         }
-        if ($invitedUser && $invitedUser->hasBoardPermission($board, $permissionNameToGrant)) {
-            // Or even if they have *any* role already.
+        if ($invitedUser->hasBoardPermission($board, $permissionNameToGrant)) {
             return back()->with('error', 'Người dùng này đã có vai trò tương tự hoặc cao hơn trong bảng.');
         }
 
@@ -173,20 +186,18 @@ class BoardMembershipController extends Controller
         ]);
     }
 
-    // Gửi email mời; nếu thất bại thì xóa lời mời và trả về redirect lỗi, ngược lại trả về redirect thành công.
-    private function sendInvitationNotification(BoardInvitation $invitation, string $emailToInvite)
+    private function sendInAppInvitation(BoardInvitation $invitation, User $invitedUser): void
     {
-        try {
-            \Illuminate\Support\Facades\Notification::route('mail', $emailToInvite)
-                ->notify(new BoardInvitationNotification($invitation));
-        } catch (\Exception $e) {
-            \Log::error('Failed to send invitation: ' . $e->getMessage());
-            $invitation->delete();
+        $invitation->loadMissing(['board', 'inviter']);
+        $acceptUrl = URL::temporarySignedRoute(
+            'invitations.accept',
+            $invitation->expires_at ?? now()->addDays(7),
+            ['token' => $invitation->token]
+        );
+        $message = '<strong>' . e($invitation->inviter->name) . '</strong> đã mời bạn tham gia bảng '
+            . '<strong>' . e($invitation->board->name) . '</strong>.';
 
-            return back()->with('error', 'Không thể gửi email mời. Vui lòng kiểm tra cấu hình mail.');
-        }
-
-        return back()->with('success', 'Lời mời đã được gửi tới ' . $emailToInvite);
+        InAppNotification::notifyUser($invitedUser->id, $message, $acceptUrl);
     }
 
     public function acceptInvitation(Request $request, $token)
@@ -201,6 +212,14 @@ class BoardMembershipController extends Controller
         if ($notLoggedIn) {
             return $notLoggedIn;
         }
+
+        // Signed URL có thể được mở lại từ notification. Lời mời đã
+        // chấp nhận là trạng thái thành công, không phải tài nguyên không tồn tại.
+        if ($invitation->accepted_at) {
+            return redirect()->route('boards.show', $invitation->board_id)
+                ->with('info', 'Bạn đã là thành viên của bảng này.');
+        }
+
         $user = Auth::user();
 
         // Người mời phải còn quyền quản lý tại thời điểm chấp nhận, tránh tình huống
@@ -220,14 +239,15 @@ class BoardMembershipController extends Controller
             ->with('success', 'Bạn đã tham gia thành công vào bảng ' . $invitation->board->name);
     }
 
-    // Lấy lời mời còn hợp lệ theo token; abort nếu không tìm thấy hoặc đã hết hạn.
+    // Lấy lời mời theo token. Lời mời đã chấp nhận vẫn được trả về để lần mở
+    // link tiếp theo chuyển tới board; chỉ lời mời chưa chấp nhận mới xét hết hạn.
     private function resolveValidInvitation($token): BoardInvitation
     {
-        $invitation = BoardInvitation::where('token', $token)->whereNull('accepted_at')->first();
+        $invitation = BoardInvitation::where('token', $token)->first();
         if (! $invitation) {
-            abort(404, 'Không tìm thấy lời mời hoặc đã được chấp nhận.');
+            abort(404, 'Không tìm thấy lời mời.');
         }
-        if ($invitation->expires_at && $invitation->expires_at->isPast()) {
+        if (! $invitation->accepted_at && $invitation->expires_at && $invitation->expires_at->isPast()) {
             $invitation->delete();
             abort(401, 'Lời mời này đã hết hạn.');
         }

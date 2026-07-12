@@ -299,6 +299,20 @@ const destroy = (board) => {
 }
 
 @media (max-width: 575.98px) {
+    #board-list-container {
+        margin-right: -4px;
+        margin-left: -4px;
+    }
+
+    #board-list-container > .board-card {
+        padding-right: 4px;
+        padding-left: 4px;
+    }
+
+    .board-tile__actions .btn {
+        min-height: 42px;
+    }
+
     .template-grid {
         grid-template-columns: 1fr;
     }

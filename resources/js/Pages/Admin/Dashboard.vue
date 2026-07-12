@@ -142,4 +142,8 @@ const visibleCharts = computed(() =>
     .kpi-grid { grid-template-columns: 1fr; }
     .chart-grid { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 575.98px) {
+    .kpi-card { padding: 12px; }
+}
 </style>

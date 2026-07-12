@@ -147,4 +147,18 @@ onBeforeUnmount(() => { if (chart) chart.destroy(); });
     position: relative;
     width: 100%;
 }
+
+@media (max-width: 575.98px) {
+    .chart-card {
+        padding: 12px;
+    }
+
+    .chart-title {
+        line-height: 1.4;
+    }
+
+    .chart-canvas {
+        height: 240px !important;
+    }
+}
 </style>

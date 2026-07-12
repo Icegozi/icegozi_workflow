@@ -1,6 +1,6 @@
 @import 'bootstrap/dist/css/bootstrap.css';
 @import './theme/vendor/fontawesome-free/css/all.css';
-@import './theme/vendor/adminlte.css';
+@import './mobile/index.css';
 
 html,
 body {
@@ -378,28 +378,7 @@ a:hover {
     padding: 1.25rem;
 }
 
-/* ---- Trang xác thực (login/register) ----
-   AdminLTE gán nền sáng cố định cho .login-page/.register-page và view dùng text-black/text-dark,
-   nên ở chế độ tối các phần này vẫn sáng -> lệch. Buộc dùng biến chủ đề để đồng bộ sáng/tối. */
-.login-page,
-.register-page {
-    background-color: var(--app-bg);
-}
-
-/* AdminLTE đặt nền thân thẻ theo biến Bootstrap (--bs-body-bg, luôn trắng) nên ở chế độ tối
-   ô đăng nhập bị trắng lệch hẳn với thẻ/nền tối. Buộc theo surface của chủ đề để đồng bộ. */
-.login-card-body,
-.register-card-body {
-    background-color: var(--app-surface);
-    color: var(--app-text);
-}
-
-.login-box-msg,
-.register-box-msg {
-    color: var(--app-text-muted);
-}
-
-/* Tên thương hiệu ("My...") — trước là text-black nên chìm trên nền tối. */
+/* Tên thương hiệu trên trang xác thực. */
 .auth-brand {
     color: var(--app-text) !important;
 }

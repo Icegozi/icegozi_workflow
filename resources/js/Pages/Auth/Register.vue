@@ -17,15 +17,15 @@ const errors = computed(() => page.props.errors || {});
 <template>
     <Head title="Đăng ký tài khoản" />
     <GuestLayout>
-        <div class="register-box">
-            <div class="card card-outline card-secondary">
+        <div class="auth-box">
+            <div class="card auth-card">
                 <div class="card-header text-center">
                     <Link href="/" class="h1 text-decoration-none auth-brand mb-0">
                         My<span class="text-danger">App</span>
                     </Link>
                 </div>
-                <div class="card-body">
-                    <p class="login-box-msg">Tạo tài khoản mới</p>
+                <div class="card-body auth-card-body">
+                    <p class="auth-message">Tạo tài khoản mới</p>
 
                     <div v-for="(msg, key) in errors" :key="key" class="alert alert-danger small p-2">{{ msg }}</div>
 

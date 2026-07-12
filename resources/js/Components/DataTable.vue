@@ -33,15 +33,16 @@ const alignClass = (a) => (a === 'center' ? 'text-center' : a === 'right' ? 'tex
             <tbody>
                 <slot name="prepend" />
                 <tr v-for="row in rows" :key="row[rowKey]">
-                    <td v-for="c in columns" :key="c.key" :class="[alignClass(c.align), c.tdClass]">
+                    <td v-for="c in columns" :key="c.key" :class="[alignClass(c.align), c.tdClass]"
+                        :data-label="c.label">
                         <slot :name="`cell-${c.key}`" :row="row" :value="row[c.key]">{{ row[c.key] }}</slot>
                     </td>
-                    <td v-if="hasActions" class="text-right">
+                    <td v-if="hasActions" class="dt-actions text-right" :data-label="actionsLabel">
                         <slot name="actions" :row="row" />
                     </td>
                 </tr>
                 <tr v-if="!rows.length">
-                    <td :colspan="totalCols" class="dt-empty">
+                    <td :colspan="totalCols" class="dt-empty" data-label="">
                         <slot name="empty">{{ emptyText }}</slot>
                     </td>
                 </tr>

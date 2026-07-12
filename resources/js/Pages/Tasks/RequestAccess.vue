@@ -83,4 +83,16 @@ const goHome = () => router.visit(route('dashboard'));
     color: var(--app-accent, #663300);
     font-size: 1.5rem;
 }
+
+@media (max-width: 575.98px) {
+    .request-access form > .d-flex {
+        align-items: stretch !important;
+        flex-direction: column-reverse;
+        gap: 8px;
+    }
+
+    .request-access form > .d-flex > * {
+        width: 100%;
+    }
+}
 </style>
