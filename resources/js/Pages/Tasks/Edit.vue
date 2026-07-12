@@ -10,6 +10,7 @@ import Btn from '@/Components/Btn.vue';
 import MarkdownEditor from '@/Components/MarkdownEditor.vue';
 import TaskComments from '@/Components/TaskComments.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { showAppAlert, showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
     taskId: { type: Number, required: true },
@@ -199,19 +200,19 @@ const saveTask = async () => {
         });
         await fetchTask(false);
     } catch (e) {
-        alert(e.response?.data?.message || 'Không thể lưu thay đổi.');
+        showAppAlert(e.response?.data?.message || 'Không thể lưu thay đổi.');
     } finally {
         saving.value = false;
     }
 };
 
 const deleteTask = async () => {
-    if (!confirm('Xoá công việc này?')) return;
+    if (!await showAppConfirm('Xoá công việc này?', 'danger')) return;
     try {
         await axios.delete(route('tasks.destroy', props.taskId));
         backAfterDelete();
     } catch (e) {
-        alert(e.response?.data?.message || 'Không thể xoá công việc.');
+        showAppAlert(e.response?.data?.message || 'Không thể xoá công việc.');
     }
 };
 
@@ -223,19 +224,19 @@ const addChecklist = async () => {
         await axios.post(route('checklists.store', props.taskId), { title: t });
         newChecklistItem.value = '';
         await fetchTask(false);
-    } catch (e) { alert(e.response?.data?.message || 'Không thể thêm mục.'); }
+    } catch (e) { showAppAlert(e.response?.data?.message || 'Không thể thêm mục.'); }
 };
 const toggleChecklist = async (item) => {
     try {
         await axios.put(route('checklists.update', item.id), { is_done: !item.is_done });
         await fetchTask(false);
-    } catch (e) { alert('Không thể cập nhật.'); }
+    } catch (e) { showAppAlert('Không thể cập nhật.'); }
 };
 const deleteChecklist = async (item) => {
     try {
         await axios.delete(route('checklists.destroy', item.id));
         await fetchTask(false);
-    } catch (e) { alert('Không thể xoá mục.'); }
+    } catch (e) { showAppAlert('Không thể xoá mục.'); }
 };
 
 const checklistDone = computed(() => (task.value?.checklists || []).filter((c) => c.is_done).length);
@@ -252,14 +253,14 @@ const addAssignee = async (user) => {
         await fetchTask(false);
     } catch (e) {
         showAssigneePicker.value = true;
-        alert(e.response?.data?.message || 'Không thể thêm người phụ trách.');
+        showAppAlert(e.response?.data?.message || 'Không thể thêm người phụ trách.');
     }
 };
 const removeAssignee = async (user) => {
     try {
         await axios.delete(route('tasks.assignees.destroy', [props.taskId, user.id]));
         await fetchTask(false);
-    } catch (e) { alert('Không thể gỡ người phụ trách.'); }
+    } catch (e) { showAppAlert('Không thể gỡ người phụ trách.'); }
 };
 
 const hasLabel = (id) => (task.value?.labels || []).some((l) => l.id === id);
@@ -272,7 +273,7 @@ const toggleLabel = async (label) => {
             await axios.post(route('tasks.labels.attach', props.taskId), { label_id: label.id });
         }
         await fetchTask(false);
-    } catch (e) { alert(e.response?.data?.message || 'Không thể cập nhật nhãn.'); }
+    } catch (e) { showAppAlert(e.response?.data?.message || 'Không thể cập nhật nhãn.'); }
 };
 
 const createLabel = async () => {
@@ -285,19 +286,19 @@ const createLabel = async () => {
         labels.value.push(data.label);
         newLabelName.value = '';
         await toggleLabel(data.label);   // gắn luôn vào task
-    } catch (e) { alert(e.response?.data?.message || 'Không thể tạo nhãn.'); }
+    } catch (e) { showAppAlert(e.response?.data?.message || 'Không thể tạo nhãn.'); }
 };
 
 // Xoá hẳn nhãn khỏi bảng (gỡ khỏi mọi công việc do cascade ở DB).
 const deleteLabel = async (label) => {
-    if (!confirm(`Xoá nhãn "${label.name || 'Nhãn'}" khỏi bảng? Nhãn sẽ bị gỡ khỏi mọi công việc.`)) return;
+    if (!await showAppConfirm(`Xoá nhãn "${label.name || 'Nhãn'}" khỏi bảng? Nhãn sẽ bị gỡ khỏi mọi công việc.`, 'danger')) return;
     try {
         await axios.delete(route('labels.destroy', label.id));
         labels.value = labels.value.filter((l) => l.id !== label.id);
         if (task.value?.labels) {
             task.value.labels = task.value.labels.filter((l) => l.id !== label.id);
         }
-    } catch (e) { alert(e.response?.data?.message || 'Không thể xoá nhãn.'); }
+    } catch (e) { showAppAlert(e.response?.data?.message || 'Không thể xoá nhãn.'); }
 };
 
 const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(email || 'x')}`;
@@ -347,9 +348,9 @@ onUnmounted(() => {
         <div class="task-edit">
             <!-- Header -->
             <header class="te-header">
-                <Btn type="button" variant="white" icon="fas fa-arrow-left" class="btn-sm" @click="backToBoard">
-                    Quay lại
-                </Btn>
+                <button type="button" class="task-back" title="Quay lại" aria-label="Quay lại" @click="backToBoard">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                </button>
                 <span class="task-code">#{{ displayCode }}</span>
                 <div class="te-header__title">
                     <div class="text-muted small text-truncate" :title="boardName">{{ boardName }}</div>
@@ -504,7 +505,7 @@ onUnmounted(() => {
                                 <input type="text" class="form-control" v-model="newChecklistItem"
                                     placeholder="Thêm mục mới..." maxlength="255" @keyup.enter="addChecklist">
                                 <div class="input-group-append">
-                                    <button class="btn btn-outline-secondary" @click="addChecklist">
+                                    <button class="btn btn-outline-secondary btn--icon-only" @click="addChecklist">
                                         <i class="fas fa-plus"></i>
                                     </button>
                                 </div>
@@ -731,6 +732,32 @@ onUnmounted(() => {
     padding-bottom: 16px;
     margin-bottom: 20px;
     border-bottom: 1px solid var(--app-border);
+}
+
+/* Đồng bộ nút quay lại dạng icon tròn với trang Hồ sơ cá nhân. */
+.task-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    padding: 0;
+    border: 1px solid var(--app-border);
+    border-radius: 50%;
+    color: var(--app-text);
+    background: var(--app-surface);
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.task-back:hover,
+.task-back:focus-visible {
+    border-color: var(--app-accent);
+    color: #fff;
+    background: var(--app-accent);
+    transform: translateX(-2px);
+    outline: none;
 }
 
 .te-header__title {
@@ -1220,7 +1247,7 @@ onUnmounted(() => {
     transform: translateY(100%);
 }
 
-@media (max-width: 575.98px) {
+@media (max-width: 767.98px) {
     .te-header {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
@@ -1250,13 +1277,13 @@ onUnmounted(() => {
     }
 
     .te-body {
-        margin-right: -6px;
-        margin-left: -6px;
+        margin-right: 0;
+        margin-left: 0;
     }
 
     .te-body > [class*="col-"] {
-        padding-right: 6px;
-        padding-left: 6px;
+        padding-right: 0;
+        padding-left: 0;
     }
 
     .panel {

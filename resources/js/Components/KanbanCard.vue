@@ -3,9 +3,10 @@ import { computed } from 'vue';
 
 const props = defineProps({
     task: { type: Object, required: true },
+    canManage: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['open']);
+const emit = defineEmits(['open', 'delete']);
 
 // Cấu hình hiển thị theo độ ưu tiên 
 const PRIORITY = {
@@ -55,9 +56,24 @@ const hasMeta = computed(() => {
 <template>
     <div
         class="kanban-card"
-        :class="{ 'is-done': task.status?.is_completed, 'is-overdue': dueState === 'overdue' && !task.status?.is_completed }"
+        :class="{
+            'is-done': task.status?.is_completed,
+            'is-overdue': dueState === 'overdue' && !task.status?.is_completed,
+            'has-delete-action': canManage,
+        }"
         @click="emit('open')"
     >
+        <button
+            v-if="canManage"
+            type="button"
+            class="kanban-card__delete"
+            title="Xoá công việc"
+            aria-label="Xoá công việc"
+            @click.stop="emit('delete')"
+        >
+            <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+
         <!-- Mã công việc (kiểu ICE-0042) -->
         <div v-if="task.code" class="card-code">{{ task.code }}</div>
 
@@ -128,6 +144,7 @@ const hasMeta = computed(() => {
 
 <style scoped>
 .kanban-card {
+    position: relative;
     background: var(--app-surface);
     border: 1px solid var(--app-border);
     border-radius: 16px;
@@ -139,6 +156,40 @@ const hasMeta = computed(() => {
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+.kanban-card__delete {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+
+    color: #c9372c;
+
+    border: 0;
+
+    background: transparent;
+
+    transition: color 0.15s ease;
+}
+
+.kanban-card__delete:hover {
+    color: #9f1d1d;
+}
+
+.kanban-card.has-delete-action .card-code,
+.kanban-card.has-delete-action .card-header {
+    padding-right: 36px;
+}
+
+[data-theme='dark'] .kanban-card__delete {
+    color: #ffaaa5;
 }
 
 .kanban-card:hover {
@@ -183,6 +234,18 @@ const hasMeta = computed(() => {
     justify-content: space-between;
     align-items: center;
     gap: 8px;
+}
+
+@media (max-width: 767.98px) {
+    .kanban-card__delete {
+        width: 36px;
+        height: 36px;
+    }
+
+    .kanban-card.has-delete-action .card-code,
+    .kanban-card.has-delete-action .card-header {
+        padding-right: 42px;
+    }
 }
 
 .card-tags {

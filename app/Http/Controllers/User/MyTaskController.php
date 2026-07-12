@@ -17,6 +17,8 @@ class MyTaskController extends Controller
 
         $tasks = Task::whereHas('assignees', fn ($q) => $q->where('users.id', $user->id))
             ->with(['column.board', 'status', 'labels'])
+            ->withCount('checklists')
+            ->withCount(['checklists as checklists_done_count' => fn ($query) => $query->where('is_done', true)])
             ->orderByRaw('due_date IS NULL, due_date ASC')
             ->get();
 
@@ -60,6 +62,8 @@ class MyTaskController extends Controller
                 'labels' => $t->labels->map(fn ($l) => [
                     'id' => $l->id, 'name' => $l->name, 'color' => $l->color,
                 ])->values(),
+                'checklist_total' => $t->checklists_count,
+                'checklist_done' => $t->checklists_done_count,
             ];
         });
 

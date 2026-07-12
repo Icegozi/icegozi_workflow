@@ -6,6 +6,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import TaskComments from '@/Components/TaskComments.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { showAppAlert } from '@/composables/useAppAlert';
 
 const props = defineProps({
     taskId: { type: Number, required: true },
@@ -57,7 +58,7 @@ const toggleChecklist = async (item) => {
         await axios.put(route('checklists.update', item.id), { is_done: item.is_done });
     } catch (e) {
         item.is_done = prev;
-        alert(e.response?.data?.message || 'Không thể cập nhật mục checklist.');
+        showAppAlert(e.response?.data?.message || 'Không thể cập nhật mục checklist.');
     } finally {
         togglingChecklist.value = false;
     }
@@ -109,9 +110,9 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
         <div class="task-view">
             <!-- Thanh công cụ -->
             <div class="tv-toolbar">
-                <Btn type="button" variant="white" class="btn-sm" icon="fas fa-arrow-left" @click="backToBoard">
-                    Quay lại
-                </Btn>
+                <button type="button" class="task-back" title="Quay lại" aria-label="Quay lại" @click="backToBoard">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                </button>
                 <span class="task-code">#{{ displayCode }}</span>
                 <span class="flex-grow-1"></span>
                 <Btn v-if="canEdit" type="button" variant="black" class="btn-sm" icon="fas fa-pen" @click="goEdit">
@@ -253,6 +254,32 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
     align-items: center;
     gap: 10px;
     margin-bottom: 20px;
+}
+
+/* Đồng bộ nút quay lại dạng icon tròn với trang Hồ sơ cá nhân. */
+.task-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    padding: 0;
+    border: 1px solid var(--app-border);
+    border-radius: 50%;
+    color: var(--app-text);
+    background: var(--app-surface);
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.task-back:hover,
+.task-back:focus-visible {
+    border-color: var(--app-accent);
+    color: #fff;
+    background: var(--app-accent);
+    transform: translateX(-2px);
+    outline: none;
 }
 
 .task-code {
@@ -565,7 +592,7 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
     border-left-color: var(--app-accent-2);
 }
 
-@media (max-width: 575.98px) {
+@media (max-width: 767.98px) {
     .tv-toolbar {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
@@ -584,13 +611,13 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
     }
 
     .tv-body {
-        margin-right: -6px;
-        margin-left: -6px;
+        margin-right: 0;
+        margin-left: 0;
     }
 
     .tv-body > [class*="col-"] {
-        padding-right: 6px;
-        padding-left: 6px;
+        padding-right: 0;
+        padding-left: 0;
     }
 
     .tv-title {

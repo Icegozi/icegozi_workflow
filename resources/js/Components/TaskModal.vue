@@ -12,11 +12,13 @@ const props = defineProps({
     canEdit: { type: Boolean, default: false },
     canManage: { type: Boolean, default: false },
     editQuery: { type: Object, default: null },
+    columns: { type: Array, default: () => [] },
 });
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'move-task']);
 
 const loading = ref(true);
 const task = ref(null);
+const showMoveSheet = ref(false);
 
 const loadTask = async () => {
     const { data } = await axios.get(route('tasks.show', props.taskId));
@@ -65,6 +67,25 @@ const copyLink = async () => {
     }
     linkCopied.value = true;
     setTimeout(() => { linkCopied.value = false; }, 1500);
+};
+
+const moveTargets = computed(() => {
+    return props.columns.filter((column) => {
+        return column.id !== task.value?.column_id;
+    });
+});
+
+const moveTask = (column) => {
+    if (!task.value || !column) {
+        return;
+    }
+
+    showMoveSheet.value = false;
+    emit('move-task', {
+        taskId: task.value.id,
+        columnId: column.id,
+    });
+    emit('close');
 };
 </script>
 
@@ -197,8 +218,18 @@ const copyLink = async () => {
                     </div>
                 </div>
 
-                <Btn v-if="canEdit" type="button" variant="black" icon="fas fa-pen"
-                    class="btn-block mb-3" @click="goEdit">Chỉnh sửa</Btn>
+                <div v-if="canEdit" class="tm-mobile-actions mb-3">
+                    <Btn type="button" variant="black" icon="fas fa-pen"
+                        class="btn-block tm-edit-trigger" @click="goEdit">
+                        Chỉnh sửa
+                    </Btn>
+
+                    <Btn v-if="moveTargets.length" type="button" variant="secondary" outline
+                        icon="fas fa-right-left" class="btn-block tm-move-trigger"
+                        @click="showMoveSheet = true">
+                        Di chuyển
+                    </Btn>
+                </div>
 
                 <div class="tm-panel">
                     <h6 class="side-title">Lịch sử</h6>
@@ -219,6 +250,33 @@ const copyLink = async () => {
             </div>
         </div>
     </Modal>
+
+    <Teleport to="body">
+        <div v-if="showMoveSheet" class="tm-move-sheet-backdrop" @click.self="showMoveSheet = false">
+            <section class="tm-move-sheet" role="dialog" aria-modal="true" aria-labelledby="move-task-title">
+                <div class="tm-move-sheet__handle"></div>
+                <header class="tm-move-sheet__header">
+                    <div>
+                        <h6 id="move-task-title">Di chuyển công việc</h6>
+                        <p>Chọn cột đích. Công việc sẽ được thêm vào cuối cột.</p>
+                    </div>
+                    <button type="button" class="tm-move-sheet__close" aria-label="Đóng"
+                        @click="showMoveSheet = false">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </header>
+
+                <div class="tm-move-sheet__options">
+                    <button v-for="column in moveTargets" :key="column.id" type="button"
+                        class="tm-move-sheet__option" @click="moveTask(column)">
+                        <span class="tm-move-sheet__column">{{ column.name }}</span>
+                        <span class="tm-move-sheet__count">{{ column.tasks?.length || 0 }} công việc</span>
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </section>
+        </div>
+    </Teleport>
 </template>
 
 <style scoped>
@@ -507,6 +565,11 @@ const copyLink = async () => {
     word-break: break-word;
 }
 
+.tm-move-trigger,
+.tm-move-sheet-backdrop {
+    display: none;
+}
+
 /* ---------------- Nội dung markdown đã render ---------------- */
 .md-content { word-break: break-word; }
 .md-content :deep(p) { margin: 0 0 0.5rem; }
@@ -542,16 +605,164 @@ const copyLink = async () => {
     border-left-color: var(--app-accent-2);
 }
 
-@media (max-width: 575.98px) {
+@media (max-width: 767.98px) {
+    .tm-mobile-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+
+        gap: 8px;
+    }
+
+    .tm-mobile-actions :deep(.btn) {
+        display: inline-flex;
+        width: 100% !important;
+        height: 44px !important;
+        min-width: 0;
+        min-height: 44px !important;
+        margin: 0 !important;
+
+        white-space: nowrap;
+    }
+
+    .tm-mobile-actions :deep(.btn:only-child) {
+        grid-column: 1 / -1;
+    }
+
+    .tm-move-trigger {
+        display: inline-flex;
+    }
+
+    .tm-move-sheet-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1070;
+
+        display: flex;
+        align-items: flex-end;
+
+        background: rgba(9, 30, 66, 0.48);
+    }
+
+    .tm-move-sheet {
+        width: 100%;
+        max-height: min(78dvh, 560px);
+        padding: 8px 14px calc(16px + env(safe-area-inset-bottom));
+
+        overflow-y: auto;
+
+        color: var(--app-text);
+
+        border-radius: 18px 18px 0 0;
+
+        background: var(--app-surface);
+
+        box-shadow: 0 -10px 30px rgba(9, 30, 66, 0.2);
+    }
+
+    .tm-move-sheet__handle {
+        width: 38px;
+        height: 4px;
+        margin: 0 auto 12px;
+
+        border-radius: 4px;
+
+        background: var(--app-border);
+    }
+
+    .tm-move-sheet__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .tm-move-sheet__header h6 {
+        margin: 0 0 3px;
+
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .tm-move-sheet__header p {
+        margin: 0;
+
+        color: var(--app-text-muted);
+
+        font-size: 0.8rem;
+        line-height: 1.45;
+    }
+
+    .tm-move-sheet__close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        flex: 0 0 42px;
+        padding: 0;
+
+        color: var(--app-text-muted);
+
+        border: 1px solid var(--app-border);
+        border-radius: 50%;
+
+        background: transparent;
+    }
+
+    .tm-move-sheet__options {
+        display: flex;
+        flex-direction: column;
+
+        gap: 8px;
+    }
+
+    .tm-move-sheet__option {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+
+        gap: 10px;
+        width: 100%;
+        min-height: 52px;
+        padding: 10px 12px;
+
+        color: var(--app-text);
+        text-align: left;
+
+        border: 1px solid var(--app-border);
+        border-radius: 12px;
+
+        background: rgba(127, 127, 127, 0.05);
+    }
+
+    .tm-move-sheet__column {
+        overflow: hidden;
+
+        font-size: 0.9rem;
+        font-weight: 700;
+
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .tm-move-sheet__count,
+    .tm-move-sheet__option > i {
+        color: var(--app-text-muted);
+
+        font-size: 0.75rem;
+    }
+
     .tm-body {
-        margin-right: -6px;
-        margin-left: -6px;
+        margin-right: 0;
+        margin-left: 0;
     }
 
     .tm-main,
     .tm-side {
-        padding-right: 6px;
-        padding-left: 6px;
+        padding-right: 0;
+        padding-left: 0;
     }
 
     .tm-main {
