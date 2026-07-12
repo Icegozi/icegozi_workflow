@@ -23,6 +23,7 @@ Railway đã có GitHub Autodeploy, vì vậy dự án không cần GitHub Actio
    DB_DATABASE=${{MySQL.MYSQLDATABASE}}
    DB_USERNAME=${{MySQL.MYSQLUSER}}
    DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}
+   RUN_MIGRATIONS=false           # migrations run in Railway pre-deploy
    RUN_SEEDERS=false
    ```
 
