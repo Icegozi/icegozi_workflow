@@ -4,6 +4,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DataTable from '@/Components/DataTable.vue';
 import Btn from '@/Components/Btn.vue';
+import { showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
     users: { type: Object, required: true },
@@ -30,8 +31,8 @@ const statusBadge = (s) => ({
 
 const fmt = (d) => (d ? new Date(d).toLocaleString('vi-VN') : '');
 
-const destroy = (user) => {
-    if (confirm(`Xoá người dùng "${user.name}"?`)) {
+const destroy = async (user) => {
+    if (await showAppConfirm(`Xoá người dùng "${user.name}"?`, 'danger')) {
         router.delete(route('admin.user.destroy', user.id), { preserveScroll: true });
     }
 };

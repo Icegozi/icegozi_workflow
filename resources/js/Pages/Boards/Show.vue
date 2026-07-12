@@ -11,6 +11,11 @@ import Modal from '@/Components/Modal.vue';
 import TextInput from '@/Components/TextInput.vue';
 import Btn from '@/Components/Btn.vue';
 import ResponsiveSelect from '@/Components/ResponsiveSelect.vue';
+import {
+    showAppAlert,
+    showAppConfirm,
+    showAppPrompt,
+} from '@/composables/useAppAlert';
 
 const props = defineProps({
     board: { type: Object, required: true },
@@ -34,29 +39,33 @@ const saveColumn = async () => {
         newColumnName.value = '';
         showAddColumn.value = false;
     } catch (e) {
-        alert(e.response?.data?.message || 'Không thể tạo cột.');
+        showAppAlert(e.response?.data?.message || 'Không thể tạo cột.');
     }
 };
 
 // ---- Sửa / xoá cột ----
 const renameColumn = async (col) => {
-    const name = prompt('Tên cột mới:', col.name);
+    const name = await showAppPrompt(
+        'Tên cột mới:',
+        col.name,
+        'warning'
+    );
     if (!name || name.trim() === col.name) return;
     try {
         await axios.put(route('columns.update', [props.board.id, col.id]), { name: name.trim() });
         col.name = name.trim();
     } catch (e) {
-        alert(e.response?.data?.message || 'Không thể đổi tên cột.');
+        showAppAlert(e.response?.data?.message || 'Không thể đổi tên cột.');
     }
 };
 const deleteColumn = async (col) => {
-    if (!confirm(`Xoá cột "${col.name}"?`)) return;
+    if (!await showAppConfirm(`Xoá cột "${col.name}"?`, 'danger')) return;
     try {
         await axios.delete(route('columns.destroy', [props.board.id, col.id]));
         const idx = columns.findIndex((c) => c.id === col.id);
         if (idx !== -1) columns.splice(idx, 1);
     } catch (e) {
-        alert(e.response?.data?.message || 'Không thể xoá cột.');
+        showAppAlert(e.response?.data?.message || 'Không thể xoá cột.');
     }
 };
 
@@ -75,7 +84,7 @@ const saveTask = async (col, title) => {
             comments_count: 0, attachments_count: 0, checklist_total: 0, checklist_done: 0,
         });
     } catch (e) {
-        alert(e.response?.data?.message || 'Không thể thêm công việc.');
+        showAppAlert(e.response?.data?.message || 'Không thể thêm công việc.');
     }
 };
 
@@ -110,7 +119,44 @@ const onTaskChange = async (col, evt) => {
         if (seq === positionSeq) {
             restoreOrder(snapshot);
         }
-        alert(e.response?.data?.message || 'Không thể cập nhật vị trí.');
+        showAppAlert(e.response?.data?.message || 'Không thể cập nhật vị trí.');
+    }
+};
+
+const moveTaskToColumn = async ({ taskId, columnId }) => {
+    const sourceColumn = columns.find((column) =>
+        column.tasks.some((task) => task.id === taskId)
+    );
+    const targetColumn = columns.find((column) => column.id === columnId);
+
+    if (!sourceColumn || !targetColumn || sourceColumn === targetColumn) {
+        return;
+    }
+
+    const snapshot = columns.map((column) => ({
+        col: column,
+        ids: column.tasks.map((task) => task.id),
+    }));
+    const taskIndex = sourceColumn.tasks.findIndex((task) => task.id === taskId);
+    const [task] = sourceColumn.tasks.splice(taskIndex, 1);
+
+    task.column_id = targetColumn.id;
+    targetColumn.tasks.push(task);
+
+    const seq = ++positionSeq;
+
+    try {
+        await axios.post(route('tasks.updatePosition'), {
+            task_id: task.id,
+            new_column_id: targetColumn.id,
+            order: targetColumn.tasks.map((item) => item.id),
+        });
+    } catch (e) {
+        if (seq === positionSeq) {
+            restoreOrder(snapshot);
+        }
+
+        showAppAlert(e.response?.data?.message || 'Không thể di chuyển công việc.');
     }
 };
 
@@ -135,7 +181,7 @@ const rescheduleTask = async ({ task, dueDate }) => {
     } catch (e) {
         task.due_date = prevDate;
         task.formatted_due_date = prevFmt;
-        alert(e.response?.data?.message || 'Không thể đổi hạn công việc.');
+        showAppAlert(e.response?.data?.message || 'Không thể đổi hạn công việc.');
     }
 };
 
@@ -287,31 +333,34 @@ const openActivity = async () => {
                 <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
                 <input type="text" class="form-control" v-model="filters.q" placeholder="Tìm tiêu đề / mã..." maxlength="255">
             </div>
-            <ResponsiveSelect
-                v-model="filters.priority"
-                class="filter-select"
-                aria-label="Lọc theo độ ưu tiên"
-                :options="priorityFilterOptions"
-            />
-            <ResponsiveSelect
-                v-model="filters.assignee"
-                class="filter-select"
-                aria-label="Lọc theo người thực hiện"
-                :options="assigneeFilterOptions"
-            />
-            <ResponsiveSelect
-                v-if="boardLabels.length"
-                v-model="filters.label"
-                class="filter-select"
-                aria-label="Lọc theo nhãn"
-                :options="labelFilterOptions"
-            />
-            <ResponsiveSelect
-                v-model="filters.due"
-                class="filter-select"
-                aria-label="Lọc theo hạn công việc"
-                :options="dueFilterOptions"
-            />
+            <div class="filter-select">
+                <ResponsiveSelect
+                    v-model="filters.priority"
+                    aria-label="Lọc theo độ ưu tiên"
+                    :options="priorityFilterOptions"
+                />
+            </div>
+            <div class="filter-select">
+                <ResponsiveSelect
+                    v-model="filters.assignee"
+                    aria-label="Lọc theo người thực hiện"
+                    :options="assigneeFilterOptions"
+                />
+            </div>
+            <div v-if="boardLabels.length" class="filter-select">
+                <ResponsiveSelect
+                    v-model="filters.label"
+                    aria-label="Lọc theo nhãn"
+                    :options="labelFilterOptions"
+                />
+            </div>
+            <div class="filter-select">
+                <ResponsiveSelect
+                    v-model="filters.due"
+                    aria-label="Lọc theo hạn công việc"
+                    :options="dueFilterOptions"
+                />
+            </div>
             <button v-if="hasActiveFilter" class="btn btn-sm btn-link text-danger" @click="clearFilters">
                 <i class="fas fa-times mr-1"></i>Xoá lọc
             </button>
@@ -339,16 +388,16 @@ const openActivity = async () => {
         <BoardAnalytics v-else :key="`analytics-${board.id}`" :board-id="board.id" />
 
         <TaskModal v-if="modalTaskId" :task-id="modalTaskId" :can-edit="canEdit" :can-manage="canManage"
-            :board-id="board.id" @close="closeTask" />
+            :board-id="board.id" :columns="columns" @close="closeTask" @move-task="moveTaskToColumn" />
 
         <!-- Thêm cột mới -->
         <Modal v-if="showAddColumn" title="Thêm cột mới" max-width="420px" align="center" @close="showAddColumn = false">
-            <form @submit.prevent="saveColumn">
+            <form class="modal-form" @submit.prevent="saveColumn">
                 <div class="form-group">
                     <label class="small font-weight-bold mb-1">Tên cột</label>
                     <TextInput v-model="newColumnName" placeholder="Nhập tên cột..." autofocus group-class="mb-0" />
                 </div>
-                <div class="text-right">
+                <div class="modal-form__actions">
                     <Btn type="button" variant="white" class="btn-sm mr-2" @click="showAddColumn = false">Huỷ</Btn>
                     <Btn variant="black" class="btn-sm px-3">Tạo cột</Btn>
                 </div>
@@ -508,6 +557,13 @@ const openActivity = async () => {
     gap: 16px;
     max-width: 100%;
     padding-bottom: 10px;
+}
+
+@media (min-width: 768px) {
+    .filter-bar .filter-select {
+        width: 145px;
+        flex: 0 1 145px;
+    }
 }
 
 @media (max-width: 575.98px) {

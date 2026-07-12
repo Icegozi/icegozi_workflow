@@ -57,12 +57,12 @@ const submitTask = () => {
         <!-- Form thêm công việc trong modal -->
         <Modal v-if="adding" :title="`Thêm công việc · ${col.name}`" max-width="440px"
             align="center" @close="adding = false">
-            <form @submit.prevent="submitTask">
+            <form class="modal-form" @submit.prevent="submitTask">
                 <div class="form-group">
                     <label class="small font-weight-bold mb-1">Tiêu đề công việc</label>
                     <TextInput v-model="newTitle" placeholder="Nhập tiêu đề công việc..." autofocus group-class="mb-0" />
                 </div>
-                <div class="text-right">
+                <div class="modal-form__actions">
                     <Btn type="button" variant="white" class="btn-sm mr-2" @click="adding = false">Huỷ</Btn>
                     <Btn variant="success" icon="fas fa-plus" class="btn-sm px-3">Thêm công việc</Btn>
                 </div>

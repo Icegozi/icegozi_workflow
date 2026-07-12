@@ -4,6 +4,7 @@ import axios from 'axios';
 import Btn from '@/Components/Btn.vue';
 import MarkdownEditor from '@/Components/MarkdownEditor.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { showAppAlert, showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
     taskId: { type: Number, required: true },
@@ -89,19 +90,19 @@ const addComment = async () => {
         mentionOpen.value = false;
         emit('updated');
     } catch (e) {
-        alert(e.response?.data?.message || 'Không thể thêm bình luận.');
+        showAppAlert(e.response?.data?.message || 'Không thể thêm bình luận.');
     } finally {
         sending.value = false;
     }
 };
 
 const deleteComment = async (c) => {
-    if (!confirm('Xoá bình luận?')) return;
+    if (!await showAppConfirm('Xoá bình luận?', 'danger')) return;
     try {
         await axios.delete(`/tasks/${props.taskId}/comments/${c.id}`);
         emit('updated');
     } catch (e) {
-        alert(e.response?.data?.message || 'Không thể xoá bình luận.');
+        showAppAlert(e.response?.data?.message || 'Không thể xoá bình luận.');
     }
 };
 </script>

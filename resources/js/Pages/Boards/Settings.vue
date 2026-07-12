@@ -13,6 +13,7 @@ import Btn from '@/Components/Btn.vue';
 import TextInput from '@/Components/TextInput.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import DataTable from '@/Components/DataTable.vue';
+import { showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
     board: {
@@ -137,9 +138,10 @@ const changeRole = (
    XÓA THÀNH VIÊN
    ========================================================= */
 
-const removeMember = (member) => {
-    const confirmed = confirm(
-        `Xóa ${member.name} khỏi bảng?`
+const removeMember = async (member) => {
+    const confirmed = await showAppConfirm(
+        `Xóa ${member.name} khỏi bảng?`,
+        'danger'
     );
 
     if (!confirmed) {
@@ -164,11 +166,12 @@ const removeMember = (member) => {
    HỦY LỜI MỜI
    ========================================================= */
 
-const cancelInvite = (
+const cancelInvite = async (
     invitation
 ) => {
-    const confirmed = confirm(
-        'Hủy lời mời này?'
+    const confirmed = await showAppConfirm(
+        'Hủy lời mời này?',
+        'danger'
     );
 
     if (!confirmed) {
