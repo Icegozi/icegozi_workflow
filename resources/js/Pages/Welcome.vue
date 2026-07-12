@@ -82,11 +82,6 @@ const stats = [
 
         <!-- Hero -->
         <section id="home" class="lp-hero">
-            <video class="lp-hero__video" autoplay muted loop playsinline>
-                <source src="/assets/vid/banner_welcome.mp4" type="video/mp4">
-            </video>
-            <div class="lp-hero__overlay"></div>
-
             <div class="lp-container lp-hero__content">
                 <template v-if="user">
                     <h1>Chào mừng trở lại, {{ user.name }}!</h1>
@@ -337,22 +332,10 @@ const stats = [
     overflow: hidden;
     text-align: center;
     color: #fff;
-}
-
-.lp-hero__video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: -2;
-}
-
-.lp-hero__overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(41, 47, 58, 0.55), rgba(41, 47, 58, 0.78));
-    z-index: -1;
+    background:
+        radial-gradient(circle at 20% 15%, rgba(165, 118, 63, 0.5), transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(102, 51, 0, 0.55), transparent 45%),
+        linear-gradient(135deg, #171d27, #343c4b);
 }
 
 .lp-hero__content { max-width: 760px; margin-inline: auto; }

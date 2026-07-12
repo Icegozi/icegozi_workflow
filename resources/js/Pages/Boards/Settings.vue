@@ -13,6 +13,7 @@ import Btn from '@/Components/Btn.vue';
 import TextInput from '@/Components/TextInput.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import DataTable from '@/Components/DataTable.vue';
+import { showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
     board: {
@@ -137,9 +138,10 @@ const changeRole = (
    XÓA THÀNH VIÊN
    ========================================================= */
 
-const removeMember = (member) => {
-    const confirmed = confirm(
-        `Xóa ${member.name} khỏi bảng?`
+const removeMember = async (member) => {
+    const confirmed = await showAppConfirm(
+        `Xóa ${member.name} khỏi bảng?`,
+        'danger'
     );
 
     if (!confirmed) {
@@ -164,11 +166,12 @@ const removeMember = (member) => {
    HỦY LỜI MỜI
    ========================================================= */
 
-const cancelInvite = (
+const cancelInvite = async (
     invitation
 ) => {
-    const confirmed = confirm(
-        'Hủy lời mời này?'
+    const confirmed = await showAppConfirm(
+        'Hủy lời mời này?',
+        'danger'
     );
 
     if (!confirmed) {
@@ -780,6 +783,8 @@ const cancelInvite = (
 
 .settings-grid {
     align-items: flex-start;
+    margin-right: 0;
+    margin-left: 0;
 }
 
 /* =========================================================
@@ -1167,6 +1172,15 @@ const cancelInvite = (
    ========================================================= */
 
 @media (max-width: 767.98px) {
+    /*
+     * Khi các cột xếp chồng, margin của row đã được triệt tiêu
+     * nên cũng cần bỏ gutter của col để panel thẳng hàng với header.
+     */
+    .settings-grid > [class*='col-'] {
+        padding-right: 0;
+        padding-left: 0;
+    }
+
     /*
      * Trên mobile DataTable thường đổi mỗi tr thành card.
      * Không cố định toàn bộ card ở 56px vì còn nhiều field.

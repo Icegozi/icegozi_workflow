@@ -38,7 +38,7 @@ const move = (index, dir) => {
 
 <template>
     <span>
-        <button class="btn btn-sm btn-outline-secondary" title="Thiết lập biểu đồ" @click="open = true">
+        <button class="btn btn-sm btn-outline-secondary btn--icon-only" title="Thiết lập biểu đồ" @click="open = true">
             <i class="fas fa-sliders-h"></i>
         </button>
 
@@ -68,10 +68,10 @@ const move = (index, dir) => {
             <div class="chart-rows">
                 <div v-for="(c, i) in orderedCharts" :key="c.key" class="chart-row">
                     <div class="reorder">
-                        <button type="button" class="btn btn-sm btn-light py-0" :disabled="i === 0" @click="move(i, -1)">
+                        <button type="button" class="btn btn-sm btn-light btn--icon-only py-0" :disabled="i === 0" @click="move(i, -1)">
                             <i class="fas fa-chevron-up"></i>
                         </button>
-                        <button type="button" class="btn btn-sm btn-light py-0" :disabled="i === orderedCharts.length - 1" @click="move(i, 1)">
+                        <button type="button" class="btn btn-sm btn-light btn--icon-only py-0" :disabled="i === orderedCharts.length - 1" @click="move(i, 1)">
                             <i class="fas fa-chevron-down"></i>
                         </button>
                     </div>

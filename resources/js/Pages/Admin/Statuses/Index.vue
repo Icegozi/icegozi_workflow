@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import DataTable from '@/Components/DataTable.vue';
+import { showAppConfirm } from '@/composables/useAppAlert';
 
 defineProps({
     statuses: { type: Array, default: () => [] },
@@ -16,11 +17,11 @@ const columns = [
     { key: 'tasks_count', label: 'Đang dùng', align: 'center', width: '110px' },
 ];
 
-const destroy = (s) => {
+const destroy = async (s) => {
     const warn = s.tasks_count
         ? `Trạng thái "${s.name}" đang gắn với ${s.tasks_count} công việc. Xoá sẽ gỡ trạng thái khỏi các công việc đó. Tiếp tục?`
         : `Xoá trạng thái "${s.name}"?`;
-    if (confirm(warn)) {
+    if (await showAppConfirm(warn, 'danger')) {
         router.delete(route('admin.status.destroy', s.id), { preserveScroll: true });
     }
 };

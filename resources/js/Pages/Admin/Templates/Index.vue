@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import DataTable from '@/Components/DataTable.vue';
+import { showAppConfirm } from '@/composables/useAppAlert';
 
 defineProps({
     templates: { type: Array, default: () => [] },
@@ -15,8 +16,8 @@ const columns = [
     { key: 'labels', label: 'Nhãn', align: 'center', width: '90px' },
 ];
 
-const destroy = (tpl) => {
-    if (confirm(`Xoá mẫu "${tpl.name}"?`)) {
+const destroy = async (tpl) => {
+    if (await showAppConfirm(`Xoá mẫu "${tpl.name}"?`, 'danger')) {
         router.delete(route('admin.template.destroy', tpl.id), { preserveScroll: true });
     }
 };

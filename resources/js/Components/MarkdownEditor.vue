@@ -4,6 +4,7 @@
 import { ref, computed, nextTick, watch, onMounted } from 'vue';
 import axios from 'axios';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { showAppAlert } from '@/composables/useAppAlert';
 
 const props = defineProps({
     modelValue: { type: String, default: '' },
@@ -90,7 +91,7 @@ const uploadFile = async (file) => {
         replaceToken(token, md);
     } catch (err) {
         replaceToken(token + '\n', '');
-        alert(err.response?.data?.message || 'Không thể tải tệp lên.');
+        showAppAlert(err.response?.data?.message || 'Không thể tải tệp lên.');
     } finally {
         uploading.value--;
     }

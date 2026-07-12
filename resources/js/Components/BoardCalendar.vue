@@ -69,9 +69,9 @@ const onDrop = (key, evt) => {
     <div class="board-calendar">
         <div class="cal-toolbar">
             <div class="cal-nav">
-                <button class="btn btn-sm btn-light" @click="prevMonth"><i class="fas fa-chevron-left"></i></button>
+                <button class="btn btn-sm btn-light btn--icon-only" @click="prevMonth"><i class="fas fa-chevron-left"></i></button>
                 <strong class="cal-month">{{ monthLabel }}</strong>
-                <button class="btn btn-sm btn-light" @click="nextMonth"><i class="fas fa-chevron-right"></i></button>
+                <button class="btn btn-sm btn-light btn--icon-only" @click="nextMonth"><i class="fas fa-chevron-right"></i></button>
                 <button class="btn btn-sm btn-outline-secondary ml-2" @click="goToday">Hôm nay</button>
             </div>
             <span class="text-muted small">Kéo thẻ sang ngày khác để đổi hạn</span>

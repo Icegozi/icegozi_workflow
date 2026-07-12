@@ -5,6 +5,11 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import Modal from '@/Components/Modal.vue';
 import TextInput from '@/Components/TextInput.vue';
+import {
+    showAppAlert,
+    showAppConfirm,
+    showAppPrompt,
+} from '@/composables/useAppAlert';
 
 const props = defineProps({
     boards: { type: Array, default: () => [] },
@@ -35,31 +40,30 @@ const submitCreate = () => {
 };
 
 // --- Nhân bản bảng ---
-const duplicate = (board) => {
-    if (!confirm(`Nhân bản bảng "${board.name}" (kèm toàn bộ công việc)?`)) return;
+const duplicate = async (board) => {
+    if (!await showAppConfirm(`Nhân bản bảng "${board.name}" (kèm toàn bộ công việc)?`, 'success')) return;
     router.post(route('boards.duplicate', board.id), { with_tasks: true }, { preserveScroll: true });
 };
 
 // --- Đổi tên bảng ---
-const showRename = ref(false);
-const renameId = ref(null);
 const renameForm = useForm({ name: '' });
-const openRename = (board) => {
-    renameId.value = board.id;
-    renameForm.name = board.name;
+const openRename = async (board) => {
+    const name = await showAppPrompt('Tên bảng mới:', board.name, 'warning');
+    if (!name?.trim() || name.trim() === board.name) return;
+
+    renameForm.name = name.trim();
     renameForm.clearErrors();
-    showRename.value = true;
-};
-const submitRename = () => {
-    renameForm.put(route('boards.update', renameId.value), {
+    renameForm.put(route('boards.update', board.id), {
         preserveScroll: true,
-        onSuccess: () => { showRename.value = false; },
+        onError: () => {
+            showAppAlert(renameForm.errors.name || 'Không thể đổi tên bảng.');
+        },
     });
 };
 
 // --- Xóa bảng ---
-const destroy = (board) => {
-    if (confirm(`Xoá bảng "${board.name}"? Hành động này không thể hoàn tác.`)) {
+const destroy = async (board) => {
+    if (await showAppConfirm(`Xoá bảng "${board.name}"? Hành động này không thể hoàn tác.`, 'danger')) {
         router.delete(route('boards.destroy', board.id), { preserveScroll: true });
     }
 };
@@ -118,7 +122,7 @@ const destroy = (board) => {
 
         <!-- Modal tạo bảng -->
         <Modal v-if="showCreate" title="Tạo bảng mới" max-width="620px" @close="showCreate = false">
-            <form @submit.prevent="submitCreate">
+            <form class="modal-form" @submit.prevent="submitCreate">
                 <div class="form-group">
                     <label class="small font-weight-bold">Tên bảng</label>
                     <TextInput v-model="createForm.name" placeholder="Nhập tên bảng..."
@@ -142,27 +146,13 @@ const destroy = (board) => {
                     </button>
                 </div>
 
-                <div class="text-right">
+                <div class="modal-form__actions">
                     <Btn type="button" variant="white" class="btn-sm mr-2" @click="showCreate = false">Huỷ</Btn>
                     <Btn variant="black" class="btn-sm px-3" :disabled="createForm.processing">Tạo</Btn>
                 </div>
             </form>
         </Modal>
 
-        <!-- Modal đổi tên -->
-        <Modal v-if="showRename" title="Nhập tên bảng mới" max-width="380px" @close="showRename = false">
-            <form @submit.prevent="submitRename">
-                <div class="form-group">
-                    <TextInput v-model="renameForm.name" placeholder="Nhập tên..."
-                        required maxlength="255" autofocus group-class="" />
-                    <div v-if="renameForm.errors.name" class="text-danger small mt-1">{{ renameForm.errors.name }}</div>
-                </div>
-                <div class="text-right">
-                    <Btn type="button" variant="white" class="btn-sm mr-2" @click="showRename = false">Huỷ</Btn>
-                    <Btn variant="black" class="btn-sm px-3" :disabled="renameForm.processing">OK</Btn>
-                </div>
-            </form>
-        </Modal>
     </AuthenticatedLayout>
 </template>
 
@@ -300,13 +290,13 @@ const destroy = (board) => {
 
 @media (max-width: 575.98px) {
     #board-list-container {
-        margin-right: -4px;
-        margin-left: -4px;
+        margin-right: 0;
+        margin-left: 0;
     }
 
     #board-list-container > .board-card {
-        padding-right: 4px;
-        padding-left: 4px;
+        padding-right: 0;
+        padding-left: 0;
     }
 
     .board-tile__actions .btn {

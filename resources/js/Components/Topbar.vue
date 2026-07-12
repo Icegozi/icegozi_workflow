@@ -4,6 +4,7 @@ import { usePage, router, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useTheme } from '@/composables/useTheme';
 import { avatarSrc } from '@/composables/useSocialLinks';
+import { showAppConfirm } from '@/composables/useAppAlert';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user || null);
@@ -81,8 +82,8 @@ onUnmounted(() => {
     document.body.classList.remove('notification-screen-open');
 });
 
-const logout = () => {
-    if (confirm('Bạn có chắc chắn muốn đăng xuất không?')) {
+const logout = async () => {
+    if (await showAppConfirm('Bạn có chắc chắn muốn đăng xuất không?')) {
         router.post(route('logout'));
     }
 };

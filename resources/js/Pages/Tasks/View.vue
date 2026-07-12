@@ -6,6 +6,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import TaskComments from '@/Components/TaskComments.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { showAppAlert } from '@/composables/useAppAlert';
 
 const props = defineProps({
     taskId: { type: Number, required: true },
@@ -57,7 +58,7 @@ const toggleChecklist = async (item) => {
         await axios.put(route('checklists.update', item.id), { is_done: item.is_done });
     } catch (e) {
         item.is_done = prev;
-        alert(e.response?.data?.message || 'Không thể cập nhật mục checklist.');
+        showAppAlert(e.response?.data?.message || 'Không thể cập nhật mục checklist.');
     } finally {
         togglingChecklist.value = false;
     }
@@ -565,7 +566,7 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
     border-left-color: var(--app-accent-2);
 }
 
-@media (max-width: 575.98px) {
+@media (max-width: 767.98px) {
     .tv-toolbar {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
@@ -584,13 +585,13 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
     }
 
     .tv-body {
-        margin-right: -6px;
-        margin-left: -6px;
+        margin-right: 0;
+        margin-left: 0;
     }
 
     .tv-body > [class*="col-"] {
-        padding-right: 6px;
-        padding-left: 6px;
+        padding-right: 0;
+        padding-left: 0;
     }
 
     .tv-title {
