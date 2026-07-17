@@ -9,6 +9,8 @@ use App\Models\BoardPermission;
 use App\Models\Notification as InAppNotification;
 use App\Models\Permission;
 use App\Models\PermissionUser;
+use App\Models\Task;
+use App\Models\TaskHandoverRequest;
 use App\Models\User;
 use Auth;
 use DB;
@@ -49,6 +51,14 @@ class BoardMembershipController extends Controller
         BoardPermission::where('board_id', $board->id)
             ->whereIn('permission_user_id', $permissionUserIds)
             ->delete();
+    }
+
+    private function cancelPendingHandoverRequests(Board $board, User $user): void
+    {
+        TaskHandoverRequest::where('status', 'pending')
+            ->where(fn ($query) => $query->where('from_user_id', $user->id)->orWhere('to_user_id', $user->id))
+            ->whereHas('task.column', fn ($query) => $query->where('board_id', $board->id))
+            ->update(['status' => 'cancelled']);
     }
 
     public function settings(Board $board) // Route model binding for $board
@@ -325,6 +335,7 @@ class BoardMembershipController extends Controller
 
         DB::transaction(function () use ($board, $member) {
             $this->revokeAllBoardPermissionsForUser($board, $member);
+            $this->cancelPendingHandoverRequests($board, $member);
             // Also cancel any pending invitations for this user on this board
             // If using invitations
             BoardInvitation::where('board_id', $board->id)
@@ -333,6 +344,42 @@ class BoardMembershipController extends Controller
         });
 
         return redirect()->back()->with('success', 'Thành viên đã được xóa khỏi bảng.');
+    }
+
+    /**
+     * Thành viên chỉ được rời board sau khi đã tự bàn giao hết task được giao.
+     */
+    public function leave(Board $board)
+    {
+        $user = Auth::user();
+
+        if ($user->id === $board->user_id) {
+            return response()->json([
+                'message' => 'Chủ sở hữu không thể rời bảng. Hãy chuyển quyền sở hữu trước.',
+            ], 422);
+        }
+
+        if (! $user->getRoleForBoard($board)) {
+            abort(403, 'Bạn không còn là thành viên của bảng này.');
+        }
+
+        DB::transaction(function () use ($board, $user) {
+            Board::query()->lockForUpdate()->findOrFail($board->id);
+            $hasAssignedTasks = Task::query()
+                ->whereHas('column', fn ($query) => $query->where('board_id', $board->id))
+                ->whereHas('assignees', fn ($query) => $query->where('users.id', $user->id))
+                ->lockForUpdate()
+                ->exists();
+            abort_if($hasAssignedTasks, 422, 'Hãy bàn giao toàn bộ công việc trước khi rời bảng.');
+
+            $this->revokeAllBoardPermissionsForUser($board, $user);
+            $this->cancelPendingHandoverRequests($board, $user);
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bạn đã rời bảng thành công.',
+        ]);
     }
 
     public function cancelInvitation(Board $board, BoardInvitation $invitation) // If using BoardInvitations
