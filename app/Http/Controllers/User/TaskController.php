@@ -9,6 +9,7 @@ use App\Models\Board;
 use App\Models\Column;
 use App\Models\Task;
 use App\Models\TaskHistory;
+use App\Models\TaskHandoverRequest;
 use Auth;
 use DB;
 use Illuminate\Http\Request;
@@ -162,6 +163,17 @@ class TaskController extends Controller
         $this->applyTaskHistories($task);
         $this->applyComments($task);
         $this->applyChecklists($task);
+        $task->incoming_handover_requests = TaskHandoverRequest::query()
+            ->where('task_id', $task->id)
+            ->where('to_user_id', Auth::id())
+            ->where('status', 'pending')
+            ->with('fromUser:id,name,email')
+            ->get()
+            ->map(fn ($handover) => [
+                'id' => $handover->id,
+                'from_name' => $handover->fromUser?->name,
+                'from_email' => $handover->fromUser?->email,
+            ]);
 
         return response()->json([
             'success' => true,

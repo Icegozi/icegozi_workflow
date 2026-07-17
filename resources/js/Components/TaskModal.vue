@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import Modal from '@/Components/Modal.vue';
 import Btn from '@/Components/Btn.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { showAppAlert, showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
     taskId: { type: Number, required: true },
@@ -19,6 +20,11 @@ const emit = defineEmits(['close', 'move-task']);
 const loading = ref(true);
 const task = ref(null);
 const showMoveSheet = ref(false);
+const showHandoverPicker = ref(false);
+const handoverMembers = ref([]);
+const handoverWrap = ref(null);
+const page = usePage();
+const currentUserId = computed(() => page.props.auth?.user?.id);
 
 const loadTask = async () => {
     const { data } = await axios.get(route('tasks.show', props.taskId));
@@ -27,6 +33,13 @@ const loadTask = async () => {
 };
 
 onMounted(loadTask);
+const closeHandoverOnOutsideClick = (event) => {
+    if (showHandoverPicker.value && !handoverWrap.value?.contains(event.target)) {
+        showHandoverPicker.value = false;
+    }
+};
+onMounted(() => document.addEventListener('mousedown', closeHandoverOnOutsideClick));
+onBeforeUnmount(() => document.removeEventListener('mousedown', closeHandoverOnOutsideClick));
 
 const PRIORITY = {
     urgent: { label: 'Khẩn cấp', color: '#e5484d', bg: '#ffe5e5' },
@@ -87,6 +100,34 @@ const moveTask = (column) => {
     });
     emit('close');
 };
+const canRequestHandover = computed(() => !props.canEdit && task.value?.assignees?.some((user) => user.id === currentUserId.value));
+const toggleHandoverPicker = async () => {
+    showHandoverPicker.value = !showHandoverPicker.value;
+    if (!showHandoverPicker.value || handoverMembers.value.length) return;
+    try {
+        const { data } = await axios.get(route('boards.assignedUsers', props.boardId));
+        handoverMembers.value = (data.users || []).filter((user) => user.id !== currentUserId.value);
+    } catch (error) {
+        showHandoverPicker.value = false;
+        showAppAlert('Không thể tải danh sách thành viên.');
+    }
+};
+const requestHandover = async (user) => {
+    try {
+        await axios.post(route('tasks.handover-requests.store', props.taskId), { to_user_id: user.id });
+        showHandoverPicker.value = false;
+        showAppAlert('Đã gửi yêu cầu. Task chỉ được chuyển khi người nhận đồng ý.', 'success');
+    } catch (error) { showAppAlert(error.response?.data?.message || 'Không thể gửi yêu cầu.'); }
+};
+
+const acceptHandover = async (request) => {
+    if (!await showAppConfirm(`Nhận bàn giao task từ ${request.from_name}?`, 'warning')) return;
+    try {
+        await axios.post(route('task-handover-requests.accept', request.id));
+        await loadTask();
+        showAppAlert('Bạn đã nhận bàn giao task.', 'success');
+    } catch (error) { showAppAlert(error.response?.data?.message || 'Không thể nhận bàn giao.'); }
+};
 </script>
 
 <template>
@@ -114,13 +155,42 @@ const moveTask = (column) => {
 
                 <!-- Người phụ trách -->
                 <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
-                <div class="d-flex align-items-center flex-wrap mb-4" style="gap:8px;">
+                <div ref="handoverWrap" class="assignee-view mb-4">
                     <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
                         <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
                         <span>{{ a.name }}</span>
+                        <button v-if="canRequestHandover && a.id === currentUserId" type="button" class="assignee-handover"
+                            title="Yêu cầu bàn giao" aria-label="Yêu cầu bàn giao task" @click="toggleHandoverPicker">
+                            <i class="fas fa-right-left"></i>
+                        </button>
                     </span>
                     <span v-if="!task.assignees || !task.assignees.length" class="text-muted small">Chưa có ai.</span>
+                    <div v-if="showHandoverPicker" class="handover-popover">
+                        <div class="handover-popover__head">
+                            <strong>Yêu cầu bàn giao</strong>
+                            <span>Chọn người nhận task</span>
+                        </div>
+                        <button v-for="member in handoverMembers" :key="member.id" type="button" class="handover-option"
+                            @click="requestHandover(member)">
+                            <img :src="member.avatar_url || avatar(member.email)" class="rounded-circle" width="28" height="28" :alt="member.name">
+                            <span><strong>{{ member.name }}</strong><small>{{ member.email }}</small></span>
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                        <span v-if="!handoverMembers.length" class="handover-popover__empty">Không có thành viên phù hợp.</span>
+                    </div>
                 </div>
+                <article v-for="request in task.incoming_handover_requests" :key="request.id" class="handover-request-card">
+                    <img :src="avatar(request.from_email)" class="rounded-circle handover-request-card__avatar" width="40" height="40" :alt="request.from_name">
+                    <div class="handover-request-card__body">
+                        <span class="handover-request-card__eyebrow"><i class="fas fa-share"></i> Yêu cầu bàn giao</span>
+                        <strong>{{ request.from_name }} muốn bàn giao task này cho bạn</strong>
+                        <p>Nhận bàn giao để trở thành người phụ trách.</p>
+                    </div>
+                    <button type="button" class="handover-request-card__action" title="Nhận bàn giao"
+                        aria-label="Nhận bàn giao" @click="acceptHandover(request)">
+                        <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                    </button>
+                </article>
 
                 <!-- Mô tả -->
                 <h6 class="sect"><i class="fas fa-align-left"></i>Mô tả</h6>
@@ -346,6 +416,111 @@ const moveTask = (column) => {
     font-size: 0.82rem;
     color: var(--app-text);
 }
+
+.assignee-view { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+.assignee-handover {
+    display: inline-grid;
+    width: 21px;
+    height: 21px;
+    padding: 0;
+    place-items: center;
+    color: var(--app-accent, #663300);
+    font-size: .68rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    transition: color .16s ease, background-color .16s ease, transform .16s ease;
+}
+
+.assignee-handover:hover,
+.assignee-handover:focus-visible {
+    color: #fff;
+    outline: 0;
+    background: var(--app-accent, #663300);
+    transform: translateX(2px);
+}
+
+.handover-popover {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 7px);
+    left: 0;
+    width: min(330px, 100%);
+    overflow: hidden;
+    border: 1px solid var(--app-border);
+    border-radius: 11px;
+    background: var(--app-surface);
+    box-shadow: 0 12px 28px rgba(9, 30, 66, .2);
+}
+
+.handover-popover__head { padding: 10px 12px; border-bottom: 1px solid var(--app-border); }
+.handover-popover__head strong, .handover-popover__head span { display: block; }
+.handover-popover__head strong { font-size: .82rem; color: var(--app-text); }
+.handover-popover__head span { margin-top: 2px; font-size: .7rem; color: var(--app-text-muted); }
+
+.handover-option {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 12px;
+    text-align: left;
+    color: var(--app-text);
+    border: 0;
+    border-bottom: 1px solid var(--app-border);
+    background: transparent;
+    cursor: pointer;
+}
+
+.handover-option:last-of-type { border-bottom: 0; }
+.handover-option span { min-width: 0; flex: 1; }
+.handover-option strong, .handover-option small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.handover-option strong { font-size: .8rem; }.handover-option small { color: var(--app-text-muted); font-size: .68rem; }
+.handover-option > i { color: var(--app-text-muted); font-size: .72rem; }
+.handover-option:hover { color: #fff; background: #663300; }
+.handover-option:hover small, .handover-option:hover > i { color: rgba(255, 255, 255, .78); }
+.handover-popover__empty { display: block; padding: 12px; color: var(--app-text-muted); font-size: .75rem; }
+
+.handover-request-card {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(102, 51, 0, .28);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(102, 51, 0, .1), rgba(102, 51, 0, .025));
+}
+
+.handover-request-card__avatar { flex: 0 0 40px; border: 2px solid rgba(102, 51, 0, .2); }
+.handover-request-card__body { min-width: 0; flex: 1; }
+.handover-request-card__eyebrow { display: block; margin-bottom: 3px; color: #663300; font-size: .65rem; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
+.handover-request-card__body strong { display: block; color: var(--app-text); font-size: .82rem; line-height: 1.35; }
+.handover-request-card__body p { margin: 3px 0 0; color: var(--app-text-muted); font-size: .72rem; }
+.handover-request-card__action {
+    display: inline-grid;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    place-items: center;
+    color: #663300;
+    border: 1px solid rgba(102, 51, 0, .3);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .62);
+    cursor: pointer;
+    transition: color .18s ease, background-color .18s ease, transform .18s ease;
+}
+.handover-request-card__action:hover,
+.handover-request-card__action:focus-visible { color: #fff; outline: 0; background: #663300; }
+
+@media (max-width: 575.98px) {
+    .handover-request-card { flex-wrap: wrap; }
+    .handover-request-card__action { margin-left: auto; }
+}
+
 
 /* ---------------- Mô tả ---------------- */
 .tm-box {

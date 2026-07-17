@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import Modal from '@/Components/Modal.vue';
@@ -22,6 +23,10 @@ const roleLabels = {
     board_viewer: 'người xem',
 };
 const roleLabel = (role) => roleLabels[role] || 'người sở hữu';
+const canEditBoard = (board) => ['owner', 'board_editor', 'board_member_manager'].includes(board.currentUserRole);
+const canDuplicateBoard = (board) => ['owner', 'board_member_manager'].includes(board.currentUserRole);
+const canManageBoard = (board) => ['owner', 'board_member_manager'].includes(board.currentUserRole);
+const canLeaveBoard = (board) => board.currentUserRole !== 'owner';
 
 // --- Tạo bảng mới ---
 const showCreate = ref(false);
@@ -67,6 +72,27 @@ const destroy = async (board) => {
         router.delete(route('boards.destroy', board.id), { preserveScroll: true });
     }
 };
+
+// --- Rời bảng và bàn giao task ---
+const openLeave = async (board) => {
+    if (board.assignedTaskCount > 0) {
+        const confirmed = await showAppConfirm(
+            'Xin hãy bàn giao tất cả các công việc cho các thành viên khác sau khi rời nhóm.',
+            'warning'
+        );
+        if (confirmed) router.visit(route('my-tasks.index'));
+        return;
+    }
+
+    if (!await showAppConfirm(`Rời bảng "${board.name}"? Bạn sẽ không còn quyền truy cập bảng này.`, 'warning')) return;
+
+    try {
+        await axios.post(route('boards.leave', board.id));
+        router.reload({ preserveScroll: true });
+    } catch (error) {
+        showAppAlert(error.response?.data?.message || 'Không thể rời bảng. Vui lòng thử lại.');
+    }
+};
 </script>
 
 <template>
@@ -102,14 +128,19 @@ const destroy = async (board) => {
                                 <Btn :href="board.show_url" variant="secondary" outline icon="fas fa-folder-open"
                                     class="btn-sm flex-fill" title="Mở bảng" aria-label="Mở bảng" />
                                 <Btn type="button" variant="secondary" outline icon="fas fa-pen"
-                                    class="btn-sm flex-fill" title="Sửa tên" aria-label="Sửa tên"
+                                    class="btn-sm flex-fill" :disabled="!canEditBoard(board)" title="Sửa tên" aria-label="Sửa tên"
                                     @click="openRename(board)" />
                                 <Btn type="button" variant="secondary" outline icon="fas fa-clone"
-                                    class="btn-sm flex-fill" title="Nhân bản" aria-label="Nhân bản"
+                                    class="btn-sm flex-fill" :disabled="!canDuplicateBoard(board)" title="Nhân bản" aria-label="Nhân bản"
                                     @click="duplicate(board)" />
                                 <Btn type="button" variant="red" outline icon="fas fa-trash-alt"
-                                    class="btn-sm flex-fill" title="Xoá bảng" aria-label="Xoá bảng"
+                                    class="btn-sm flex-fill" :disabled="!canManageBoard(board)"
+                                    :title="canManageBoard(board) ? 'Xoá bảng' : 'Bạn không có quyền xoá bảng'"
+                                    aria-label="Xoá bảng"
                                     @click="destroy(board)" />
+                                <Btn v-if="canLeaveBoard(board)" type="button" variant="secondary" outline icon="fas fa-times"
+                                    class="btn-sm flex-fill" title="Rời bảng" aria-label="Rời bảng"
+                                    @click="openLeave(board)" />
                             </div>
                         </div>
                     </div>

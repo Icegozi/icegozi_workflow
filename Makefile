@@ -157,8 +157,16 @@ optimize: ## Cache config/route/view
 #  Test
 # =============================================================================
 .PHONY: test
-test: ## Chạy PHPUnit
-	$(EXEC_T) php artisan test
+test: ## Chạy PHPUnit an toàn trên SQLite tạm (dùng c="--filter=TenTest" để lọc)
+	$(EXEC_T) env \
+		APP_ENV=testing \
+		APP_CONFIG_CACHE=/tmp/laravel-test-config.php \
+		DB_CONNECTION=sqlite \
+		DB_DATABASE=:memory: \
+		CACHE_DRIVER=array \
+		SESSION_DRIVER=array \
+		QUEUE_CONNECTION=sync \
+		php artisan test $(c)
 
 # =============================================================================
 #  Chất lượng mã / Git hooks

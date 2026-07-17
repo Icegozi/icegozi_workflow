@@ -52,7 +52,16 @@ class AssigneeController extends Controller
             return $this->response(false, 'Người dùng đã được giao nhiệm vụ này.', $task, 409);
         }
 
-        $assignee->addAsignee($userId, $task->id);
+        DB::transaction(function () use ($board, $assignee, $userId, $task) {
+            Board::query()->lockForUpdate()->findOrFail($board->id);
+            if (! $this->isBoardMember($board, (int) $userId)) {
+                abort(422, 'Người dùng không thuộc bảng này.');
+            }
+            if ($assignee->isExistsAsignee($userId, $task->id)) {
+                abort(409, 'Người dùng đã được giao nhiệm vụ này.');
+            }
+            $assignee->addAsignee($userId, $task->id);
+        });
 
         return $this->response(true, 'Người dùng đã được chỉ định thành công.', $task->fresh());
     }
@@ -132,6 +141,8 @@ class AssigneeController extends Controller
 
     public function assignedUsers(Board $board)
     {
+        abort_unless(Auth::user()->getRoleForBoard($board), 403);
+
         $users = $board->assignedUsers($board)->map(function ($user) {
             return [
                 'id' => $user->id,

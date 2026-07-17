@@ -940,7 +940,7 @@ onBeforeUnmount(() => {
 .responsive-select__option.is-selected {
     color: #fff;
     outline: 0;
-    background: var(--app-accent);
+    background: #663300;
 }
 
 .responsive-select__option:disabled {
