@@ -262,6 +262,16 @@ const removeAssignee = async (user) => {
         await fetchTask(false);
     } catch (e) { showAppAlert('Không thể gỡ người phụ trách.'); }
 };
+const acceptHandover = async (handover) => {
+    if (!await showAppConfirm(`Nhận bàn giao task từ ${handover.from_name}?`, 'warning')) return;
+    try {
+        await axios.post(route('task-handover-requests.accept', handover.id));
+        await fetchTask(false);
+        showAppAlert('Bạn đã nhận bàn giao task.', 'success');
+    } catch (error) {
+        showAppAlert(error.response?.data?.message || 'Không thể nhận bàn giao.');
+    }
+};
 
 const hasLabel = (id) => (task.value?.labels || []).some((l) => l.id === id);
 
@@ -419,6 +429,20 @@ onUnmounted(() => {
                                 </div>
                             </div>
                         </div>
+                        <article v-for="handover in task.incoming_handover_requests" :key="handover.id"
+                            class="handover-request-card mb-4">
+                            <img :src="avatar(handover.from_email, 40)" class="rounded-circle handover-request-card__avatar"
+                                width="40" height="40" :alt="handover.from_name">
+                            <div class="handover-request-card__body">
+                                <span class="handover-request-card__eyebrow"><i class="fas fa-share"></i> Yêu cầu bàn giao</span>
+                                <strong>{{ handover.from_name }} muốn bàn giao task này cho bạn</strong>
+                                <p>Nhận bàn giao để trở thành người phụ trách.</p>
+                            </div>
+                            <button type="button" class="handover-request-card__action" title="Nhận bàn giao"
+                                aria-label="Nhận bàn giao" @click="acceptHandover(handover)">
+                                <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                            </button>
+                        </article>
 
                         <!-- Nhãn -->
                         <h6 class="sect"><i class="fas fa-tags"></i>Nhãn</h6>
@@ -904,6 +928,38 @@ onUnmounted(() => {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+.handover-request-card {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px;
+    border: 1px solid rgba(102, 51, 0, .28);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(102, 51, 0, .1), rgba(102, 51, 0, .025));
+}
+
+.handover-request-card__avatar { flex: 0 0 40px; border: 2px solid rgba(102, 51, 0, .2); }
+.handover-request-card__body { min-width: 0; flex: 1; }
+.handover-request-card__eyebrow { display: block; margin-bottom: 3px; color: #663300; font-size: .65rem; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
+.handover-request-card__body strong { display: block; color: var(--app-text); font-size: .82rem; line-height: 1.35; }
+.handover-request-card__body p { margin: 3px 0 0; color: var(--app-text-muted); font-size: .72rem; }
+.handover-request-card__action {
+    display: inline-grid;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    place-items: center;
+    color: #663300;
+    border: 1px solid rgba(102, 51, 0, .3);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .62);
+    cursor: pointer;
+    transition: color .18s ease, background-color .18s ease, transform .18s ease;
+}
+.handover-request-card__action:hover,
+.handover-request-card__action:focus-visible { color: #fff; outline: 0; background: #663300; }
 
 .assignee-option {
     display: flex;

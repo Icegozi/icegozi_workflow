@@ -22,6 +22,7 @@ use App\Http\Controllers\User\OverviewTaskController;
 use App\Http\Controllers\User\ProfileController;
 use App\Http\Controllers\User\TaskAccessController;
 use App\Http\Controllers\User\TaskController;
+use App\Http\Controllers\User\TaskHandoverRequestController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -160,6 +161,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->name('boards.members.updateRole');
     Route::delete('/boards/{board}/members/{member}/remove', [BoardMembershipController::class, 'removeMember'])
         ->name('boards.members.remove');
+    Route::post('/boards/{board}/leave', [BoardMembershipController::class, 'leave'])
+        ->name('boards.leave');
     Route::delete(
         '/boards/{board}/invitations/{invitation}/cancel',
         [BoardMembershipController::class, 'cancelInvitation']
@@ -178,6 +181,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->name('tasks.assignees.destroy');
     Route::get('/boards/{board}/assigned-users', [AssigneeController::class, 'assignedUsers'])
         ->name('boards.assignedUsers');
+    Route::post('/tasks/{task}/handover-requests', [TaskHandoverRequestController::class, 'store'])
+        ->name('tasks.handover-requests.store');
+    Route::post('/task-handover-requests/{handoverRequest}/accept', [TaskHandoverRequestController::class, 'accept'])
+        ->name('task-handover-requests.accept');
 
     // overview
     Route::get('/board/overview/{board_id}', [OverviewTaskController::class, 'getTaskOverlayData'])

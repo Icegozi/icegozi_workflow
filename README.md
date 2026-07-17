@@ -115,7 +115,7 @@ make fresh
 | `make migrate` | Chạy migration. |
 | `make seed` | Chạy database seeder. |
 | `make artisan c="route:list"` | Chạy lệnh Artisan bất kỳ. |
-| `make test` | Chạy PHPUnit. |
+| `make test` | Chạy PHPUnit trên SQLite tạm, tách biệt với MySQL local. |
 | `make quality` | Kiểm tra Pint, PHPMD, PHPCS và cú pháp PHP. |
 | `make quality-fix` | Áp dụng các sửa chữa style an toàn. |
 | `make help` | Xem danh sách lệnh được hỗ trợ. |
@@ -185,7 +185,7 @@ make npm c="run build"
 Để chạy một nhóm test cụ thể:
 
 ```bash
-make artisan c="test --filter=TaskAccessTest"
+make test c="--filter=TaskAccessTest"
 ```
 
 ## Lưu ý triển khai
