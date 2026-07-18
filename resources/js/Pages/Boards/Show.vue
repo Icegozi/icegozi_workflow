@@ -281,8 +281,10 @@ const fmtDMY = (isoDate) => {
     return `${d}/${m}/${y}`;
 };
 
-// Đổi hạn từ lịch (kéo-thả). Cập nhật lạc quan rồi gọi API.
-const rescheduleTask = async ({ task, dueDate }) => {
+const rescheduleQueues = new Map();
+
+// Không gửi hai revision của cùng task cùng lúc khi người dùng thả liên tiếp.
+const persistReschedule = async (task, dueDate) => {
     const prevDate = task.due_date;
     const prevFmt = task.formatted_due_date;
     task.due_date = dueDate;
@@ -300,6 +302,18 @@ const rescheduleTask = async ({ task, dueDate }) => {
         if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể đổi hạn công việc.');
     }
+};
+
+const rescheduleTask = ({ task, dueDate }) => {
+    const previous = rescheduleQueues.get(task.id) || Promise.resolve();
+    const next = previous.catch(() => {}).then(() => persistReschedule(task, dueDate));
+
+    rescheduleQueues.set(task.id, next);
+    return next.finally(() => {
+        if (rescheduleQueues.get(task.id) === next) {
+            rescheduleQueues.delete(task.id);
+        }
+    });
 };
 
 // ---- Tìm kiếm & lọc (client-side) ----

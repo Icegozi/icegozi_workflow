@@ -63,6 +63,18 @@ class LoginTest extends TestCase
             ->assertRedirect(route('admin.dashboard'));
     }
 
+    public function test_nguoi_dung_da_dang_nhap_vao_lai_login_va_dashboard_deu_ve_task_cua_toi(): void
+    {
+        $user = $this->makeUser();
+
+        $this->actingAs($user)
+            ->get(route('login.form'))
+            ->assertRedirect(route('my-tasks.index'));
+
+        $this->get(route('dashboard'))
+            ->assertRedirect(route('my-tasks.index'));
+    }
+
     public function test_tai_khoan_khong_active_bi_chan(): void
     {
         $this->makeUser(['username' => 'blocked', 'status' => 'banned']);

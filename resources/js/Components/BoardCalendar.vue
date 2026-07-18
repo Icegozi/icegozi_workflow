@@ -24,9 +24,10 @@ const monthLabel = computed(() =>
 );
 
 const todayKey = keyOf(new Date());
-const MAX_VISIBLE_TASKS = 3;
+const MAX_VISIBLE_TASKS = 1;
 const selectedDay = ref(null);
 const calendarGridWrap = ref(null);
+const dragJustEnded = ref(false);
 
 // 42 ô (6 tuần), bắt đầu từ Thứ 2 của tuần chứa ngày 1
 const cells = computed(() => {
@@ -74,8 +75,13 @@ const descriptionPreview = (description) => {
 };
 const openDayTasks = (cell) => { selectedDay.value = cell; };
 const openTask = (task) => {
+    if (dragJustEnded.value) return;
     selectedDay.value = null;
     emit('open', task);
+};
+const onDragEnd = () => {
+    dragJustEnded.value = true;
+    window.setTimeout(() => { dragJustEnded.value = false; }, 0);
 };
 
 // Sortable gọi hàm này liên tục khi task được giữ sát mép vùng cuộn.
@@ -123,7 +129,7 @@ const onDrop = (key, evt) => {
                         :animation="120" :force-fallback="true" :fallback-on-body="true" :fallback-tolerance="4"
                         :scroll="calendarGridWrap" :scroll-sensitivity="72" :scroll-speed="14" :bubble-scroll="true"
                         ghost-class="cal-task--ghost" chosen-class="cal-task--chosen" fallback-class="cal-task--fallback"
-                        :scroll-fn="scrollCalendar" class="cal-drop" @change="(e) => onDrop(c.key, e)">
+                        :scroll-fn="scrollCalendar" class="cal-drop" @change="(e) => onDrop(c.key, e)" @end="onDragEnd">
                         <template #item="{ element: t, index }">
                             <div class="cal-task" :style="{ borderLeftColor: PRIORITY_COLOR[t.priority] || '#c1c7d0' }"
                                 :class="{ done: t.status?.is_completed, 'cal-task--hidden': index >= MAX_VISIBLE_TASKS }"

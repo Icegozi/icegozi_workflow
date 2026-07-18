@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\Notification;
+use App\Jobs\NotifyTaskMentions;
 use App\Models\Task;
 use App\Models\TaskHistory;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class CommentController extends Controller
 {
@@ -58,17 +57,15 @@ class CommentController extends Controller
             });
             $comment->load('user');
 
-            // Thông báo mention không được làm hỏng việc thêm bình luận (đã commit).
-            try {
-                $this->notifyMentions(
-                    $task,
-                    $board,
-                    $request->input('content'),
-                    (array) $request->input('mentions', [])
-                );
-            } catch (\Throwable $e) {
-                Log::warning("notifyMentions failed for task {$task->id}: " . $e->getMessage());
-            }
+            // Chạy sau commit để lỗi/retry notification không làm mất bình luận.
+            NotifyTaskMentions::dispatch(
+                $comment->id,
+                $task->id,
+                $board->id,
+                Auth::id(),
+                $request->input('content'),
+                (array) $request->input('mentions', [])
+            );
 
             $comment->user_avatar = $comment->user_avatar_url;
             $comment->can_delete = true;
@@ -86,36 +83,6 @@ class CommentController extends Controller
             Log::error("Error adding comment to task {$task->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể thêm bình luận.'], 500);
-        }
-    }
-
-    /** Tạo thông báo cho những thành viên được nhắc (@) trong bình luận. */
-    private function notifyMentions(Task $task, $board, string $content, array $mentionIds): void
-    {
-        $mentionIds = array_filter(array_map('intval', $mentionIds));
-        if (empty($mentionIds)) {
-            return;
-        }
-
-        $me = Auth::id();
-        $meName = e(Auth::user()->name);
-
-        // Chỉ nhắc thành viên hợp lệ của bảng (đã gồm chủ bảng), bỏ chính mình.
-        $members = collect((new \App\Models\Board())->getAssignedUsersByBoardId($board->id))
-            ->keyBy('id');
-
-        $code = Task::buildCode($board->name, $task->id);
-        $url = route('tasks.edit', $code, false);
-        // Escape tiêu đề (message render bằng v-html ở chuông thông báo).
-        $msg = "<strong>{$meName}</strong> đã nhắc bạn trong <strong>{$code}</strong> — " . e($task->title) . '.';
-
-        foreach (array_unique($mentionIds) as $uid) {
-            $member = $members->get($uid);
-            // IDs từ client chỉ là gợi ý; notification chỉ hợp lệ khi nội dung
-            // thực sự có token @Tên theo đúng format mà UI chèn vào comment.
-            if ($uid !== $me && $member && Str::contains($content, '@' . $member['name'])) {
-                Notification::notifyUser($uid, $msg, $url, $task->id);
-            }
         }
     }
 

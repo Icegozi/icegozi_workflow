@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\VerifyCsrfToken;
+use App\Jobs\NotifyTaskMentions;
 use App\Models\Board;
 use App\Models\Column;
 use App\Models\Comment;
@@ -96,6 +97,51 @@ class CommentTest extends TestCase
             ->assertCreated();
 
         $this->assertDatabaseMissing('notifications', ['user_id' => $member->id]);
+    }
+
+    public function test_mention_yeu_cau_token_ten_day_du_va_khong_khop_tien_to(): void
+    {
+        [$owner, $task] = $this->makeTask();
+        $ann = User::factory()->create(['name' => 'Ann']);
+        $anna = User::factory()->create(['name' => 'Anna']);
+        $this->grant($task->column->board, $ann);
+        $this->grant($task->column->board, $anna);
+
+        $this->actingAs($owner)
+            ->postJson(route('comments.store', $task), [
+                'content' => '@Anna vui lòng kiểm tra.',
+                'mentions' => [$ann->id, $anna->id],
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseMissing('notifications', ['user_id' => $ann->id]);
+        $this->assertDatabaseHas('notifications', ['user_id' => $anna->id]);
+    }
+
+    public function test_retry_job_mention_khong_tao_thong_bao_trung(): void
+    {
+        [$owner, $task] = $this->makeTask();
+        $member = User::factory()->create(['name' => 'Minh']);
+        $this->grant($task->column->board, $member);
+        $comment = Comment::create([
+            'task_id' => $task->id,
+            'user_id' => $owner->id,
+            'content' => '@Minh kiểm tra giúp nhé.',
+        ]);
+
+        $job = new NotifyTaskMentions(
+            $comment->id,
+            $task->id,
+            $task->column->board->id,
+            $owner->id,
+            $comment->content,
+            [$member->id]
+        );
+        $job->handle();
+        $job->handle();
+
+        $this->assertDatabaseCount('notifications', 1);
+        $this->assertDatabaseHas('notifications', ['user_id' => $member->id]);
     }
 
     public function test_xoa_binh_luan_khong_ton_tai_tra_404_thay_vi_500(): void
