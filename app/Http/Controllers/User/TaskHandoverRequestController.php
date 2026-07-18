@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
+use App\Models\Board;
 use App\Models\Task;
 use App\Models\TaskHandoverRequest;
 use App\Models\User;
@@ -28,7 +29,15 @@ class TaskHandoverRequestController extends Controller
 
         $handover = null;
         DB::transaction(function () use ($task, $from, $to, &$handover) {
+            $board = Board::query()->lockForUpdate()->findOrFail($task->column->board_id);
             $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+            abort_unless($from->getRoleForBoard($board) === 'board_viewer', 409, 'Quyền thành viên đã thay đổi.');
+            abort_unless($to->getRoleForBoard($board), 409, 'Người nhận không còn là thành viên của bảng.');
+            abort_unless(
+                $lockedTask->assignees()->whereKey($from->id)->exists(),
+                409,
+                'Bạn không còn phụ trách công việc này.'
+            );
             $handover = TaskHandoverRequest::firstOrCreate([
                 'task_id' => $task->id,
                 'from_user_id' => $from->id,
@@ -65,6 +74,7 @@ class TaskHandoverRequestController extends Controller
 
             $task = Task::query()->lockForUpdate()->findOrFail($request->task_id);
             $board = $task->column?->board;
+            $board = $board ? Board::query()->lockForUpdate()->findOrFail($board->id) : null;
             abort_unless(
                 $board
                 && $to->getRoleForBoard($board)

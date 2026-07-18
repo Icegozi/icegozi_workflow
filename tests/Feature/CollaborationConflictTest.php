@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\Board;
+use App\Models\Checklist;
 use App\Models\Column;
 use App\Models\Label;
 use App\Models\Task;
@@ -155,5 +156,38 @@ class CollaborationConflictTest extends TestCase
             ])
             ->assertStatus(409)
             ->assertJsonPath('code', 'STALE_LAYOUT');
+    }
+
+    public function test_stale_checklist_update_is_rejected_without_overwriting_newer_change(): void
+    {
+        [$owner, , , , $task] = $this->makeBoard();
+        $checklist = Checklist::create(['task_id' => $task->id, 'title' => 'Bản đầu', 'position' => 0]);
+
+        $this->actingAs($owner)
+            ->putJson(route('checklists.update', $checklist), ['title' => 'Bản mới', 'revision' => 1])
+            ->assertOk()
+            ->assertJsonPath('checklist.revision', 2);
+
+        $this->actingAs($owner)
+            ->putJson(route('checklists.update', $checklist), ['title' => 'Bản cũ', 'revision' => 1])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'STALE_VERSION')
+            ->assertJsonPath('current.title', 'Bản mới');
+    }
+
+    public function test_stale_board_rename_is_rejected(): void
+    {
+        [$owner, $board] = $this->makeBoard();
+
+        $this->actingAs($owner)
+            ->putJson(route('boards.update', $board), ['name' => 'Bảng mới', 'revision' => 1])
+            ->assertOk();
+
+        $this->actingAs($owner)
+            ->putJson(route('boards.update', $board), ['name' => 'Bảng cũ', 'revision' => 1])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'STALE_VERSION');
+
+        $this->assertSame('Bảng mới', $board->fresh()->name);
     }
 }

@@ -12,11 +12,11 @@
             <directory suffix="Test.php">./tests/Feature</directory>
         </testsuite>
     </testsuites>
-    <coverage>
+    <source>
         <include>
             <directory suffix=".php">./app</directory>
         </include>
-    </coverage>
+    </source>
     <php>
         <!-- force="true": ghi đè env thật của container (APP_ENV=local, DB_CONNECTION=mysql),
              nếu không test sẽ chạy sai môi trường và trên DB dev (mất dữ liệu). -->

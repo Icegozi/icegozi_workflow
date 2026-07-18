@@ -77,8 +77,10 @@ class AssigneeController extends Controller
             return $this->response(false, 'Người dùng không thuộc bảng này.', $task, 422);
         }
 
-        $updatedAssignee = DB::transaction(function () use ($assignee, $task, $user, $newUserId) {
+        $updatedAssignee = DB::transaction(function () use ($assignee, $task, $user, $newUserId, $board) {
+            $lockedBoard = Board::query()->lockForUpdate()->findOrFail($board->id);
             $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+            abort_unless($this->isBoardMember($lockedBoard, $newUserId), 422, 'Người dùng không thuộc bảng này.');
             $updated = $assignee->updateUserForTask($lockedTask->id, $user->id, $newUserId);
             if ($updated) {
                 $lockedTask->bumpRevision();
@@ -102,6 +104,7 @@ class AssigneeController extends Controller
         }
 
         DB::transaction(function () use ($assignee, $task, $user) {
+            Board::query()->lockForUpdate()->findOrFail($task->column->board_id);
             $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
             $assignee->removeAsignee($user->id, $lockedTask->id);
             $this->logUnassignHistory($lockedTask, $user);

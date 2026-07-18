@@ -261,13 +261,16 @@ const addChecklist = async () => {
 };
 const toggleChecklist = async (item) => {
     try {
-        await axios.put(route('checklists.update', item.id), { is_done: !item.is_done });
+        await axios.put(route('checklists.update', item.id), {
+            is_done: !item.is_done,
+            revision: item.revision,
+        });
         await fetchTask(false);
     } catch (e) { showAppAlert('Không thể cập nhật.'); }
 };
 const deleteChecklist = async (item) => {
     try {
-        await axios.delete(route('checklists.destroy', item.id));
+        await axios.delete(route('checklists.destroy', item.id), { data: { revision: item.revision } });
         await fetchTask(false);
     } catch (e) { showAppAlert('Không thể xoá mục.'); }
 };

@@ -312,6 +312,7 @@ class BoardMembershipController extends Controller
         $newPermissionName = $request->input('new_role_permission_name');
 
         DB::transaction(function () use ($board, $member, $newPermissionName) {
+            Board::query()->lockForUpdate()->findOrFail($board->id);
             // 1. Revoke all existing board-specific permissions for this user on this board
             $this->revokeAllBoardPermissionsForUser($board, $member);
 
@@ -334,6 +335,13 @@ class BoardMembershipController extends Controller
         }
 
         DB::transaction(function () use ($board, $member) {
+            $lockedBoard = Board::query()->lockForUpdate()->findOrFail($board->id);
+            $hasAssignedTasks = Task::query()
+                ->whereHas('column', fn ($query) => $query->where('board_id', $lockedBoard->id))
+                ->whereHas('assignees', fn ($query) => $query->where('users.id', $member->id))
+                ->lockForUpdate()
+                ->exists();
+            abort_if($hasAssignedTasks, 422, 'Hãy bàn giao toàn bộ công việc trước khi xoá thành viên.');
             $this->revokeAllBoardPermissionsForUser($board, $member);
             $this->cancelPendingHandoverRequests($board, $member);
             // Also cancel any pending invitations for this user on this board

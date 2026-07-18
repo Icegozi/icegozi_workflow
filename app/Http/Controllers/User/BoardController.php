@@ -11,6 +11,7 @@ use App\Models\Task;
 use Auth;
 use Carbon\Carbon;
 use DB;
+use Illuminate\Http\Request;
 
 class BoardController extends Controller
 {
@@ -61,15 +62,17 @@ class BoardController extends Controller
     }
 
     /** Nhân bản một bảng: copy cột, nhãn và (tuỳ chọn) task + checklist. */
-    public function duplicate(Board $board)
+    public function duplicate(Request $request, Board $board)
     {
         // Chỉ editor/manager (hoặc chủ board) mới được nhân bản — tránh viewer clone toàn bộ dữ liệu.
         $this->authorizeBoardAccess($board, ['board_editor', 'board_member_manager']);
+        $request->validate(['revision' => ['required', 'integer', 'min:1']]);
         $withTasks = request()->boolean('with_tasks', true);
 
-        $board->load(['columns', 'labels', 'statuses', 'columns.tasks.checklists', 'columns.tasks.labels']);
-
-        DB::transaction(function () use ($board, $withTasks) {
+        DB::transaction(function () use ($board, $withTasks, $request) {
+            $board = Board::query()->lockForUpdate()->findOrFail($board->id);
+            $this->ensureCurrentBoardRevision($board, $request);
+            $board->load(['columns', 'labels', 'statuses', 'columns.tasks.checklists', 'columns.tasks.labels']);
             $newBoard = Board::create([
                 'user_id' => Auth::id(),
                 'name' => $board->name . ' (bản sao)',
@@ -126,6 +129,9 @@ class BoardController extends Controller
             }
         });
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
         return redirect()->route('user.dashboard')->with('success', 'Đã nhân bản bảng thành công!');
     }
 
@@ -159,6 +165,7 @@ class BoardController extends Controller
                 'id' => $board->id,
                 'name' => $board->name,
                 'layout_revision' => $board->layout_revision,
+                'revision' => $board->revision,
                 'labels' => $board->labels->map(fn ($l) => [
                     'id' => $l->id,
                     'name' => $l->name,
@@ -366,18 +373,72 @@ class BoardController extends Controller
         $this->authorizeBoardAccess($board, ['board_editor', 'board_member_manager']);
 
         $validated = $request->validated();
+        $request->validate(['revision' => ['required', 'integer', 'min:1']]);
+        $updated = DB::transaction(function () use ($board, $validated, $request) {
+            $locked = Board::query()->lockForUpdate()->findOrFail($board->id);
+            if ((int) $locked->revision !== (int) $request->integer('revision')) {
+                return false;
+            }
+            $locked->update(['name' => $validated['name']]);
+            $locked->increment('revision');
 
-        $board->update(['name' => $validated['name']]);
+            return true;
+        });
+        if (! $updated) {
+            return $this->staleBoardResponse($request, $board);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
 
         return redirect()->back()->with('success', 'Tên bảng đã được cập nhật.');
     }
 
-    public function destroy(Board $board)
+    public function destroy(Request $request, Board $board)
     {
         $this->authorizeBoardAccess($board, ['board_member_manager']);
 
-        $board->delete();
+        $request->validate(['revision' => ['required', 'integer', 'min:1']]);
+        $deleted = DB::transaction(function () use ($request, $board) {
+            $locked = Board::query()->lockForUpdate()->findOrFail($board->id);
+            if ((int) $locked->revision !== (int) $request->integer('revision')) {
+                return false;
+            }
+            $locked->delete();
+
+            return true;
+        });
+        if (! $deleted) {
+            return $this->staleBoardResponse($request, $board);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
 
         return redirect()->route('user.dashboard')->with('success', 'Bảng đã được xoá thành công.');
+    }
+
+    private function staleBoardResponse(Request $request, Board $board)
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'code' => 'STALE_VERSION',
+                'message' => 'Bảng đã được người khác cập nhật. Vui lòng tải lại.',
+                'current' => $board->fresh()?->only(['id', 'name', 'revision']),
+            ], 409);
+        }
+
+        return back()->with('error', 'Bảng đã được người khác cập nhật. Vui lòng tải lại.');
+    }
+
+    private function ensureCurrentBoardRevision(Board $board, Request $request): void
+    {
+        abort_unless(
+            (int) $board->revision === (int) $request->integer('revision'),
+            $this->staleBoardResponse($request, $board)
+        );
     }
 }

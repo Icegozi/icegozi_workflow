@@ -103,4 +103,20 @@ class LeaveBoardWithHandoverTest extends TestCase
         $this->assertTrue($viewer->fresh()->hasBoardPermission($board, 'board_viewer'));
         $this->assertDatabaseHas('assignees', ['task_id' => $task->id, 'user_id' => $viewer->id]);
     }
+
+    public function test_manager_cannot_remove_member_who_still_has_assigned_tasks(): void
+    {
+        $owner = User::factory()->create();
+        $viewer = User::factory()->create();
+        [$board, $task] = $this->createBoardWithTask($owner);
+        $this->grant($board, $viewer, 'board_viewer');
+        Assignee::create(['task_id' => $task->id, 'user_id' => $viewer->id]);
+
+        $this->actingAs($owner)
+            ->delete(route('boards.members.remove', [$board, $viewer]))
+            ->assertUnprocessable();
+
+        $this->assertTrue($viewer->fresh()->hasBoardPermission($board, 'board_viewer'));
+        $this->assertDatabaseHas('assignees', ['task_id' => $task->id, 'user_id' => $viewer->id]);
+    }
 }

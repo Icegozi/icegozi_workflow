@@ -47,7 +47,13 @@ const submitCreate = () => {
 // --- Nhân bản bảng ---
 const duplicate = async (board) => {
     if (!await showAppConfirm(`Nhân bản bảng "${board.name}" (kèm toàn bộ công việc)?`, 'success')) return;
-    router.post(route('boards.duplicate', board.id), { with_tasks: true }, { preserveScroll: true });
+    try {
+        await axios.post(route('boards.duplicate', board.id), { with_tasks: true, revision: board.revision });
+        router.reload({ preserveScroll: true });
+    } catch (error) {
+        showAppAlert(error.response?.data?.message || 'Không thể nhân bản bảng.');
+        if (error.response?.status === 409) router.reload({ preserveScroll: true });
+    }
 };
 
 // --- Đổi tên bảng ---
@@ -56,20 +62,25 @@ const openRename = async (board) => {
     const name = await showAppPrompt('Tên bảng mới:', board.name, 'warning');
     if (!name?.trim() || name.trim() === board.name) return;
 
-    renameForm.name = name.trim();
-    renameForm.clearErrors();
-    renameForm.put(route('boards.update', board.id), {
-        preserveScroll: true,
-        onError: () => {
-            showAppAlert(renameForm.errors.name || 'Không thể đổi tên bảng.');
-        },
-    });
+    try {
+        await axios.put(route('boards.update', board.id), { name: name.trim(), revision: board.revision });
+        router.reload({ preserveScroll: true });
+    } catch (error) {
+        showAppAlert(error.response?.data?.message || 'Không thể đổi tên bảng.');
+        if (error.response?.status === 409) router.reload({ preserveScroll: true });
+    }
 };
 
 // --- Xóa bảng ---
 const destroy = async (board) => {
     if (await showAppConfirm(`Xoá bảng "${board.name}"? Hành động này không thể hoàn tác.`, 'danger')) {
-        router.delete(route('boards.destroy', board.id), { preserveScroll: true });
+        try {
+            await axios.delete(route('boards.destroy', board.id), { data: { revision: board.revision } });
+            router.reload({ preserveScroll: true });
+        } catch (error) {
+            showAppAlert(error.response?.data?.message || 'Không thể xoá bảng.');
+            if (error.response?.status === 409) router.reload({ preserveScroll: true });
+        }
     }
 };
 
