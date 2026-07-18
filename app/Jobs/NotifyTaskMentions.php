@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\Board;
-use App\Models\Notification;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
@@ -15,7 +14,10 @@ use Illuminate\Support\Facades\DB;
 
 class NotifyTaskMentions implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
 
     public int $tries = 3;
 
