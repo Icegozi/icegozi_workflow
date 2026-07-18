@@ -18,7 +18,7 @@ const errors = computed(() => page.props.errors || {});
             <div class="card auth-card">
                 <div class="card-header text-center">
                     <Link href="/" class="h1 text-decoration-none auth-brand mb-0">
-                        My<span class="text-danger">App</span>
+                        Ic_go-<span class="text-danger">wf</span>
                     </Link>
                 </div>
                 <div class="card-body auth-card-body">

@@ -1,39 +1,44 @@
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 
-// Chế độ giao diện dark/light. Đồng bộ với data-theme trên <html> và lưu localStorage.
-// Script inline trong app.blade.php đã áp theme trước khi Vue mount (chống nháy màu);
-// composable này đọc lại trạng thái đó và cho phép chuyển đổi lúc chạy.
+const theme = ref(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
 
-const STORAGE_KEY = 'app-theme';
-
-function readInitial() {
-    const fromDom = document.documentElement.getAttribute('data-theme');
-    if (fromDom === 'dark' || fromDom === 'light') return fromDom;
-
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === 'dark' || saved === 'light') return saved;
-
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+const systemTheme = () => (
+    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark'
-        : 'light';
-}
+        : 'light'
+);
 
-// ref dùng chung (module-level) để mọi component thấy cùng một trạng thái.
-const theme = ref(readInitial());
-
-function apply(value) {
+const apply = (value) => {
     document.documentElement.setAttribute('data-theme', value);
-    try {
-        localStorage.setItem(STORAGE_KEY, value);
-    } catch (e) {
-        // bỏ qua nếu localStorage bị chặn
-    }
-}
+};
 
 export function useTheme() {
-    const setTheme = (value) => {
-        theme.value = value === 'dark' ? 'dark' : 'light';
+    const page = usePage();
+    const accountTheme = computed(() => page.props.auth?.user?.theme);
+
+    const syncTheme = (value) => {
+        theme.value = value === 'dark' || value === 'light' ? value : systemTheme();
         apply(theme.value);
+    };
+
+    syncTheme(accountTheme.value);
+    watch(accountTheme, syncTheme);
+
+    const setTheme = async (value) => {
+        const nextTheme = value === 'dark' ? 'dark' : 'light';
+        const previousTheme = theme.value;
+
+        syncTheme(nextTheme);
+
+        try {
+            const { data } = await axios.put(route('profile.theme.update'), { theme: nextTheme });
+            page.props.auth.user.theme = data.theme;
+        } catch (error) {
+            syncTheme(previousTheme);
+            throw error;
+        }
     };
 
     const toggle = () => setTheme(theme.value === 'dark' ? 'light' : 'dark');

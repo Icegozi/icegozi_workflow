@@ -38,6 +38,7 @@ class HandleInertiaRequests extends Middleware
                     'email' => $user->email,
                     'avatar_url' => $user->avatar_url,
                     'is_admin' => (bool) $user->is_admin,
+                    'theme' => $user->theme,
                 ] : null,
             ],
             // Flash messages dùng chung cho toàn bộ trang Vue

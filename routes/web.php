@@ -60,6 +60,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     // POST (không PUT) để upload avatar multipart đơn giản, không cần method spoofing.
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme.update');
 
     // Dashboard riêng cho user thường
     Route::get('/user/dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard');

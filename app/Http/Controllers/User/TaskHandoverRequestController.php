@@ -14,11 +14,16 @@ use Illuminate\Support\Facades\DB;
 
 class TaskHandoverRequestController extends Controller
 {
+    private function canRequestHandover(User $user, Board $board): bool
+    {
+        return in_array($user->getRoleForBoard($board), ['board_viewer', 'board_editor'], true);
+    }
+
     public function store(Request $request, Task $task)
     {
         $from = Auth::user();
         $board = $task->column?->board;
-        abort_unless($board && $from->getRoleForBoard($board) === 'board_viewer', 403);
+        abort_unless($board && $this->canRequestHandover($from, $board), 403);
         abort_unless($task->assignees()->whereKey($from->id)->exists(), 403);
 
         $data = $request->validate([
@@ -31,7 +36,7 @@ class TaskHandoverRequestController extends Controller
         DB::transaction(function () use ($task, $from, $to, &$handover) {
             $board = Board::query()->lockForUpdate()->findOrFail($task->column->board_id);
             $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
-            abort_unless($from->getRoleForBoard($board) === 'board_viewer', 409, 'Quyền thành viên đã thay đổi.');
+            abort_unless($this->canRequestHandover($from, $board), 409, 'Quyền thành viên đã thay đổi.');
             abort_unless($to->getRoleForBoard($board), 409, 'Người nhận không còn là thành viên của bảng.');
             abort_unless(
                 $lockedTask->assignees()->whereKey($from->id)->exists(),

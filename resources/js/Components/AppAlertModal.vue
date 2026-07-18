@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
 
                 <div class="app-alert-modal__content">
                     <h2 id="app-alert-title">
-                        MyApp (Ic_go-wf) :
+                        Ic_go-wf:
                     </h2>
 
                     <p id="app-alert-message">

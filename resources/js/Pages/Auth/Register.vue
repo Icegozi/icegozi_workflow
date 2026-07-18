@@ -21,7 +21,7 @@ const errors = computed(() => page.props.errors || {});
             <div class="card auth-card">
                 <div class="card-header text-center">
                     <Link href="/" class="h1 text-decoration-none auth-brand mb-0">
-                        My<span class="text-danger">App</span>
+                        Ic_go-<span class="text-danger">wf</span>
                     </Link>
                 </div>
                 <div class="card-body auth-card-body">
@@ -34,7 +34,7 @@ const errors = computed(() => page.props.errors || {});
                         <TextInput type="text" name="name" placeholder="Họ tên" icon="fas fa-user" required />
                         <TextInput type="text" name="username" placeholder="Tên đăng nhập (chữ, số, _ -)"
                             icon="fas fa-at" required />
-                        <TextInput type="email" name="email" placeholder="Email"
+                        <TextInput :model-value="props.email" type="email" name="email" placeholder="Email"
                             icon="fas fa-envelope" required />
                         <TextInput type="password" name="password" placeholder="Mật khẩu" icon="fas fa-lock" required />
                         <TextInput type="password" name="password_confirmation" placeholder="Nhập lại mật khẩu"

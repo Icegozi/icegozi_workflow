@@ -12,7 +12,7 @@ import { ZiggyVue } from 'ziggy-js';
 import AppAlertModal from '@/Components/AppAlertModal.vue';
 import { showAppAlert } from '@/composables/useAppAlert';
 
-const appName = import.meta.env.VITE_APP_NAME || 'MyApp';
+const appName = import.meta.env.VITE_APP_NAME || 'Ic_go-wf';
 const httpErrorMessages = {
     403: 'Bạn không có quyền thực hiện thao tác này !',
     404: 'Không tìm thấy nội dung này !',

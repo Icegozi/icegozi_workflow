@@ -100,7 +100,7 @@ const moveTask = (column) => {
     });
     emit('close');
 };
-const canRequestHandover = computed(() => !props.canEdit && task.value?.assignees?.some((user) => user.id === currentUserId.value));
+const canRequestHandover = computed(() => !props.canManage && task.value?.assignees?.some((user) => user.id === currentUserId.value));
 const toggleHandoverPicker = async () => {
     showHandoverPicker.value = !showHandoverPicker.value;
     if (!showHandoverPicker.value || handoverMembers.value.length) return;
