@@ -195,6 +195,13 @@ const refreshWhenFocused = () => {
     }
 };
 
+let taskRefreshTimer = null;
+const refreshTaskInBackground = () => {
+    if (document.visibilityState === 'visible' && !saving.value) {
+        fetchTask(false);
+    }
+};
+
 
 const returnTo = () => new URLSearchParams(window.location.search).get('return');
 
@@ -378,6 +385,7 @@ onMounted(() => {
     window.addEventListener('keydown', onKeydown);
     window.addEventListener('resize', syncMobileSheetScroll);
     window.addEventListener('focus', refreshWhenFocused);
+    taskRefreshTimer = window.setInterval(refreshTaskInBackground, 20000);
 });
 
 onUnmounted(() => {
@@ -385,6 +393,7 @@ onUnmounted(() => {
     window.removeEventListener('keydown', onKeydown);
     window.removeEventListener('resize', syncMobileSheetScroll);
     window.removeEventListener('focus', refreshWhenFocused);
+    window.clearInterval(taskRefreshTimer);
 
     if (bodyScrollLocked) {
         document.body.style.overflow = bodyOverflowBeforeSheet;

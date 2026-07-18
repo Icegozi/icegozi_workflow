@@ -78,6 +78,7 @@ class CollaborationConflictTest extends TestCase
                 'order' => [$secondTask->id, $task->id],
                 'source_column_revision' => 1,
                 'target_column_revision' => 1,
+                'task_revision' => 1,
             ])
             ->assertOk()
             ->assertJsonPath('source_column_revision', 2);
@@ -89,6 +90,7 @@ class CollaborationConflictTest extends TestCase
                 'order' => [$task->id, $secondTask->id],
                 'source_column_revision' => 1,
                 'target_column_revision' => 1,
+                'task_revision' => 1,
             ])
             ->assertStatus(409)
             ->assertJsonPath('code', 'STALE_LAYOUT');
@@ -156,6 +158,39 @@ class CollaborationConflictTest extends TestCase
             ])
             ->assertStatus(409)
             ->assertJsonPath('code', 'STALE_LAYOUT');
+    }
+
+    public function test_stale_column_rename_is_rejected(): void
+    {
+        [$owner, $board, $column] = $this->makeBoard();
+
+        $this->actingAs($owner)
+            ->putJson(route('columns.update', [$board, $column]), ['name' => 'Mới', 'revision' => 1])
+            ->assertOk()
+            ->assertJsonPath('revision', 2);
+
+        $this->actingAs($owner)
+            ->putJson(route('columns.update', [$board, $column]), ['name' => 'Cũ', 'revision' => 1])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'STALE_VERSION');
+    }
+
+    public function test_stale_task_drag_is_rejected_when_task_changed(): void
+    {
+        [$owner, , $column, , $task] = $this->makeBoard();
+        $task->increment('revision');
+
+        $this->actingAs($owner)
+            ->postJson(route('tasks.updatePosition'), [
+                'task_id' => $task->id,
+                'new_column_id' => $column->id,
+                'order' => [$task->id],
+                'source_column_revision' => 1,
+                'target_column_revision' => 1,
+                'task_revision' => 1,
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'STALE_VERSION');
     }
 
     public function test_stale_checklist_update_is_rejected_without_overwriting_newer_change(): void

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -25,6 +25,16 @@ const props = defineProps({
 // State cục bộ (reactive) cho columns/tasks
 const columns = reactive(props.board.columns.map((c) => ({ ...c, tasks: [...c.tasks] })));
 
+watch(
+    () => props.board.columns,
+    (freshColumns) => {
+        columns.splice(0, columns.length, ...freshColumns.map((column) => ({
+            ...column,
+            tasks: [...column.tasks],
+        })));
+    }
+);
+
 // Sau 409, state cục bộ không còn đáng tin cậy. Tải lại board là cách an toàn nhất
 // để không vô tình ghi đè thao tác của thành viên khác.
 const reloadOnConflict = async (error) => {
@@ -42,8 +52,21 @@ const refreshWhenFocused = () => {
     }
 };
 
-onMounted(() => window.addEventListener('focus', refreshWhenFocused));
-onUnmounted(() => window.removeEventListener('focus', refreshWhenFocused));
+let boardRefreshTimer = null;
+const refreshBoardInBackground = () => {
+    if (document.visibilityState === 'visible' && !isPositionSaving.value) {
+        router.reload({ preserveScroll: true });
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('focus', refreshWhenFocused);
+    boardRefreshTimer = window.setInterval(refreshBoardInBackground, 20000);
+});
+onUnmounted(() => {
+    window.removeEventListener('focus', refreshWhenFocused);
+    window.clearInterval(boardRefreshTimer);
+});
 
 // ---- Thêm cột (hiển thị form trong modal) ----
 const openAddColumn = async () => {
@@ -69,10 +92,14 @@ const renameColumn = async (col) => {
     );
     if (!name || name.trim() === col.name) return;
     try {
-        const { data } = await axios.put(route('columns.update', [props.board.id, col.id]), { name: name.trim() });
+        const { data } = await axios.put(route('columns.update', [props.board.id, col.id]), {
+            name: name.trim(),
+            revision: col.revision,
+        });
         col.name = name.trim();
         col.revision = data.revision;
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể đổi tên cột.');
     }
 };
@@ -142,6 +169,7 @@ const saveTask = async (col, title) => {
 
 // ---- Kéo thả công việc ----
 let positionSeq = 0;
+const isPositionSaving = ref(false);
 
 // Khôi phục thứ tự task của mọi cột về trạng thái đã chụp (khi lưu vị trí thất bại).
 const restoreOrder = (snapshot) => {
@@ -161,6 +189,7 @@ const onTaskChange = async (col, evt) => {
     // Chụp thứ tự hiện tại của MỌI cột trước khi gọi API (kéo có thể vắt qua 2 cột).
     const snapshot = columns.map((c) => ({ col: c, ids: c.tasks.map((t) => t.id) }));
     const seq = ++positionSeq;
+    isPositionSaving.value = true;
     try {
         const { data } = await axios.post(route('tasks.updatePosition'), {
             task_id: taskId,
@@ -168,10 +197,12 @@ const onTaskChange = async (col, evt) => {
             order: col.tasks.map((t) => t.id),
             source_column_revision: sourceColumn.revision,
             target_column_revision: col.revision,
+            task_revision: moved.element.revision,
         });
         sourceColumn.revision = data.source_column_revision;
         col.revision = data.target_column_revision;
         moved.element.column_id = col.id;
+        moved.element.revision = data.task_revision;
     } catch (e) {
         if (await reloadOnConflict(e)) return;
         // Chỉ hoàn tác nếu chưa có thao tác kéo-thả mới hơn (tránh giật ngược trạng thái).
@@ -179,6 +210,8 @@ const onTaskChange = async (col, evt) => {
             restoreOrder(snapshot);
         }
         showAppAlert(e.response?.data?.message || 'Không thể cập nhật vị trí.');
+    } finally {
+        isPositionSaving.value = false;
     }
 };
 
@@ -203,6 +236,7 @@ const moveTaskToColumn = async ({ taskId, columnId }) => {
     targetColumn.tasks.push(task);
 
     const seq = ++positionSeq;
+    isPositionSaving.value = true;
 
     try {
         const { data } = await axios.post(route('tasks.updatePosition'), {
@@ -211,9 +245,11 @@ const moveTaskToColumn = async ({ taskId, columnId }) => {
             order: targetColumn.tasks.map((item) => item.id),
             source_column_revision: sourceColumn.revision,
             target_column_revision: targetColumn.revision,
+            task_revision: task.revision,
         });
         sourceColumn.revision = data.source_column_revision;
         targetColumn.revision = data.target_column_revision;
+        task.revision = data.task_revision;
     } catch (e) {
         if (await reloadOnConflict(e)) return;
         if (seq === positionSeq) {
@@ -221,6 +257,8 @@ const moveTaskToColumn = async ({ taskId, columnId }) => {
         }
 
         showAppAlert(e.response?.data?.message || 'Không thể di chuyển công việc.');
+    } finally {
+        isPositionSaving.value = false;
     }
 };
 

@@ -479,6 +479,10 @@ class TaskController extends Controller
         try {
             $revisions = $this->moveTaskWithRevision($request, $task, $oldColumn, $newColumn);
 
+            if (($revisions['conflict'] ?? null) === 'task') {
+                return $this->staleTaskResponse($task->id);
+            }
+
             if (! $revisions) {
                 return response()->json([
                     'success' => false,
@@ -508,12 +512,16 @@ class TaskController extends Controller
             }
 
             $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+            if ((int) $lockedTask->revision !== (int) $request->integer('task_revision')) {
+                return ['conflict' => 'task'];
+            }
             $orderedTaskIds = $this->validatedTargetOrder($request, $lockedTask, $source, $target);
             $this->persistTaskMove($lockedTask, $orderedTaskIds, $source, $target, $oldColumn, $newColumn);
 
             return [
                 'source_column_revision' => $source->fresh()->revision,
                 'target_column_revision' => $target->fresh()->revision,
+                'task_revision' => $lockedTask->fresh()->revision,
             ];
         });
     }

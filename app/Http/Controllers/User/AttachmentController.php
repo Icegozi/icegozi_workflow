@@ -44,6 +44,7 @@ class AttachmentController extends Controller
         try {
             if ($request->hasfile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
+                    $path = null;
                     try {
                         $originalName = $file->getClientOriginalName();
                         $filename = Str::slug(pathinfo($originalName, PATHINFO_FILENAME))
@@ -88,6 +89,7 @@ class AttachmentController extends Controller
 
                         $successMessages[] = "File '{$originalName}' đã được tải lên.";
                     } catch (Exception $e) {
+                        $this->deleteFailedUpload($path);
                         Log::error(
                             "Attachment upload failed for file: {$originalName} "
                             . "on task {$task->id}. Error: " . $e->getMessage(),
@@ -123,6 +125,13 @@ class AttachmentController extends Controller
                 'success' => false,
                 'message' => 'Đã xảy ra lỗi chung khi xử lý tải file.',
             ], 500);
+        }
+    }
+
+    private function deleteFailedUpload(?string $path): void
+    {
+        if ($path && Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
         }
     }
 

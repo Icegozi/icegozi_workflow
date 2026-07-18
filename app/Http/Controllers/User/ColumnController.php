@@ -92,6 +92,7 @@ class ColumnController extends Controller
         }
 
         $validated = $request->validate([
+            'revision' => ['required', 'integer', 'min:1'],
             'name' => [
                 'required',
                 'string',
@@ -104,14 +105,29 @@ class ColumnController extends Controller
         ]);
 
         try {
-            $column->update(['name' => $validated['name']]);
-            $column->increment('revision');
+            $updated = DB::transaction(function () use ($column, $validated) {
+                $locked = Column::query()->lockForUpdate()->findOrFail($column->id);
+                if ((int) $locked->revision !== (int) $validated['revision']) {
+                    return false;
+                }
+                $locked->update(['name' => $validated['name']]);
+                $locked->increment('revision');
+
+                return $locked->fresh();
+            });
+            if (! $updated) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'STALE_VERSION',
+                    'message' => 'Cột đã được người khác cập nhật. Vui lòng tải lại.',
+                ], 409);
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Tên cột đã được cập nhật.',
-                'new_name' => $column->name,
-                'revision' => $column->fresh()->revision,
+                'new_name' => $updated->name,
+                'revision' => $updated->revision,
             ]);
         } catch (\Exception $e) {
             \Log::error("Error updating column {$column->id}: " . $e->getMessage());
