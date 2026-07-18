@@ -248,9 +248,11 @@ class TaskController extends Controller
             return;
         }
 
-        $task->comments->transform(function ($comment) {
+        $canManageMembers = Auth::user()->hasBoardPermission($task->column->board, 'board_member_manager');
+        $task->comments->transform(function ($comment) use ($canManageMembers) {
             $comment->user_name = $comment->user ? $comment->user->name : 'Người dùng không xác định';
-            $comment->user_avatar = $comment->user?->avatar_url;
+            $comment->user_avatar = $comment->user_avatar_url;
+            $comment->can_delete = $comment->user_id === Auth::id() || $canManageMembers;
             $comment->time_ago = $comment->created_at
                 ? $comment->created_at->diffForHumans()
                 : 'Không rõ thời gian';

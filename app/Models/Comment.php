@@ -35,11 +35,7 @@ class Comment extends Model
 
     public function getUserAvatarUrlAttribute()
     {
-        if ($this->user) {
-            return $this->user->avatar_url;
-        }
-
-        return '/images/default-avatar.svg';
+        return $this->user?->avatar_url ?: '/images/default-avatar.svg';
     }
 
     public function getUserDisplayNameAttribute()

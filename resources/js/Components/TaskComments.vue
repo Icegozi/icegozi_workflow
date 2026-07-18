@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import axios from 'axios';
 import Btn from '@/Components/Btn.vue';
 import MarkdownEditor from '@/Components/MarkdownEditor.vue';
@@ -28,16 +28,25 @@ onMounted(async () => {
 // ---- Soạn bình luận + @mention ----
 const newComment = ref('');
 const sending = ref(false);   // chống gửi bình luận trùng (Ctrl+Enter + click)
+const commentEditor = ref(null);
+const commentCompose = ref(null);
+const isUploading = computed(() => commentEditor.value?.isUploading ?? false);
 const mentionOpen = ref(false);
 const mentionQuery = ref('');
 const selectedMentions = ref([]);   // [{id, name}]
 const mentionAt = ref(-1);          // vị trí ký tự '@' đang kích hoạt gợi ý
+const mentionPosition = ref(null);
+const activeMentionIndex = ref(0);
 
 const mentionMatches = computed(() => {
     const q = mentionQuery.value.toLowerCase();
     return boardMembers.value
         .filter((m) => m.name.toLowerCase().includes(q))
         .slice(0, 6);
+});
+
+watch(mentionMatches, (matches) => {
+    activeMentionIndex.value = Math.min(activeMentionIndex.value, Math.max(0, matches.length - 1));
 });
 
 const onCommentInput = () => {
@@ -52,11 +61,50 @@ const onCommentInput = () => {
         mentionAt.value = at;
         mentionQuery.value = text.slice(at + 1);
         mentionOpen.value = true;
+        activeMentionIndex.value = 0;
+        updateMentionPosition();
     } else {
         mentionOpen.value = false;
         mentionAt.value = -1;
+        mentionPosition.value = null;
     }
 };
+
+const handleEditorKeydown = (event) => {
+    if (!mentionOpen.value || !mentionMatches.value.length) return;
+
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        activeMentionIndex.value = (activeMentionIndex.value + 1) % mentionMatches.value.length;
+    } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        activeMentionIndex.value = (activeMentionIndex.value - 1 + mentionMatches.value.length) % mentionMatches.value.length;
+    } else if (event.key === 'Enter') {
+        event.preventDefault();
+        pickMention(mentionMatches.value[activeMentionIndex.value]);
+    } else if (event.key === 'Escape') {
+        event.preventDefault();
+        mentionOpen.value = false;
+        mentionAt.value = -1;
+        mentionPosition.value = null;
+    }
+};
+
+const updateMentionPosition = () => {
+    nextTick(() => {
+        const anchor = commentEditor.value?.getCaretCoordinates?.(mentionAt.value + 1);
+        const compose = commentCompose.value?.getBoundingClientRect();
+        if (!anchor || !compose) return;
+        mentionPosition.value = {
+            left: Math.max(0, anchor.left - compose.left),
+            top: anchor.top - compose.top + 4,
+        };
+    });
+};
+
+const mentionStyle = computed(() => mentionPosition.value
+    ? { left: `${mentionPosition.value.left}px`, top: `${mentionPosition.value.top}px` }
+    : { left: '0', top: '0' });
 // MarkdownEditor phát v-model -> theo dõi để bật gợi ý @mention
 watch(newComment, onCommentInput);
 
@@ -71,10 +119,11 @@ const pickMention = (member) => {
     }
     mentionOpen.value = false;
     mentionAt.value = -1;
+    mentionPosition.value = null;
 };
 
 const addComment = async () => {
-    if (sending.value) return;   // đang gửi -> bỏ qua lần gọi trùng
+    if (sending.value || isUploading.value) return;
     const content = newComment.value.trim();
     if (!content) return;
     // Chỉ gửi mention còn xuất hiện dạng "@Tên" trong nội dung
@@ -95,6 +144,11 @@ const addComment = async () => {
     }
 };
 
+const handleAvatarError = (event) => {
+    event.target.onerror = null;
+    event.target.src = avatarSrc(null);
+};
+
 const deleteComment = async (c) => {
     if (!await showAppConfirm('Xoá bình luận?', 'danger')) return;
     try {
@@ -109,34 +163,40 @@ const deleteComment = async (c) => {
 <template>
     <div>
         <h6 class="sect"><i class="fas fa-comments"></i>Bình luận</h6>
-        <div class="comment-compose position-relative mb-4">
-            <MarkdownEditor v-model="newComment" :min-rows="2" :task-id="taskId"
+        <div ref="commentCompose" class="comment-compose position-relative mb-4">
+            <MarkdownEditor ref="commentEditor" v-model="newComment" :min-rows="2" :task-id="taskId"
                 placeholder="Viết bình luận... gõ @ để nhắc thành viên"
-                @submit="addComment" />
+                @submit="addComment" @keydown="handleEditorKeydown" />
+            <div v-if="mentionOpen && mentionMatches.length" class="mention-pop" :style="mentionStyle">
+                <a v-for="m in mentionMatches" :key="m.id" href="#"
+                    class="mention-pop__option" :class="{ 'is-active': mentionMatches[activeMentionIndex]?.id === m.id }"
+                    @click.prevent="pickMention(m)">
+                    <img :src="avatarSrc(m.avatar_url)" class="rounded-circle mention-pop__avatar" width="32" height="32"
+                        :alt="m.name" @error="handleAvatarError">
+                    <span class="mention-pop__person">
+                        <strong>{{ m.name }}</strong>
+                        <small>{{ m.email }}</small>
+                    </span>
+                </a>
+            </div>
             <div class="d-flex justify-content-end mt-2">
                 <Btn type="button" variant="black" icon="fas fa-paper-plane"
-                    class="btn-sm" :disabled="sending" @click="addComment">
-                    {{ sending ? 'Đang gửi...' : 'Gửi bình luận' }}
+                    class="btn-sm" :disabled="sending || isUploading || !newComment.trim()" @click="addComment">
+                    {{ isUploading ? 'Đang tải tệp...' : (sending ? 'Đang gửi...' : 'Gửi bình luận') }}
                 </Btn>
-            </div>
-            <div v-if="mentionOpen && mentionMatches.length" class="mention-pop">
-                <a v-for="m in mentionMatches" :key="m.id" href="#"
-                    class="list-group-item list-group-item-action py-2 d-flex align-items-center"
-                    @click.prevent="pickMention(m)">
-                    <img :src="avatarSrc(m.avatar_url)" class="rounded-circle mr-2" width="22" height="22">{{ m.name }}
-                </a>
             </div>
         </div>
 
         <div class="comment-list">
             <div v-for="c in comments" :key="c.id" class="comment">
                 <img :src="avatarSrc(c.user_avatar)" class="rounded-circle comment__avatar"
-                    width="34" height="34">
+                    width="34" height="34" :alt="`Ảnh đại diện của ${c.user_name}`" @error="handleAvatarError">
                 <div class="comment__body">
                     <div class="comment__head">
                         <strong>{{ c.user_name }}</strong>
                         <small class="text-muted">{{ c.time_ago }}</small>
-                        <button class="item-x ml-auto" @click="deleteComment(c)" title="Xoá">&times;</button>
+                        <button v-if="c.can_delete" class="item-x ml-auto" @click="deleteComment(c)" title="Xoá bình luận"
+                            aria-label="Xoá bình luận">&times;</button>
                     </div>
                     <div class="comment__content md-content" v-html="renderMarkdown(c.content)"></div>
                 </div>
@@ -176,15 +236,61 @@ const deleteComment = async (c) => {
 .mention-pop {
     position: absolute;
     z-index: 30;
-    top: 46px;
-    left: 10px;
-    min-width: 220px;
+    width: max-content;
+    max-width: min(320px, calc(100% - 12px));
+    max-height: 260px;
+    overflow-y: auto;
+    margin-top: 8px;
+    padding: 6px;
     background: var(--app-surface);
+    background: color-mix(in srgb, var(--app-surface) 96%, transparent);
     border: 1px solid var(--app-border);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-    overflow: hidden;
+    border-color: color-mix(in srgb, var(--app-border) 85%, var(--app-accent));
+    border-radius: 14px;
+    box-shadow: 0 14px 34px rgba(32, 20, 10, 0.2);
+    backdrop-filter: blur(10px);
 }
+
+.mention-pop__option {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px;
+    color: var(--app-text);
+    border-radius: 9px;
+    text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.mention-pop__option:hover,
+.mention-pop__option:focus,
+.mention-pop__option.is-active {
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+    outline: 0;
+    transform: translateX(2px);
+}
+
+.mention-pop__avatar {
+    flex: 0 0 32px;
+    object-fit: cover;
+}
+
+.mention-pop__person {
+    display: grid;
+    min-width: 0;
+    line-height: 1.25;
+}
+
+.mention-pop__person strong,
+.mention-pop__person small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mention-pop__person strong { font-size: 0.85rem; }
+.mention-pop__person small { color: var(--app-text-muted); font-size: 0.73rem; }
 
 .comment {
     display: flex;
@@ -247,13 +353,35 @@ const deleteComment = async (c) => {
 
 @media (max-width: 575.98px) {
     .mention-pop {
-        right: 0;
-        left: 0;
-        min-width: 0;
+        max-height: 220px;
+        max-width: calc(100% - 8px);
+    }
+
+    .comment-compose {
+        margin-bottom: 18px !important;
+    }
+
+    .comment-compose > .d-flex {
+        margin-top: 10px !important;
+    }
+
+    .comment-compose :deep(.btn) {
+        width: 100%;
+        min-height: 40px;
+        justify-content: center;
     }
 
     .comment {
         gap: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 12px;
+    }
+
+    .comment:first-child {
+        border-top: 1px solid var(--app-border);
     }
 
     .comment__avatar {
@@ -262,9 +390,18 @@ const deleteComment = async (c) => {
     }
 
     .comment__head {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 0;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 3px 7px;
+        margin-bottom: 5px;
     }
+
+    .comment__head strong { font-size: 0.86rem; }
+    .comment__head small { font-size: 0.72rem; }
+    .comment__content { font-size: 0.86rem; line-height: 1.55; }
+    .item-x { padding: 3px 2px; font-size: 1.2rem; }
+
+    .mention-pop__option { padding: 7px; }
+    .mention-pop__person strong { font-size: 0.82rem; }
 }
 </style>

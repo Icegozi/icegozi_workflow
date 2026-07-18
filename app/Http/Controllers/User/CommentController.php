@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\Task;
 use App\Models\TaskHistory;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,7 @@ class CommentController extends Controller
     public function store(Request $request, Task $task)
     {
         $board = $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
+        $request->merge(['content' => trim((string) $request->input('content'))]);
         $request->validate([
             'content' => 'required|string|max:5000',
             'mentions' => 'nullable|array',
@@ -58,12 +60,13 @@ class CommentController extends Controller
                 Log::warning("notifyMentions failed for task {$task->id}: " . $e->getMessage());
             }
 
-            $comment->user_avatar = $comment->user?->avatar_url;
+            $comment->user_avatar = $comment->user_avatar_url;
+            $comment->can_delete = true;
 
             return response()->json([
                 'success' => true, 'message' => 'Bình luận đã được thêm.',
                 'comment' => $comment,
-            ]);
+            ], 201);
         } catch (\Exception $e) {
             Log::error("Error adding comment to task {$task->id}: " . $e->getMessage());
 
@@ -127,6 +130,11 @@ class CommentController extends Controller
                 'success' => true,
                 'message' => 'Bình luận đã được xóa.',
             ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bình luận không tồn tại hoặc đã bị xóa.',
+            ], 404);
         } catch (\Exception $e) {
             Log::error("Error deleting comment for task {$task->id}: " . $e->getMessage());
 

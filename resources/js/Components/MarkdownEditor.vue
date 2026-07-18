@@ -14,7 +14,7 @@ const props = defineProps({
     // Khi có taskId: bật upload tệp/ảnh (nút đính kèm + dán clipboard + kéo-thả).
     taskId: { type: Number, default: null },
 });
-const emit = defineEmits(['update:modelValue', 'submit']);
+const emit = defineEmits(['update:modelValue', 'submit', 'keydown']);
 
 const ta = ref(null);
 const tab = ref('write'); // 'write' | 'preview'
@@ -151,6 +151,8 @@ const onInput = (e) => {
 
 // Ctrl/Cmd + Enter -> gửi
 const onKeydown = (e) => {
+    emit('keydown', e);
+    if (e.defaultPrevented) return;
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         emit('submit');
@@ -165,13 +167,58 @@ const autoGrow = () => {
     el.style.height = Math.max(el.scrollHeight, min) + 'px';
 };
 
+// Trả tọa độ viewport của một vị trí caret trong textarea. Component cha dùng
+// để đặt danh sách @mention ngay dưới ký tự "@" thay vì phủ cả ô soạn thảo.
+const getCaretCoordinates = (position = ta.value?.selectionStart ?? 0) => {
+    const el = ta.value;
+    if (!el) return null;
+
+    const style = window.getComputedStyle(el);
+    const mirror = document.createElement('div');
+    const copied = [
+        'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+        'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+        'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+        'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
+        'fontFamily', 'lineHeight', 'letterSpacing', 'textTransform',
+        'textIndent', 'textDecoration', 'wordSpacing', 'tabSize',
+    ];
+    copied.forEach((property) => { mirror.style[property] = style[property]; });
+    mirror.style.position = 'absolute';
+    mirror.style.visibility = 'hidden';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordWrap = 'break-word';
+    mirror.style.overflowWrap = 'break-word';
+    mirror.style.top = '0';
+    mirror.style.left = '-9999px';
+
+    mirror.textContent = (el.value || '').slice(0, position);
+    const marker = document.createElement('span');
+    marker.textContent = (el.value || '').charAt(position) || '.';
+    mirror.append(marker);
+    document.body.append(mirror);
+
+    const rect = el.getBoundingClientRect();
+    const coordinates = {
+        left: rect.left + marker.offsetLeft - el.scrollLeft,
+        top: rect.top + marker.offsetTop - el.scrollTop + marker.offsetHeight,
+    };
+    mirror.remove();
+
+    return coordinates;
+};
+
 watch(() => props.modelValue, () => nextTick(autoGrow));
 onMounted(() => {
     autoGrow();
     if (props.autofocus) ta.value?.focus();
 });
 
-defineExpose({ focus: () => ta.value?.focus() });
+defineExpose({
+    focus: () => ta.value?.focus(),
+    isUploading: computed(() => uploading.value > 0),
+    getCaretCoordinates,
+});
 </script>
 
 <template>
