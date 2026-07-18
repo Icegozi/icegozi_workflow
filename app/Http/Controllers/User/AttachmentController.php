@@ -64,27 +64,25 @@ class AttachmentController extends Controller
                         }
 
                         $attachment = \DB::transaction(function () use ($task, $originalName, $path, $file) {
+                            $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
                             $attachment = Attachment::create([
                                 'file_name' => $originalName,
                                 'file_path' => $path,
                                 'file_size' => $file->getSize(),
                                 'mime_type' => $file->getMimeType(),
-                                'task_id' => $task->id,
+                                'task_id' => $lockedTask->id,
                                 'user_id' => Auth::id(),
                             ]);
 
-                            $task->taskHistories()->create([
+                            $lockedTask->taskHistories()->create([
                                 'user_id' => Auth::id(),
                                 'action' => 'attachment_added',
                                 'note' => 'Đã thêm đính kèm: ' . e($originalName),
                             ]);
+                            $lockedTask->bumpRevision();
 
                             return $attachment;
                         });
-
-                        // Kích hoạt các accessor để trả về client
-                        $attachment->url = $attachment->url;
-                        $attachment->uploaded_at_formatted = $attachment->uploaded_at_formatted;
 
                         $uploadedAttachmentsData[] = $attachment;
 
@@ -160,12 +158,15 @@ class AttachmentController extends Controller
             $originalName = $attachment->file_name;
 
             \DB::transaction(function () use ($attachment, $task, $originalName) {
-                $attachment->delete();
-                $task->taskHistories()->create([
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                $lockedAttachment = Attachment::query()->lockForUpdate()->findOrFail($attachment->id);
+                $lockedAttachment->delete();
+                $lockedTask->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'attachment_deleted',
                     'note' => 'Đã xoá đính kèm: ' . e($originalName),
                 ]);
+                $lockedTask->bumpRevision();
             });
 
             return response()->json([

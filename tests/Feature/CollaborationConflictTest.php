@@ -120,4 +120,40 @@ class CollaborationConflictTest extends TestCase
 
         $this->assertNotNull(Column::find($column->id));
     }
+
+    public function test_checklist_change_invalidates_a_stale_task_edit(): void
+    {
+        [$owner, , , , $task] = $this->makeBoard();
+
+        $this->actingAs($owner)
+            ->postJson(route('checklists.store', $task), ['title' => 'Kiểm tra'])
+            ->assertCreated();
+
+        $this->assertSame(2, $task->fresh()->revision);
+        $this->actingAs($owner)
+            ->putJson(route('tasks.update', $task), ['title' => 'Bản cũ', 'revision' => 1])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'STALE_VERSION');
+    }
+
+    public function test_stale_column_reorder_is_rejected(): void
+    {
+        [$owner, $board, $first, $second] = $this->makeBoard();
+
+        $this->actingAs($owner)
+            ->postJson(route('columns.reorder', $board), [
+                'order' => [$second->id, $first->id],
+                'layout_revision' => 1,
+            ])
+            ->assertOk()
+            ->assertJsonPath('layout_revision', 2);
+
+        $this->actingAs($owner)
+            ->postJson(route('columns.reorder', $board), [
+                'order' => [$first->id, $second->id],
+                'layout_revision' => 1,
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'STALE_LAYOUT');
+    }
 }

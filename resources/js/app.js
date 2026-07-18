@@ -17,7 +17,6 @@ const httpErrorMessages = {
     403: 'Bạn không có quyền thực hiện thao tác này !',
     404: 'Không tìm thấy nội dung này !',
     402: 'Gói dịch vụ không hỗ trợ hoặc đã hết hạn mức .',
-    409: 'Hãy reload lại trang để có thông tin mới nhất .',
 };
 
 const showHttpError = (status) => {
@@ -30,7 +29,7 @@ const showHttpError = (status) => {
 window.axios.interceptors.response.use(
     (response) => response,
     (error) => {
-        showHttpError(error.response?.status);
+        if (error.response?.status !== 409) showHttpError(error.response?.status);
 
         return Promise.reject(error);
     }

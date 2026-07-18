@@ -28,7 +28,7 @@ class TaskHandoverRequestController extends Controller
 
         $handover = null;
         DB::transaction(function () use ($task, $from, $to, &$handover) {
-            Task::query()->lockForUpdate()->findOrFail($task->id);
+            $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
             $handover = TaskHandoverRequest::firstOrCreate([
                 'task_id' => $task->id,
                 'from_user_id' => $from->id,
@@ -37,6 +37,7 @@ class TaskHandoverRequestController extends Controller
             ]);
 
             if ($handover->wasRecentlyCreated) {
+                $lockedTask->bumpRevision();
                 Notification::notifyUser(
                     $to->id,
                     '<strong>' . e($from->name) . '</strong> muốn bàn giao task '
@@ -85,6 +86,7 @@ class TaskHandoverRequestController extends Controller
                 'action' => 'task_handed_over',
                 'note' => e($to->name) . ' đã nhận bàn giao công việc.',
             ]);
+            $task->bumpRevision();
         });
 
         return response()->json(['success' => true, 'message' => 'Bạn đã nhận bàn giao công việc.']);

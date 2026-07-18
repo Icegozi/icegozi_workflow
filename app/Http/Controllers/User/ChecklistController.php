@@ -44,20 +44,22 @@ class ChecklistController extends Controller
 
         try {
             $checklist = DB::transaction(function () use ($task, $request) {
-                $maxPosition = $task->checklists()->max('position');
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                $maxPosition = $lockedTask->checklists()->max('position');
                 $position = is_null($maxPosition) ? 0 : $maxPosition + 1;
 
-                $checklist = $task->checklists()->create([
+                $checklist = $lockedTask->checklists()->create([
                     'title' => $request->title,
                     'position' => $position,
                     'is_done' => false,
                 ]);
 
-                $task->taskHistories()->create([
+                $lockedTask->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'added_checklist_item',
                     'note' => "Đã thêm mục checklist: '" . e($checklist->title) . "'",
                 ]);
+                $lockedTask->bumpRevision();
 
                 return $checklist;
             });
@@ -91,11 +93,23 @@ class ChecklistController extends Controller
         ]);
 
         try {
-            $updatedFieldsMessages = $this->applyChecklistChanges($checklist, $request);
+            $checklist = DB::transaction(function () use ($checklist, $request) {
+                $lockedChecklist = Checklist::query()->lockForUpdate()->findOrFail($checklist->id);
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($lockedChecklist->task_id);
+                $messages = $this->applyChecklistChanges($lockedChecklist, $request);
 
-            if (! empty($updatedFieldsMessages)) {
-                $this->persistChecklistUpdate($checklist, $task, $updatedFieldsMessages);
-            }
+                if (! empty($messages)) {
+                    $lockedChecklist->save();
+                    $lockedTask->taskHistories()->create([
+                        'user_id' => Auth::id(),
+                        'action' => 'updated_checklist_item',
+                        'note' => 'Đã cập nhật mục checklist: ' . implode(', ', $messages),
+                    ]);
+                    $lockedTask->bumpRevision();
+                }
+
+                return $lockedChecklist;
+            });
 
             // Return the fresh checklist item (with potentially updated values)
             return response()->json([
@@ -141,21 +155,6 @@ class ChecklistController extends Controller
         return $updatedFieldsMessages;
     }
 
-    private function persistChecklistUpdate(Checklist $checklist, ?Task $task, array $updatedFieldsMessages): void
-    {
-        DB::transaction(function () use ($checklist, $task, $updatedFieldsMessages) {
-            $checklist->save();
-
-            if ($task) {
-                $task->taskHistories()->create([
-                    'user_id' => Auth::id(),
-                    'action' => 'updated_checklist_item',
-                    'note' => 'Đã cập nhật mục checklist: ' . implode(', ', $updatedFieldsMessages),
-                ]);
-            }
-        });
-    }
-
     public function destroy(Checklist $checklist)
     {
         $task = $checklist->task;
@@ -165,12 +164,15 @@ class ChecklistController extends Controller
             $checklistTitle = $checklist->title;
 
             DB::transaction(function () use ($checklist, $task, $checklistTitle) {
-                $checklist->delete();
-                $task->taskHistories()->create([
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                $lockedChecklist = Checklist::query()->lockForUpdate()->findOrFail($checklist->id);
+                $lockedChecklist->delete();
+                $lockedTask->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'deleted_checklist_item',
                     'note' => "Đã xóa mục checklist: '" . e($checklistTitle) . "'",
                 ]);
+                $lockedTask->bumpRevision();
             });
 
             return response()->json(['success' => true, 'message' => 'Mục checklist đã được xóa.']);
@@ -188,21 +190,35 @@ class ChecklistController extends Controller
         $request->validate([
             'ids' => 'required|array',
             'ids.*' => 'integer|exists:checklists,id',
+            'revision' => 'required|integer|min:1',
         ]);
 
         try {
             DB::transaction(function () use ($request, $task) {
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                if ($lockedTask->revision !== (int) $request->revision) {
+                    abort(response()->json([
+                        'success' => false,
+                        'code' => 'STALE_VERSION',
+                        'message' => 'Dữ liệu công việc đã thay đổi. Vui lòng tải lại trước khi sắp xếp.',
+                        'current' => ['revision' => $lockedTask->revision],
+                    ], 409));
+                }
+                $checklistIds = $lockedTask->checklists()->lockForUpdate()->pluck('id')->sort()->values()->all();
+                $requestedIds = collect($request->ids)->map(fn ($id) => (int) $id)->sort()->values()->all();
+                abort_unless($checklistIds === $requestedIds, 422, 'Danh sách checklist không hợp lệ.');
                 foreach ($request->ids as $index => $checklistId) {
                     Checklist::where('id', $checklistId)
-                        ->where('task_id', $task->id)
+                        ->where('task_id', $lockedTask->id)
                         ->update(['position' => $index]);
                 }
 
-                $task->taskHistories()->create([
+                $lockedTask->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'reordered_checklist',
                     'note' => 'Đã sắp xếp lại các mục trong checklist.',
                 ]);
+                $lockedTask->bumpRevision();
             });
 
             return response()->json(['success' => true, 'message' => 'Thứ tự checklist đã được cập nhật.']);

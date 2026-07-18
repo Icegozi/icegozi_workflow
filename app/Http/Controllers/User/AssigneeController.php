@@ -54,13 +54,15 @@ class AssigneeController extends Controller
 
         DB::transaction(function () use ($board, $assignee, $userId, $task) {
             Board::query()->lockForUpdate()->findOrFail($board->id);
+            $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
             if (! $this->isBoardMember($board, (int) $userId)) {
                 abort(422, 'Người dùng không thuộc bảng này.');
             }
-            if ($assignee->isExistsAsignee($userId, $task->id)) {
+            if ($assignee->isExistsAsignee($userId, $lockedTask->id)) {
                 abort(409, 'Người dùng đã được giao nhiệm vụ này.');
             }
-            $assignee->addAsignee($userId, $task->id);
+            $assignee->addAsignee($userId, $lockedTask->id);
+            $lockedTask->bumpRevision();
         });
 
         return $this->response(true, 'Người dùng đã được chỉ định thành công.', $task->fresh());
@@ -75,7 +77,15 @@ class AssigneeController extends Controller
             return $this->response(false, 'Người dùng không thuộc bảng này.', $task, 422);
         }
 
-        $updatedAssignee = $assignee->updateUserForTask($task->id, $user->id, $newUserId);
+        $updatedAssignee = DB::transaction(function () use ($assignee, $task, $user, $newUserId) {
+            $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+            $updated = $assignee->updateUserForTask($lockedTask->id, $user->id, $newUserId);
+            if ($updated) {
+                $lockedTask->bumpRevision();
+            }
+
+            return $updated;
+        });
         if (! $updatedAssignee) {
             return $this->response(false, 'Cập nhật người phụ trách không thành công.', $task, 500);
         }
@@ -92,8 +102,10 @@ class AssigneeController extends Controller
         }
 
         DB::transaction(function () use ($assignee, $task, $user) {
-            $assignee->removeAsignee($user->id, $task->id);
-            $this->logUnassignHistory($task, $user);
+            $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+            $assignee->removeAsignee($user->id, $lockedTask->id);
+            $this->logUnassignHistory($lockedTask, $user);
+            $lockedTask->bumpRevision();
         });
 
         return $this->response(true, 'Xóa người phụ trách thành công!', $task->fresh());

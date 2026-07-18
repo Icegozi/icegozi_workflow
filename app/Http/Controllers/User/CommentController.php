@@ -38,12 +38,14 @@ class CommentController extends Controller
 
         try {
             $comment = DB::transaction(function () use ($task, $request) {
-                $newComment = $task->comments()->create([
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                $newComment = $lockedTask->comments()->create([
                     'user_id' => Auth::id(),
                     'content' => $request->content,
                 ]);
 
-                (new TaskHistory())->logTaskHistory($task, 'thêm bình luận');
+                (new TaskHistory())->logTaskHistory($lockedTask, 'thêm bình luận');
+                $lockedTask->bumpRevision();
 
                 return $newComment;
             });
@@ -116,8 +118,11 @@ class CommentController extends Controller
             }
 
             DB::transaction(function () use ($comment, $task) {
-                $comment->delete();
-                (new TaskHistory())->logTaskHistory($task, 'xóa bình luận');
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                $lockedComment = $lockedTask->comments()->lockForUpdate()->findOrFail($comment->id);
+                $lockedComment->delete();
+                (new TaskHistory())->logTaskHistory($lockedTask, 'xóa bình luận');
+                $lockedTask->bumpRevision();
             });
 
             return response()->json([

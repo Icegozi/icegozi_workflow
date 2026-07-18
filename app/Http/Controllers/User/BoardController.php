@@ -158,6 +158,7 @@ class BoardController extends Controller
             'board' => [
                 'id' => $board->id,
                 'name' => $board->name,
+                'layout_revision' => $board->layout_revision,
                 'labels' => $board->labels->map(fn ($l) => [
                     'id' => $l->id,
                     'name' => $l->name,

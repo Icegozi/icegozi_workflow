@@ -6,6 +6,8 @@ export const appAlert = reactive({
     mode: 'alert',
     type: 'danger',
     inputValue: '',
+    primaryLabel: 'Xác nhận',
+    secondaryLabel: 'Hủy',
 });
 
 const alertQueue = [];
@@ -24,6 +26,8 @@ const showNextAlert = () => {
     appAlert.mode = nextAlert.mode;
     appAlert.type = nextAlert.type;
     appAlert.inputValue = nextAlert.inputValue;
+    appAlert.primaryLabel = nextAlert.primaryLabel || 'Xác nhận';
+    appAlert.secondaryLabel = nextAlert.secondaryLabel || 'Hủy';
     appAlert.isOpen = true;
 };
 
@@ -81,10 +85,28 @@ export const showAppPrompt = (
     });
 };
 
+export const showAppChoice = (message, options = {}) => {
+    return new Promise((resolve) => {
+        queueAlert({
+            message: String(message ?? 'Chọn cách xử lý.'),
+            mode: 'choice',
+            type: options.type || 'warning',
+            inputValue: '',
+            primaryLabel: options.primaryLabel || 'Xác nhận',
+            secondaryLabel: options.secondaryLabel || 'Hủy',
+            resolve,
+        });
+    });
+};
+
 export const closeAppAlert = () => {
+    if (appAlert.mode === 'choice') {
+        closeCurrentAlert('secondary');
+        return;
+    }
     closeCurrentAlert(appAlert.mode === 'prompt' ? null : false);
 };
 
 export const confirmAppAlert = () => {
-    closeCurrentAlert(appAlert.mode === 'prompt' ? appAlert.inputValue : true);
+    closeCurrentAlert(appAlert.mode === 'choice' ? 'primary' : (appAlert.mode === 'prompt' ? appAlert.inputValue : true));
 };

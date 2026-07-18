@@ -86,11 +86,14 @@ class TaskController extends Controller
             $data = $request->validated();
             $data['priority'] = $request->input('priority', 'normal');
             $createdTask = DB::transaction(function () use ($column, $data) {
-                $task = (new Task())->createForColumn($column, $data);
-                (new TaskHistory())->logTaskHistory($task, 'tạo', null, $column->name);
+                $lockedColumn = Column::query()->lockForUpdate()->findOrFail($column->id);
+                $task = (new Task())->createForColumn($lockedColumn, $data);
+                $lockedColumn->increment('revision');
+                (new TaskHistory())->logTaskHistory($task, 'tạo', null, $lockedColumn->name);
 
-                return $task;
+                return [$task, $lockedColumn->fresh()->revision];
             });
+            [$createdTask, $columnRevision] = $createdTask;
             $createdTask->load('assignees', 'status');
 
             return response()->json([
@@ -107,6 +110,7 @@ class TaskController extends Controller
                     'position' => $createdTask->position,
                     'revision' => $createdTask->revision,
                     'column_id' => $createdTask->column_id,
+                    'column_revision' => $columnRevision,
                     'assignees' => $createdTask->assignees->map(function ($user) {
                         return [
                             'id' => $user->id,
@@ -369,7 +373,7 @@ class TaskController extends Controller
             'canEdit' => $canEdit,
             'canManage' => Auth::user()->hasBoardPermission($board, 'board_member_manager'),
             'statuses' => $statuses,
-            'boardLabels' => $board->labels()->orderBy('name')->get(['id', 'name', 'color']),
+            'boardLabels' => $board->labels()->orderBy('name')->get(['id', 'name', 'color', 'revision']),
         ]);
     }
 
@@ -575,6 +579,7 @@ class TaskController extends Controller
         if ($target->id !== $source->id) {
             $target->increment('revision');
         }
+        $task->bumpRevision();
         (new TaskHistory())->logTaskHistory($task, 'di chuyển', $oldColumn->name ?? null, $newColumn->name ?? null);
     }
 

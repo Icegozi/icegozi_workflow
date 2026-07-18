@@ -10,7 +10,7 @@ import Btn from '@/Components/Btn.vue';
 import MarkdownEditor from '@/Components/MarkdownEditor.vue';
 import TaskComments from '@/Components/TaskComments.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
-import { showAppAlert, showAppConfirm } from '@/composables/useAppAlert';
+import { showAppAlert, showAppChoice, showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
     taskId: { type: Number, required: true },
@@ -155,6 +155,23 @@ const reloadOnConflict = async (error) => {
     return true;
 };
 
+const handleTaskConflict = async (error) => {
+    if (error.response?.status !== 409) return false;
+    const current = error.response.data?.current;
+    const message = `${error.response.data?.message || 'Công việc đã thay đổi trên một phiên khác.'} Bản mới nhất có tiêu đề “${current?.title || 'Công việc'}”. Bản nháp của bạn vẫn được giữ nguyên.`;
+    const choice = await showAppChoice(message, {
+        primaryLabel: 'Ghi đè bằng bản nháp',
+        secondaryLabel: 'Dùng bản mới',
+    });
+    if (choice === 'primary' && current?.revision) {
+        task.value.revision = current.revision;
+        await saveTask();
+    } else {
+        await fetchTask(true);
+    }
+    return true;
+};
+
 const loadMembers = async () => {
     try {
         const { data } = await axios.get(route('boards.assignedUsers', props.boardId));
@@ -171,6 +188,12 @@ onMounted(async () => {
     await fetchTask(true);
     loadMembers();   // cần cho cả gợi ý @mention, không chỉ khi canManage
 });
+
+const refreshWhenFocused = () => {
+    if (document.visibilityState === 'visible' && !saving.value) {
+        fetchTask(false);
+    }
+};
 
 
 const returnTo = () => new URLSearchParams(window.location.search).get('return');
@@ -208,7 +231,7 @@ const saveTask = async () => {
         });
         await fetchTask(false);
     } catch (e) {
-        if (await reloadOnConflict(e)) return;
+        if (await handleTaskConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể lưu thay đổi.');
     } finally {
         saving.value = false;
@@ -351,12 +374,14 @@ onMounted(() => {
     document.addEventListener('mousedown', onDocClick);
     window.addEventListener('keydown', onKeydown);
     window.addEventListener('resize', syncMobileSheetScroll);
+    window.addEventListener('focus', refreshWhenFocused);
 });
 
 onUnmounted(() => {
     document.removeEventListener('mousedown', onDocClick);
     window.removeEventListener('keydown', onKeydown);
     window.removeEventListener('resize', syncMobileSheetScroll);
+    window.removeEventListener('focus', refreshWhenFocused);
 
     if (bodyScrollLocked) {
         document.body.style.overflow = bodyOverflowBeforeSheet;
@@ -760,6 +785,7 @@ onUnmounted(() => {
     max-width: 1160px;
     margin: 0 auto;
 }
+
 
 /* ---------------- Header ---------------- */
 .te-header {

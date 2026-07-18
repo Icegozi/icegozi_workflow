@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -33,6 +33,17 @@ const reloadOnConflict = async (error) => {
     router.visit(route('boards.show', props.board.id));
     return true;
 };
+
+// Fallback nhẹ khi broadcasting chưa được cấu hình: khi quay lại tab, đồng bộ lại
+// board để người dùng không tiếp tục thao tác trên state đã cũ.
+const refreshWhenFocused = () => {
+    if (document.visibilityState === 'visible') {
+        router.reload({ preserveScroll: true });
+    }
+};
+
+onMounted(() => window.addEventListener('focus', refreshWhenFocused));
+onUnmounted(() => window.removeEventListener('focus', refreshWhenFocused));
 
 // ---- Thêm cột (hiển thị form trong modal) ----
 const openAddColumn = async () => {
@@ -122,6 +133,7 @@ const saveTask = async (col, title) => {
             has_description: false,
             comments_count: 0, attachments_count: 0, checklist_total: 0, checklist_done: 0,
         });
+        col.revision = data.task.column_revision || col.revision;
     } catch (e) {
         if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể thêm công việc.');

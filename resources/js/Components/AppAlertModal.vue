@@ -19,6 +19,7 @@ const modal = ref(null);
 let previousFocus = null;
 const isConfirm = () => appAlert.mode === 'confirm';
 const isPrompt = () => appAlert.mode === 'prompt';
+const isChoice = () => appAlert.mode === 'choice';
 
 const getFocusableElements = () => {
     return [...(modal.value?.querySelectorAll(
@@ -142,20 +143,20 @@ onBeforeUnmount(() => {
 
                 <div class="app-alert-modal__actions">
                     <button
-                        v-if="isConfirm() || isPrompt()"
+                        v-if="isConfirm() || isPrompt() || isChoice()"
                         type="button"
                         class="btn btn-outline-secondary app-alert-modal__cancel"
                         @click="closeAppAlert"
                     >
-                        Hủy
+                        {{ isChoice() ? appAlert.secondaryLabel : 'Hủy' }}
                     </button>
                     <button
                         type="button"
                         class="btn app-alert-modal__confirm"
                         :class="isConfirm() ? 'btn-danger' : 'btn-primary'"
-                        @click="isConfirm() || isPrompt() ? confirmAppAlert() : closeAppAlert()"
+                        @click="isConfirm() || isPrompt() || isChoice() ? confirmAppAlert() : closeAppAlert()"
                     >
-                        {{ isConfirm() || isPrompt() ? 'Xác nhận' : 'Đã hiểu' }}
+                        {{ isChoice() ? appAlert.primaryLabel : (isConfirm() || isPrompt() ? 'Xác nhận' : 'Đã hiểu') }}
                     </button>
                 </div>
             </section>
