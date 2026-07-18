@@ -148,6 +148,13 @@ const fetchTask = async (resetForm = false) => {
     loading.value = false;
 };
 
+const reloadOnConflict = async (error) => {
+    if (error.response?.status !== 409) return false;
+    await showAppAlert(error.response.data?.message || 'Công việc đã thay đổi. Đang tải lại bản mới nhất.');
+    await fetchTask(true);
+    return true;
+};
+
 const loadMembers = async () => {
     try {
         const { data } = await axios.get(route('boards.assignedUsers', props.boardId));
@@ -197,9 +204,11 @@ const saveTask = async () => {
             due_date: dueDate.value || null,
             priority: priority.value,
             status_id: statusId.value,
+            revision: task.value.revision,
         });
         await fetchTask(false);
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể lưu thay đổi.');
     } finally {
         saving.value = false;
@@ -209,9 +218,10 @@ const saveTask = async () => {
 const deleteTask = async () => {
     if (!await showAppConfirm('Xoá công việc này?', 'danger')) return;
     try {
-        await axios.delete(route('tasks.destroy', props.taskId));
+        await axios.delete(route('tasks.destroy', props.taskId), { data: { revision: task.value.revision } });
         backAfterDelete();
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể xoá công việc.');
     }
 };
@@ -303,12 +313,15 @@ const createLabel = async () => {
 const deleteLabel = async (label) => {
     if (!await showAppConfirm(`Xoá nhãn "${label.name || 'Nhãn'}" khỏi bảng? Nhãn sẽ bị gỡ khỏi mọi công việc.`, 'danger')) return;
     try {
-        await axios.delete(route('labels.destroy', label.id));
+        await axios.delete(route('labels.destroy', label.id), { data: { revision: label.revision } });
         labels.value = labels.value.filter((l) => l.id !== label.id);
         if (task.value?.labels) {
             task.value.labels = task.value.labels.filter((l) => l.id !== label.id);
         }
-    } catch (e) { showAppAlert(e.response?.data?.message || 'Không thể xoá nhãn.'); }
+    } catch (e) {
+        if (await reloadOnConflict(e)) return;
+        showAppAlert(e.response?.data?.message || 'Không thể xoá nhãn.');
+    }
 };
 
 const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(email || 'x')}`;

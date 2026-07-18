@@ -63,6 +63,7 @@ class ColumnController extends Controller
                     'id' => $column->id,
                     'name' => $column->name,
                     'position' => $column->position,
+                    'revision' => $column->revision,
                     'url_update' => route('columns.update', ['board' => $board->id, 'column' => $column->id]),
                     'url_destroy' => route('columns.destroy', ['board' => $board->id, 'column' => $column->id]),
                 ],
@@ -101,11 +102,13 @@ class ColumnController extends Controller
 
         try {
             $column->update(['name' => $validated['name']]);
+            $column->increment('revision');
 
             return response()->json([
                 'success' => true,
                 'message' => 'Tên cột đã được cập nhật.',
                 'new_name' => $column->name,
+                'revision' => $column->fresh()->revision,
             ]);
         } catch (\Exception $e) {
             \Log::error("Error updating column {$column->id}: " . $e->getMessage());
@@ -120,13 +123,14 @@ class ColumnController extends Controller
     /**
      * Remove the specified column from storage.
      */
-    public function destroy(Board $board, Column $column)
+    public function destroy(Request $request, Board $board, Column $column)
     {
         $this->authorizeBoardAccess($board, ['board_member_manager']);
 
         if ($column->board_id !== $board->id) {
             abort(404);
         }
+        $request->validate(['revision' => ['required', 'integer', 'min:1']]);
 
         // Tránh xoá nhầm: không cho xoá cột đang chứa công việc.
         if ($column->tasks()->exists()) {
@@ -137,21 +141,29 @@ class ColumnController extends Controller
         }
 
         try {
-            DB::beginTransaction();
+            $deleted = DB::transaction(function () use ($request, $column, $board) {
+                $locked = Column::query()->lockForUpdate()->findOrFail($column->id);
+                if ((int) $locked->revision !== (int) $request->integer('revision')) {
+                    return false;
+                }
+                $deletedPosition = $locked->position;
+                $locked->delete();
+                Column::where('board_id', $board->id)
+                    ->where('position', '>', $deletedPosition)
+                    ->decrement('position');
 
-            $deletedPosition = $column->position;
-            $column->delete();
-
-            Column::where('board_id', $board->id)
-                ->where('position', '>', $deletedPosition)
-                ->decrement('position');
-
-            DB::commit();
+                return true;
+            });
+            if (! $deleted) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'STALE_VERSION',
+                    'message' => 'Cột đã được người khác cập nhật. Vui lòng tải lại.',
+                ], 409);
+            }
 
             return response()->json(['success' => true, 'message' => 'Cột đã được xoá thành công.']);
         } catch (\Exception $e) {
-            DB::rollBack();
-
             return response()->json(['success' => false, 'message' => 'Không thể xoá cột. Đã xảy ra lỗi.'], 500);
         }
     }

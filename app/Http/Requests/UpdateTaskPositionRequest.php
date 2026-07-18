@@ -26,6 +26,8 @@ class UpdateTaskPositionRequest extends FormRequest
             'new_column_id' => 'required|integer|exists:columns,id',
             'order' => 'required|array',
             'order.*' => 'integer|exists:tasks,id',
+            'source_column_revision' => 'required|integer|min:1',
+            'target_column_revision' => 'required|integer|min:1',
         ];
     }
 

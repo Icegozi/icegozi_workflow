@@ -162,17 +162,20 @@ class BoardController extends Controller
                     'id' => $l->id,
                     'name' => $l->name,
                     'color' => $l->color,
+                    'revision' => $l->revision,
                 ])->values(),
                 'columns' => $board->columns->map(fn ($c) => [
                     'id' => $c->id,
                     'name' => $c->name,
                     'position' => $c->position,
+                    'revision' => $c->revision,
                     'tasks' => $c->tasks->map(fn ($t) => [
                         'id' => $t->id,
                         'code' => Task::buildCode($board->name, $t->id),
                         'title' => $t->title,
                         'column_id' => $t->column_id,
                         'position' => $t->position,
+                        'revision' => $t->revision,
                         'priority' => $t->priority,
                         'has_description' => filled($t->description),
                         'status' => $t->status ? [

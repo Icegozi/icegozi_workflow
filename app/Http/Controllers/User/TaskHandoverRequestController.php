@@ -39,7 +39,8 @@ class TaskHandoverRequestController extends Controller
             if ($handover->wasRecentlyCreated) {
                 Notification::notifyUser(
                     $to->id,
-                    '<strong>' . e($from->name) . '</strong> muốn bàn giao task <strong>' . e($task->title) . '</strong> cho bạn.',
+                    '<strong>' . e($from->name) . '</strong> muốn bàn giao task '
+                    . '<strong>' . e($task->title) . '</strong> cho bạn.',
                     route('tasks.edit', ['taskCode' => $task->code(), 'handover_request' => $handover->id]),
                     $task->id
                 );

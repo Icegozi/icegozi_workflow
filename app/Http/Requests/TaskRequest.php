@@ -35,6 +35,8 @@ class TaskRequest extends FormRequest
             'priority' => ['nullable', Rule::in(['low', 'normal', 'high', 'urgent'])],
             'status_id' => ['nullable', 'exists:statuses,id'],
             'due_date' => $dueDateRules,
+            // Bắt buộc khi sửa để tránh ghi đè bản người khác vừa lưu.
+            'revision' => $isCreate ? ['nullable'] : ['required', 'integer', 'min:1'],
         ];
     }
 }

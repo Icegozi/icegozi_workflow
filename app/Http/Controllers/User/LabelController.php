@@ -62,15 +62,31 @@ class LabelController extends Controller
 
         return response()->json([
             'success' => true,
-            'label' => $label->only(['id', 'name', 'color']),
+            'label' => $label->only(['id', 'name', 'color', 'revision']),
         ], 201);
     }
 
     /** Xoá nhãn khỏi board (gỡ khỏi mọi task do cascade). */
-    public function destroy(Label $label)
+    public function destroy(Request $request, Label $label)
     {
         $this->authorizeBoardAccess($label->board, ['board_editor', 'board_member_manager']);
-        $label->delete();
+        $request->validate(['revision' => ['required', 'integer', 'min:1']]);
+        $deleted = \DB::transaction(function () use ($request, $label) {
+            $locked = Label::query()->lockForUpdate()->findOrFail($label->id);
+            if ((int) $locked->revision !== (int) $request->integer('revision')) {
+                return false;
+            }
+            $locked->delete();
+
+            return true;
+        });
+        if (! $deleted) {
+            return response()->json([
+                'success' => false,
+                'code' => 'STALE_VERSION',
+                'message' => 'Nhãn đã được người khác cập nhật. Vui lòng tải lại.',
+            ], 409);
+        }
 
         return response()->json(['success' => true]);
     }

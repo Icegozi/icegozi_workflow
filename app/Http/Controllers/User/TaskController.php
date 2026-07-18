@@ -13,6 +13,7 @@ use App\Models\TaskHandoverRequest;
 use Auth;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Log;
 
 class TaskController extends Controller
@@ -104,6 +105,7 @@ class TaskController extends Controller
                     'due_date' => $createdTask->due_date ? $createdTask->due_date->toDateString() : null,
                     'formatted_due_date' => $createdTask->due_date ? $createdTask->due_date->format('d M') : null,
                     'position' => $createdTask->position,
+                    'revision' => $createdTask->revision,
                     'column_id' => $createdTask->column_id,
                     'assignees' => $createdTask->assignees->map(function ($user) {
                         return [
@@ -380,7 +382,23 @@ class TaskController extends Controller
         $this->assertStatusAllowed($board, $request->input('status_id'));
 
         try {
-            $task->updateDetails($request->validated());
+            $result = DB::transaction(function () use ($request, $task) {
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                if ((int) $request->integer('revision') !== (int) $lockedTask->revision) {
+                    return null;
+                }
+
+                $lockedTask->updateDetails(Arr::except($request->validated(), ['revision']));
+                $lockedTask->increment('revision');
+
+                return $lockedTask->fresh(['assignees', 'status']);
+            });
+
+            if (! $result) {
+                return $this->staleTaskResponse($task->id);
+            }
+
+            $task = $result;
 
             return response()->json([
                 'success' => true,
@@ -395,6 +413,7 @@ class TaskController extends Controller
                     'formatted_due_date' => $task->due_date ? $task->due_date->format('M d') : null,
                     'position' => $task->position,
                     'column_id' => $task->column_id,
+                    'revision' => $task->revision,
                     'assignees' => $task->assignees->map(function ($assignee) {
                         return ['id' => $assignee->id, 'name' => $assignee->name, 'email' => $assignee->email];
                     }),
@@ -413,12 +432,24 @@ class TaskController extends Controller
     /**
      * Remove the specified task from storage.
      */
-    public function destroy(Task $task)
+    public function destroy(Request $request, Task $task)
     {
         $this->authorizeTaskAccess($task, ['board_member_manager']);
+        $request->validate(['revision' => ['required', 'integer', 'min:1']]);
 
         try {
-            $task->deleteWithHistory();
+            $deleted = DB::transaction(function () use ($request, $task) {
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                if ((int) $request->integer('revision') !== (int) $lockedTask->revision) {
+                    return false;
+                }
+                $lockedTask->deleteWithHistory();
+
+                return true;
+            });
+            if (! $deleted) {
+                return $this->staleTaskResponse($task->id);
+            }
 
             return response()->json(['success' => true, 'message' => 'Xóa nhiệm vụ thành công']);
         } catch (\Exception $e) {
@@ -435,7 +466,6 @@ class TaskController extends Controller
     {
         $task = Task::findOrFail($request->task_id);
         $board = $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
-        $taskHistory = new TaskHistory();
         $oldColumn = Column::find($task->column_id);
         $newColumn = Column::findOrFail($request->new_column_id);
         if ($newColumn->board_id !== $board->id) {
@@ -443,37 +473,128 @@ class TaskController extends Controller
         }
 
         try {
-            DB::beginTransaction();
+            $revisions = $this->moveTaskWithRevision($request, $task, $oldColumn, $newColumn);
 
-            // Cập nhật column_id (chỉ khi khác)
-            if ($task->column_id !== $request->new_column_id) {
-                $task->column_id = $request->new_column_id;
-                $task->save();
-            }
-            $action = 'di chuyển';
-            $taskHistory->logTaskHistory($task, $action, $oldColumn->name ?? null, $newColumn->name ?? null);
-
-            $boardTaskIds = Task::whereHas('column', function ($q) use ($board) {
-                $q->where('board_id', $board->id);
-            })->pluck('id')->all();
-
-            foreach ($request->order as $index => $taskId) {
-                if (! in_array((int) $taskId, $boardTaskIds, true)) {
-                    abort(403, 'Nhiệm vụ không thuộc bảng này.');
-                }
-                Task::where('id', $taskId)->update(['position' => $index]);
+            if (! $revisions) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'STALE_LAYOUT',
+                    'message' => 'Thứ tự bảng đã được người khác thay đổi. Vui lòng tải lại.',
+                ], 409);
             }
 
-            $action = 'Di chuyển';
-
-            DB::commit();
-
-            return response()->json(['success' => true, 'message' => 'Vị trí nhiệm vụ đã cập nhật.']);
+            return response()->json(['success' => true, 'message' => 'Vị trí nhiệm vụ đã cập nhật.'] + $revisions);
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Lỗi khi cập nhật vị trí: ' . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể cập nhật vị trí nhiệm vụ.'], 500);
         }
+    }
+
+    private function moveTaskWithRevision(
+        UpdateTaskPositionRequest $request,
+        Task $task,
+        Column $oldColumn,
+        Column $newColumn
+    ): ?array {
+        return DB::transaction(function () use ($request, $task, $oldColumn, $newColumn) {
+            [$source, $target] = $this->lockColumnsForMove($oldColumn, $newColumn);
+            if (! $this->hasCurrentColumnRevisions($request, $source, $target)) {
+                return null;
+            }
+
+            $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+            $orderedTaskIds = $this->validatedTargetOrder($request, $lockedTask, $source, $target);
+            $this->persistTaskMove($lockedTask, $orderedTaskIds, $source, $target, $oldColumn, $newColumn);
+
+            return [
+                'source_column_revision' => $source->fresh()->revision,
+                'target_column_revision' => $target->fresh()->revision,
+            ];
+        });
+    }
+
+    private function lockColumnsForMove(Column $oldColumn, Column $newColumn): array
+    {
+        // Khoá theo ID tăng dần để tránh deadlock khi hai người kéo ngược chiều nhau.
+        $ids = collect([$oldColumn->id, $newColumn->id])->unique()->sort()->values();
+        $columns = Column::query()->whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
+
+        return [$columns[$oldColumn->id], $columns[$newColumn->id]];
+    }
+
+    private function hasCurrentColumnRevisions(
+        UpdateTaskPositionRequest $request,
+        Column $source,
+        Column $target
+    ): bool {
+        return (int) $source->revision === (int) $request->integer('source_column_revision')
+            && (int) $target->revision === (int) $request->integer('target_column_revision');
+    }
+
+    private function validatedTargetOrder(
+        UpdateTaskPositionRequest $request,
+        Task $task,
+        Column $source,
+        Column $target
+    ): array {
+        $targetIds = Task::query()->where('column_id', $target->id)->lockForUpdate()
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $expectedIds = $source->id === $target->id
+            ? $targetIds
+            : [...array_values(array_diff($targetIds, [(int) $task->id])), (int) $task->id];
+        $submittedIds = array_map('intval', $request->order);
+        $sortedExpected = $expectedIds;
+        $sortedSubmitted = $submittedIds;
+        sort($sortedExpected);
+        sort($sortedSubmitted);
+        abort_if(
+            $sortedSubmitted !== $sortedExpected,
+            422,
+            'Thứ tự công việc không chứa đúng các công việc của cột đích.'
+        );
+
+        return $submittedIds;
+    }
+
+    private function persistTaskMove(
+        Task $task,
+        array $orderedTaskIds,
+        Column $source,
+        Column $target,
+        Column $oldColumn,
+        Column $newColumn
+    ): void {
+        if ($task->column_id !== $target->id) {
+            $task->update(['column_id' => $target->id]);
+        }
+        foreach ($orderedTaskIds as $index => $taskId) {
+            Task::whereKey($taskId)->update(['position' => $index]);
+        }
+        $source->increment('revision');
+        if ($target->id !== $source->id) {
+            $target->increment('revision');
+        }
+        (new TaskHistory())->logTaskHistory($task, 'di chuyển', $oldColumn->name ?? null, $newColumn->name ?? null);
+    }
+
+    private function staleTaskResponse(int $taskId)
+    {
+        $current = Task::query()->with('status')->find($taskId);
+
+        return response()->json([
+            'success' => false,
+            'code' => 'STALE_VERSION',
+            'message' => 'Công việc đã được người khác cập nhật. Vui lòng tải lại trước khi tiếp tục.',
+            'current' => $current ? [
+                'id' => $current->id,
+                'title' => $current->title,
+                'description' => $current->description,
+                'due_date' => $current->due_date?->toDateString(),
+                'priority' => $current->priority,
+                'status_id' => $current->status_id,
+                'revision' => $current->revision,
+            ] : null,
+        ], 409);
     }
 }

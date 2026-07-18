@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed } from 'vue';
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import KanbanColumn from '@/Components/KanbanColumn.vue';
@@ -25,6 +25,15 @@ const props = defineProps({
 // State cục bộ (reactive) cho columns/tasks
 const columns = reactive(props.board.columns.map((c) => ({ ...c, tasks: [...c.tasks] })));
 
+// Sau 409, state cục bộ không còn đáng tin cậy. Tải lại board là cách an toàn nhất
+// để không vô tình ghi đè thao tác của thành viên khác.
+const reloadOnConflict = async (error) => {
+    if (error.response?.status !== 409) return false;
+    await showAppAlert(error.response.data?.message || 'Dữ liệu đã thay đổi. Bảng sẽ được tải lại.');
+    router.visit(route('boards.show', props.board.id));
+    return true;
+};
+
 // ---- Thêm cột (hiển thị form trong modal) ----
 const openAddColumn = async () => {
     const name = await showAppPrompt('Tên cột mới:', '', 'warning');
@@ -34,7 +43,7 @@ const openAddColumn = async () => {
         const { data } = await axios.post(route('columns.store', props.board.id), {
             name: name.trim(),
         });
-        columns.push({ id: data.column.id, name: data.column.name, position: data.column.position, tasks: [] });
+        columns.push({ id: data.column.id, name: data.column.name, position: data.column.position, revision: data.column.revision || 1, tasks: [] });
     } catch (e) {
         showAppAlert(e.response?.data?.message || 'Không thể tạo cột.');
     }
@@ -49,8 +58,9 @@ const renameColumn = async (col) => {
     );
     if (!name || name.trim() === col.name) return;
     try {
-        await axios.put(route('columns.update', [props.board.id, col.id]), { name: name.trim() });
+        const { data } = await axios.put(route('columns.update', [props.board.id, col.id]), { name: name.trim() });
         col.name = name.trim();
+        col.revision = data.revision;
     } catch (e) {
         showAppAlert(e.response?.data?.message || 'Không thể đổi tên cột.');
     }
@@ -58,10 +68,11 @@ const renameColumn = async (col) => {
 const deleteColumn = async (col) => {
     if (!await showAppConfirm(`Xoá cột "${col.name}"?`, 'danger')) return;
     try {
-        await axios.delete(route('columns.destroy', [props.board.id, col.id]));
+        await axios.delete(route('columns.destroy', [props.board.id, col.id]), { data: { revision: col.revision } });
         const idx = columns.findIndex((c) => c.id === col.id);
         if (idx !== -1) columns.splice(idx, 1);
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể xoá cột.');
     }
 };
@@ -77,7 +88,7 @@ const deleteTask = async (task) => {
     }
 
     try {
-        await axios.delete(route('tasks.destroy', task.id));
+        await axios.delete(route('tasks.destroy', task.id), { data: { revision: task.revision } });
 
         const column = columns.find((item) =>
             item.tasks.some((itemTask) => itemTask.id === task.id)
@@ -89,6 +100,7 @@ const deleteTask = async (task) => {
             );
         }
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(
             e.response?.data?.message || 'Không thể xoá công việc.'
         );
@@ -106,10 +118,12 @@ const saveTask = async (col, title) => {
             position: data.task.position, due_date: data.task.due_date,
             formatted_due_date: data.task.formatted_due_date, assignees: data.task.assignees || [],
             priority: data.task.priority || 'normal', status: data.task.status || null,
+            revision: data.task.revision || 1,
             has_description: false,
             comments_count: 0, attachments_count: 0, checklist_total: 0, checklist_done: 0,
         });
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể thêm công việc.');
     }
 };
@@ -131,16 +145,23 @@ const onTaskChange = async (col, evt) => {
     const moved = evt.added || evt.moved;
     if (!moved) return;
     const taskId = moved.element.id;
+    const sourceColumn = columns.find((item) => item.id === moved.element.column_id) || col;
     // Chụp thứ tự hiện tại của MỌI cột trước khi gọi API (kéo có thể vắt qua 2 cột).
     const snapshot = columns.map((c) => ({ col: c, ids: c.tasks.map((t) => t.id) }));
     const seq = ++positionSeq;
     try {
-        await axios.post(route('tasks.updatePosition'), {
+        const { data } = await axios.post(route('tasks.updatePosition'), {
             task_id: taskId,
             new_column_id: col.id,
             order: col.tasks.map((t) => t.id),
+            source_column_revision: sourceColumn.revision,
+            target_column_revision: col.revision,
         });
+        sourceColumn.revision = data.source_column_revision;
+        col.revision = data.target_column_revision;
+        moved.element.column_id = col.id;
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         // Chỉ hoàn tác nếu chưa có thao tác kéo-thả mới hơn (tránh giật ngược trạng thái).
         if (seq === positionSeq) {
             restoreOrder(snapshot);
@@ -172,12 +193,17 @@ const moveTaskToColumn = async ({ taskId, columnId }) => {
     const seq = ++positionSeq;
 
     try {
-        await axios.post(route('tasks.updatePosition'), {
+        const { data } = await axios.post(route('tasks.updatePosition'), {
             task_id: task.id,
             new_column_id: targetColumn.id,
             order: targetColumn.tasks.map((item) => item.id),
+            source_column_revision: sourceColumn.revision,
+            target_column_revision: targetColumn.revision,
         });
+        sourceColumn.revision = data.source_column_revision;
+        targetColumn.revision = data.target_column_revision;
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         if (seq === positionSeq) {
             restoreOrder(snapshot);
         }
@@ -203,10 +229,16 @@ const rescheduleTask = async ({ task, dueDate }) => {
     task.due_date = dueDate;
     task.formatted_due_date = fmtDMY(dueDate);
     try {
-        await axios.put(route('tasks.update', task.id), { title: task.title, due_date: dueDate });
+        const { data } = await axios.put(route('tasks.update', task.id), {
+            title: task.title,
+            due_date: dueDate,
+            revision: task.revision,
+        });
+        task.revision = data.task.revision;
     } catch (e) {
         task.due_date = prevDate;
         task.formatted_due_date = prevFmt;
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể đổi hạn công việc.');
     }
 };
