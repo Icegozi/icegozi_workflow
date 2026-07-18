@@ -545,3 +545,36 @@ a:hover {
 [data-theme="dark"] .auth-link:hover {
     color: #c79461 !important;
 }
+
+/* Đồng bộ mọi biến thể Bootstrap `dark` với màu nâu thương hiệu. Component
+   Btn ánh xạ variant="black" sang các class này, nên quy tắc áp dụng toàn app. */
+.btn-dark {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--app-accent);
+    --bs-btn-border-color: var(--app-accent);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: var(--app-accent-dark);
+    --bs-btn-hover-border-color: var(--app-accent-dark);
+    --bs-btn-focus-shadow-rgb: 102, 51, 0;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--app-accent-dark);
+    --bs-btn-active-border-color: var(--app-accent-dark);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: var(--app-accent);
+    --bs-btn-disabled-border-color: var(--app-accent);
+}
+
+.btn-outline-dark {
+    --bs-btn-color: var(--app-accent);
+    --bs-btn-border-color: var(--app-accent);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: var(--app-accent);
+    --bs-btn-hover-border-color: var(--app-accent);
+    --bs-btn-focus-shadow-rgb: 102, 51, 0;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--app-accent-dark);
+    --bs-btn-active-border-color: var(--app-accent-dark);
+    --bs-btn-disabled-color: var(--app-accent);
+    --bs-btn-disabled-bg: transparent;
+    --bs-btn-disabled-border-color: var(--app-accent);
+}

@@ -11,6 +11,14 @@ const isRouteActive = (routeName) => {
     void page.url;
     return route().current(routeName);
 };
+
+// Các trang board và task nằm trong board vẫn thuộc khu vực “Bảng của tôi”.
+const isBoardsActive = () => (
+    isRouteActive('user.dashboard')
+    || isRouteActive('boards.*')
+    || isRouteActive('tasks.edit')
+    || isRouteActive('tasks.permalink')
+);
 </script>
 
 <template>
@@ -25,8 +33,8 @@ const isRouteActive = (routeName) => {
                     <Link
                         :href="route('user.dashboard')"
                         class="nav-link"
-                        :class="{ active: isRouteActive('user.dashboard') }"
-                        :aria-current="isRouteActive('user.dashboard') ? 'page' : undefined"
+                        :class="{ active: isBoardsActive() }"
+                        :aria-current="isBoardsActive() ? 'page' : undefined"
                         title="Bảng của tôi"
                     >
                         <i class="fas fa-columns fa-fw"></i>
