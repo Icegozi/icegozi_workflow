@@ -161,7 +161,7 @@ const saveTask = async (col, title) => {
     try {
         const { data } = await axios.post(route('tasks.store', col.id), { title: t });
         col.tasks.push({
-            id: data.task.id, title: data.task.title, column_id: col.id,
+            id: data.task.id, title: data.task.title, description: data.task.description || null, column_id: col.id,
             position: data.task.position, due_date: data.task.due_date,
             formatted_due_date: data.task.formatted_due_date, assignees: data.task.assignees || [],
             priority: data.task.priority || 'normal', status: data.task.status || null,

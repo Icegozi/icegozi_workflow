@@ -35,8 +35,13 @@ const mentionOpen = ref(false);
 const mentionQuery = ref('');
 const selectedMentions = ref([]);   // [{id, name}]
 const mentionAt = ref(-1);          // vị trí ký tự '@' đang kích hoạt gợi ý
+const mentionEnd = ref(-1);         // vị trí sau token mention đang kích hoạt
 const mentionPosition = ref(null);
 const activeMentionIndex = ref(0);
+const keyboardNavigatingMentions = ref(false);
+const ignoreNextMentionKeyup = ref(false);
+const pickingMention = ref(false);
+const deletingCommentId = ref(null);
 
 const mentionMatches = computed(() => {
     const q = mentionQuery.value.toLowerCase();
@@ -50,22 +55,40 @@ watch(mentionMatches, (matches) => {
 });
 
 const onCommentInput = () => {
+    if (pickingMention.value) return;
+
     const text = newComment.value;
-    const at = text.lastIndexOf('@');
+    const caret = commentEditor.value?.getSelectionStart?.() ?? text.length;
+    const textBeforeCaret = text.slice(0, caret);
+    const at = textBeforeCaret.lastIndexOf('@');
     // Chỉ mở gợi ý khi '@' đứng đầu hoặc sau khoảng trắng (bỏ qua '@' trong email
     // như bob@corp.com) và phần sau '@' chưa có khoảng trắng (đang gõ token tên).
     const triggered = at >= 0
         && (at === 0 || /\s/.test(text[at - 1]))
-        && !/\s/.test(text.slice(at + 1));
+        && !/\s/.test(textBeforeCaret.slice(at + 1));
     if (triggered) {
+        const query = textBeforeCaret.slice(at + 1);
+        const mentionChanged = !mentionOpen.value
+            || mentionAt.value !== at
+            || mentionQuery.value !== query;
         mentionAt.value = at;
-        mentionQuery.value = text.slice(at + 1);
+        mentionEnd.value = (() => {
+            const whitespace = text.slice(at + 1).search(/\s/);
+            return whitespace === -1 ? text.length : at + 1 + whitespace;
+        })();
+        mentionQuery.value = query;
         mentionOpen.value = true;
-        activeMentionIndex.value = 0;
+        // keyup/cursor có thể chạy ngay sau ArrowUp/ArrowDown. Chỉ reset khi
+        // token thật sự đổi, nếu không highlight vừa chọn sẽ nhảy về mục đầu.
+        if (mentionChanged) {
+            activeMentionIndex.value = 0;
+            keyboardNavigatingMentions.value = false;
+        }
         updateMentionPosition();
     } else {
         mentionOpen.value = false;
         mentionAt.value = -1;
+        mentionEnd.value = -1;
         mentionPosition.value = null;
     }
 };
@@ -75,13 +98,15 @@ const handleEditorKeydown = (event) => {
 
     if (event.key === 'ArrowDown') {
         event.preventDefault();
+        keyboardNavigatingMentions.value = true;
         activeMentionIndex.value = (activeMentionIndex.value + 1) % mentionMatches.value.length;
     } else if (event.key === 'ArrowUp') {
         event.preventDefault();
+        keyboardNavigatingMentions.value = true;
         activeMentionIndex.value = (activeMentionIndex.value - 1 + mentionMatches.value.length) % mentionMatches.value.length;
     } else if (event.key === 'Enter') {
         event.preventDefault();
-        pickMention(mentionMatches.value[activeMentionIndex.value]);
+        pickMention(mentionMatches.value[activeMentionIndex.value], true);
     } else if (event.key === 'Escape') {
         event.preventDefault();
         mentionOpen.value = false;
@@ -92,7 +117,8 @@ const handleEditorKeydown = (event) => {
 
 const updateMentionPosition = () => {
     nextTick(() => {
-        const anchor = commentEditor.value?.getCaretCoordinates?.(mentionAt.value + 1);
+        const caret = commentEditor.value?.getSelectionStart?.() ?? mentionAt.value + 1;
+        const anchor = commentEditor.value?.getCaretCoordinates?.(caret);
         const compose = commentCompose.value?.getBoundingClientRect();
         if (!anchor || !compose) return;
         mentionPosition.value = {
@@ -102,23 +128,43 @@ const updateMentionPosition = () => {
     });
 };
 
+const onEditorCursor = ({ source } = {}) => {
+    // Enter chọn mention cập nhật v-model trước khi textarea nhận caret mới.
+    // Bỏ qua keyup tương ứng để không mở lại popup theo caret của text cũ.
+    if (source === 'keyup' && ignoreNextMentionKeyup.value) {
+        ignoreNextMentionKeyup.value = false;
+        return;
+    }
+
+    onCommentInput();
+};
+
 const mentionStyle = computed(() => mentionPosition.value
     ? { left: `${mentionPosition.value.left}px`, top: `${mentionPosition.value.top}px` }
     : { left: '0', top: '0' });
 // MarkdownEditor phát v-model -> theo dõi để bật gợi ý @mention
 watch(newComment, onCommentInput);
 
-const pickMention = (member) => {
+const pickMention = (member, fromKeyboard = false) => {
     const text = newComment.value;
     // Dùng đúng vị trí '@' đã kích hoạt gợi ý, không dò lại lastIndexOf('@').
     const at = mentionAt.value;
     if (at < 0) return;
-    newComment.value = text.slice(0, at) + '@' + member.name + ' ';
+    const end = mentionEnd.value;
+    // Đóng trước khi đổi nội dung để tránh một frame popup nhảy theo caret cũ.
+    mentionOpen.value = false;
+    mentionAt.value = -1;
+    mentionEnd.value = -1;
+    keyboardNavigatingMentions.value = false;
+    pickingMention.value = true;
+    if (fromKeyboard) {
+        ignoreNextMentionKeyup.value = true;
+    }
+    newComment.value = text.slice(0, at) + '@' + member.name + ' ' + text.slice(end);
+    nextTick(() => { pickingMention.value = false; });
     if (!selectedMentions.value.some((m) => m.id === member.id)) {
         selectedMentions.value.push({ id: member.id, name: member.name });
     }
-    mentionOpen.value = false;
-    mentionAt.value = -1;
     mentionPosition.value = null;
 };
 
@@ -150,12 +196,17 @@ const handleAvatarError = (event) => {
 };
 
 const deleteComment = async (c) => {
+    if (deletingCommentId.value === c.id) return;
     if (!await showAppConfirm('Xoá bình luận?', 'danger')) return;
+    if (deletingCommentId.value === c.id) return;
+    deletingCommentId.value = c.id;
     try {
         await axios.delete(`/tasks/${props.taskId}/comments/${c.id}`);
         emit('updated');
     } catch (e) {
         showAppAlert(e.response?.data?.message || 'Không thể xoá bình luận.');
+    } finally {
+        deletingCommentId.value = null;
     }
 };
 </script>
@@ -166,8 +217,10 @@ const deleteComment = async (c) => {
         <div ref="commentCompose" class="comment-compose position-relative mb-4">
             <MarkdownEditor ref="commentEditor" v-model="newComment" :min-rows="2" :task-id="taskId"
                 placeholder="Viết bình luận... gõ @ để nhắc thành viên"
-                @submit="addComment" @keydown="handleEditorKeydown" />
-            <div v-if="mentionOpen && mentionMatches.length" class="mention-pop" :style="mentionStyle">
+                @submit="addComment" @keydown="handleEditorKeydown" @cursor="onEditorCursor" />
+            <div v-if="mentionOpen && mentionMatches.length" class="mention-pop"
+                :class="{ 'is-keyboard-nav': keyboardNavigatingMentions }" :style="mentionStyle"
+                @mousemove="keyboardNavigatingMentions = false">
                 <a v-for="m in mentionMatches" :key="m.id" href="#"
                     class="mention-pop__option" :class="{ 'is-active': mentionMatches[activeMentionIndex]?.id === m.id }"
                     @click.prevent="pickMention(m)">
@@ -195,7 +248,8 @@ const deleteComment = async (c) => {
                     <div class="comment__head">
                         <strong>{{ c.user_name }}</strong>
                         <small class="text-muted">{{ c.time_ago }}</small>
-                        <button v-if="c.can_delete" class="item-x ml-auto" @click="deleteComment(c)" title="Xoá bình luận"
+                        <button v-if="c.can_delete" class="item-x ml-auto" :disabled="deletingCommentId === c.id"
+                            @click="deleteComment(c)" title="Xoá bình luận"
                             aria-label="Xoá bình luận">&times;</button>
                     </div>
                     <div class="comment__content md-content" v-html="renderMarkdown(c.content)"></div>
@@ -262,9 +316,15 @@ const deleteComment = async (c) => {
     transition: background 0.15s ease, transform 0.15s ease;
 }
 
-.mention-pop__option:hover,
 .mention-pop__option:focus,
 .mention-pop__option.is-active {
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+    outline: 0;
+    transform: translateX(2px);
+}
+
+.mention-pop:not(.is-keyboard-nav) .mention-pop__option:hover {
     color: var(--app-text);
     background: color-mix(in srgb, var(--app-accent) 10%, transparent);
     outline: 0;

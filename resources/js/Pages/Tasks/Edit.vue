@@ -1533,9 +1533,10 @@ onUnmounted(() => {
         flex: 0 0 auto;
         width: 36px;
         height: 36px;
-        border: 0;
+        padding: 0;
+        border: 1px solid var(--app-border, #d0d7de);
         border-radius: 50%;
-        background: rgba(127, 127, 127, 0.12);
+        background: transparent;
         color: var(--app-text-muted, #6c757d);
         font-size: 1rem;
         cursor: pointer;

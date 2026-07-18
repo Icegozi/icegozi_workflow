@@ -14,7 +14,7 @@ const props = defineProps({
     // Khi có taskId: bật upload tệp/ảnh (nút đính kèm + dán clipboard + kéo-thả).
     taskId: { type: Number, default: null },
 });
-const emit = defineEmits(['update:modelValue', 'submit', 'keydown']);
+const emit = defineEmits(['update:modelValue', 'submit', 'keydown', 'cursor']);
 
 const ta = ref(null);
 const tab = ref('write'); // 'write' | 'preview'
@@ -59,6 +59,7 @@ const linePrefix = (prefix) => {
 const fileInput = ref(null);
 const uploading = ref(0);   // số tệp đang tải
 let uploadSeq = 0;
+let uploadQueue = Promise.resolve();
 
 // Chèn văn bản tại vị trí con trỏ (hoặc cuối nội dung nếu chưa focus).
 const insertAtCursor = (text) => {
@@ -97,7 +98,20 @@ const uploadFile = async (file) => {
     }
 };
 
-const uploadFiles = (files) => Array.from(files || []).forEach(uploadFile);
+// Các lần emit v-model được parent áp dụng ở tick kế tiếp. Chạy song song khiến
+// mỗi upload có thể đọc cùng nội dung cũ và ghi đè placeholder của nhau.
+const uploadFiles = (files) => {
+    for (const file of Array.from(files || [])) {
+        uploadQueue = uploadQueue
+            .catch(() => {})
+            .then(async () => {
+                await nextTick();
+                await uploadFile(file);
+            });
+    }
+
+    return uploadQueue;
+};
 
 const onPickFiles = (e) => {
     uploadFiles(e.target.files);
@@ -159,6 +173,11 @@ const onKeydown = (e) => {
     }
 };
 
+const emitCursor = (source) => emit('cursor', {
+    position: ta.value?.selectionStart ?? 0,
+    source,
+});
+
 const autoGrow = () => {
     const el = ta.value;
     if (!el) return;
@@ -218,6 +237,7 @@ defineExpose({
     focus: () => ta.value?.focus(),
     isUploading: computed(() => uploading.value > 0),
     getCaretCoordinates,
+    getSelectionStart: () => ta.value?.selectionStart ?? 0,
 });
 </script>
 
@@ -251,7 +271,8 @@ defineExpose({
 
         <textarea v-show="tab === 'write'" ref="ta" class="md-textarea" :class="{ 'is-dragover': dragOver }"
             :value="modelValue" :placeholder="placeholder" @input="onInput" @keydown="onKeydown"
-            @paste="onPaste" @drop="onDrop"
+            @paste="onPaste" @drop="onDrop" @click="emitCursor('click')" @select="emitCursor('select')"
+            @keyup="emitCursor('keyup')"
             @dragover.prevent="taskId && (dragOver = true)" @dragleave="dragOver = false"></textarea>
 
         <div v-show="tab === 'preview'" class="md-preview md-body">

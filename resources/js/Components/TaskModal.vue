@@ -990,9 +990,9 @@ const acceptHandover = async (request) => {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
         padding: 0;
 
         color: var(--app-text-muted);
@@ -1246,9 +1246,9 @@ const acceptHandover = async (request) => {
     }
 
     .tm-move-sheet__close {
-        width: 38px;
-        height: 38px;
-        flex: 0 0 38px;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
         border: 1px solid var(--app-border);
         border-radius: 50%;
     }

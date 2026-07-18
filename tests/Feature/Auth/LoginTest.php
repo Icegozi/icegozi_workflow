@@ -29,7 +29,7 @@ class LoginTest extends TestCase
         $user = $this->makeUser(['email' => 'a@example.com']);
 
         $this->post(route('login'), ['login' => 'a@example.com', 'password' => 'password'])
-            ->assertRedirect(route('user.dashboard'));
+            ->assertRedirect(route('my-tasks.index'));
 
         $this->assertAuthenticatedAs($user);
     }
@@ -39,7 +39,7 @@ class LoginTest extends TestCase
         $user = $this->makeUser(['username' => 'johndoe']);
 
         $this->post(route('login'), ['login' => 'johndoe', 'password' => 'password'])
-            ->assertRedirect(route('user.dashboard'));
+            ->assertRedirect(route('my-tasks.index'));
 
         $this->assertAuthenticatedAs($user);
     }
@@ -50,7 +50,7 @@ class LoginTest extends TestCase
         $this->makeUser(['email' => 'legacy@example.com']);
 
         $this->post(route('login'), ['email' => 'legacy@example.com', 'password' => 'password'])
-            ->assertRedirect(route('user.dashboard'));
+            ->assertRedirect(route('my-tasks.index'));
 
         $this->assertAuthenticated();
     }
@@ -95,7 +95,7 @@ class LoginTest extends TestCase
         $user = $this->makeUser(['username' => 'johndoe']);
 
         $this->post(route('login'), ['login' => 'JohnDoe', 'password' => 'password'])
-            ->assertRedirect(route('user.dashboard'));
+            ->assertRedirect(route('my-tasks.index'));
 
         $this->assertAuthenticatedAs($user);
     }

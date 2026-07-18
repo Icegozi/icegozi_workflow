@@ -6,6 +6,9 @@ use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\Board;
 use App\Models\Column;
 use App\Models\Comment;
+use App\Models\BoardPermission;
+use App\Models\Permission;
+use App\Models\PermissionUser;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,6 +34,19 @@ class CommentTest extends TestCase
         return [$owner, $task];
     }
 
+    private function grant(Board $board, User $user, string $role = 'board_viewer'): void
+    {
+        $permission = Permission::firstOrCreate(['name' => $role]);
+        $permissionUser = PermissionUser::firstOrCreate([
+            'user_id' => $user->id,
+            'permission_id' => $permission->id,
+        ]);
+        BoardPermission::firstOrCreate([
+            'board_id' => $board->id,
+            'permission_user_id' => $permissionUser->id,
+        ]);
+    }
+
     public function test_them_binh_luan_trim_noi_dung_va_tra_avatar_mac_dinh(): void
     {
         [$owner, $task] = $this->makeTask();
@@ -52,6 +68,34 @@ class CommentTest extends TestCase
             ->postJson(route('comments.store', $task), ['content' => " \n\t "])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('content');
+    }
+
+    public function test_khong_ep_noi_dung_khong_phai_chuoi_thanh_binh_luan(): void
+    {
+        [$owner, $task] = $this->makeTask();
+
+        $this->actingAs($owner)
+            ->postJson(route('comments.store', $task), ['content' => []])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('content');
+
+        $this->assertDatabaseCount('comments', 0);
+    }
+
+    public function test_mention_id_khong_co_trong_noi_dung_khong_tao_thong_bao(): void
+    {
+        [$owner, $task] = $this->makeTask();
+        $member = User::factory()->create();
+        $this->grant($task->column->board, $member);
+
+        $this->actingAs($owner)
+            ->postJson(route('comments.store', $task), [
+                'content' => 'Bình luận không nhắc ai.',
+                'mentions' => [$member->id],
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseMissing('notifications', ['user_id' => $member->id]);
     }
 
     public function test_xoa_binh_luan_khong_ton_tai_tra_404_thay_vi_500(): void

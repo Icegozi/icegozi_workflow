@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class CommentController extends Controller
 {
@@ -31,11 +32,15 @@ class CommentController extends Controller
     public function store(Request $request, Task $task)
     {
         $board = $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
-        $request->merge(['content' => trim((string) $request->input('content'))]);
+        // Chỉ chuẩn hoá chuỗi. Ép mảng/object sang string trước validate sẽ khiến
+        // payload sai kiểu trở thành "Array" thay vì nhận lỗi 422.
+        if (is_string($request->input('content'))) {
+            $request->merge(['content' => trim($request->input('content'))]);
+        }
         $request->validate([
             'content' => 'required|string|max:5000',
-            'mentions' => 'nullable|array',
-            'mentions.*' => 'integer',
+            'mentions' => 'nullable|array|max:50',
+            'mentions.*' => 'integer|distinct',
         ]);
 
         try {
@@ -55,7 +60,12 @@ class CommentController extends Controller
 
             // Thông báo mention không được làm hỏng việc thêm bình luận (đã commit).
             try {
-                $this->notifyMentions($task, $board, (array) $request->input('mentions', []));
+                $this->notifyMentions(
+                    $task,
+                    $board,
+                    $request->input('content'),
+                    (array) $request->input('mentions', [])
+                );
             } catch (\Throwable $e) {
                 Log::warning("notifyMentions failed for task {$task->id}: " . $e->getMessage());
             }
@@ -67,6 +77,11 @@ class CommentController extends Controller
                 'success' => true, 'message' => 'Bình luận đã được thêm.',
                 'comment' => $comment,
             ], 201);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Công việc không tồn tại hoặc đã bị xóa.',
+            ], 404);
         } catch (\Exception $e) {
             Log::error("Error adding comment to task {$task->id}: " . $e->getMessage());
 
@@ -75,7 +90,7 @@ class CommentController extends Controller
     }
 
     /** Tạo thông báo cho những thành viên được nhắc (@) trong bình luận. */
-    private function notifyMentions(Task $task, $board, array $mentionIds): void
+    private function notifyMentions(Task $task, $board, string $content, array $mentionIds): void
     {
         $mentionIds = array_filter(array_map('intval', $mentionIds));
         if (empty($mentionIds)) {
@@ -86,8 +101,8 @@ class CommentController extends Controller
         $meName = e(Auth::user()->name);
 
         // Chỉ nhắc thành viên hợp lệ của bảng (đã gồm chủ bảng), bỏ chính mình.
-        $memberIds = collect((new \App\Models\Board())->getAssignedUsersByBoardId($board->id))
-            ->pluck('id')->all();
+        $members = collect((new \App\Models\Board())->getAssignedUsersByBoardId($board->id))
+            ->keyBy('id');
 
         $code = Task::buildCode($board->name, $task->id);
         $url = route('tasks.edit', $code, false);
@@ -95,7 +110,10 @@ class CommentController extends Controller
         $msg = "<strong>{$meName}</strong> đã nhắc bạn trong <strong>{$code}</strong> — " . e($task->title) . '.';
 
         foreach (array_unique($mentionIds) as $uid) {
-            if ($uid !== $me && in_array($uid, $memberIds, true)) {
+            $member = $members->get($uid);
+            // IDs từ client chỉ là gợi ý; notification chỉ hợp lệ khi nội dung
+            // thực sự có token @Tên theo đúng format mà UI chèn vào comment.
+            if ($uid !== $me && $member && Str::contains($content, '@' . $member['name'])) {
                 Notification::notifyUser($uid, $msg, $url, $task->id);
             }
         }

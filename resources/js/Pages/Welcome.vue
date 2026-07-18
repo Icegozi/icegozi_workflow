@@ -703,9 +703,29 @@ const testimonials = [
     }
 
     .lp-grid--cards,
-    .lp-grid--steps,
     .lp-grid--stats {
         grid-template-columns: 1fr;
+    }
+
+    /* Các bước được vuốt ngang để giữ kích thước card dễ đọc trên mobile. */
+    .lp-grid--steps {
+        display: flex;
+        gap: 14px;
+        padding: 18px 2px 8px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .lp-grid--steps::-webkit-scrollbar {
+        display: none;
+    }
+
+    .lp-grid--steps .lp-step {
+        flex: 0 0 min(82vw, 320px);
+        scroll-snap-align: start;
     }
 
     .lp-card {

@@ -25,9 +25,9 @@ class LoginController extends Controller
 
             if ($user->is_admin) {
                 return redirect()->route('admin.dashboard');
-            } else {
-                return redirect()->route('user.dashboard');
             }
+
+            return redirect()->route('my-tasks.index');
         } else {
             return back()->withErrors([
                 'login' => 'Thông tin đăng nhập không hợp lệ hoặc tài khoản đã bị khóa.',

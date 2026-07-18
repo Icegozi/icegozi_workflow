@@ -53,7 +53,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/dashboard', function () {
         return auth()->user()->is_admin
             ? redirect()->route('admin.dashboard')
-            : redirect()->route('user.dashboard');
+            : redirect()->route('my-tasks.index');
     })->name('dashboard');
 
     // --- Hồ sơ cá nhân (user & admin tự chỉnh) ---
@@ -130,7 +130,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('/chart-settings/{scope}', [ChartSettingController::class, 'update'])->name('chart-settings.update');
 
     // comment
-    Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
+    Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('comments.store');
     // Route::put('/tasks/{task}/comments/{commentId}', [CommentController::class, 'update'])->name('comments.update');
     Route::delete('/tasks/{task}/comments/{commentId}', [CommentController::class, 'destroy'])
         ->name('comments.destroy');

@@ -181,6 +181,7 @@ class BoardController extends Controller
                         'id' => $t->id,
                         'code' => Task::buildCode($board->name, $t->id),
                         'title' => $t->title,
+                        'description' => $t->description,
                         'column_id' => $t->column_id,
                         'position' => $t->position,
                         'revision' => $t->revision,
