@@ -35,8 +35,8 @@ class BoardController extends Controller
             ? BoardTemplate::find($request->input('template_id'))
             : null;
 
-        // Fallback tối thiểu nếu không chọn mẫu (hoặc mẫu đã bị xoá).
-        $columns = $template?->columns ?: ['Việc cần làm', 'Đang làm', 'Hoàn thành'];
+        // Cột là nhóm công việc; trạng thái task được quản lý độc lập.
+        $columns = $template?->columns ?: ['Chưa phân loại'];
         $labels = $template?->labels ?: [];
         $statusIds = $template?->status_ids ?: [];
 

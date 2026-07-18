@@ -187,7 +187,7 @@ const openLeave = async (board) => {
                             <span class="template-name">{{ tpl.name }}</span>
                         </div>
                         <div class="template-desc">{{ tpl.description }}</div>
-                        <div class="template-cols">
+                        <div class="template-cols" aria-label="Nhóm công việc">
                             <span v-for="c in tpl.columns" :key="c" class="template-col">{{ c }}</span>
                         </div>
                     </button>

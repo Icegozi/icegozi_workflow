@@ -17,7 +17,7 @@ const form = useForm({
     icon: props.template?.icon ?? 'fa-columns',
     description: props.template?.description ?? '',
     position: props.template?.position ?? 0,
-    columns: props.template?.columns?.length ? [...props.template.columns] : [''],
+    columns: props.template?.columns?.length ? [...props.template.columns] : ['Chưa phân loại'],
     status_ids: props.template?.status_ids ? [...props.template.status_ids] : [],
     labels: props.template?.labels ? props.template.labels.map((l) => ({ ...l })) : [],
 });
@@ -45,6 +45,13 @@ const submit = () => {
         <h3>{{ isEdit ? 'Sửa mẫu bảng' : 'Thêm mẫu bảng' }}</h3>
 
         <form @submit.prevent="submit" class="template-form mt-3" style="max-width:760px;">
+            <section class="template-guide mb-4">
+                <div class="template-guide__icon"><i class="fas fa-project-diagram"></i></div>
+                <div>
+                    <strong>Thiết kế template theo hai chiều</strong>
+                    <p class="mb-0">Nhóm công việc tạo cột trên board; trạng thái cho biết task đang mới, đang làm, blocked hay hoàn thành.</p>
+                </div>
+            </section>
             <div class="form-row">
                 <div class="form-group col-md-8">
                     <label class="small font-weight-bold">Tên mẫu</label>
@@ -63,24 +70,26 @@ const submit = () => {
                 <TextInput v-model="form.description" group-class="mb-0" />
             </div>
 
-            <!-- Cột (quy trình) -->
+            <!-- Nhóm công việc -->
             <div class="form-group">
-                <label class="small font-weight-bold">Cột — quy trình triển khai</label>
+                <label class="small font-weight-bold">1. Nhóm công việc — hiển thị thành cột</label>
+                <p class="small text-muted">Dùng để phân task theo đội, chuyên môn hoặc kênh. Ví dụ: Backend, Frontend, QA, Blog.</p>
                 <div v-for="(c, i) in form.columns" :key="i" class="input-group input-group-sm mb-1">
                     <div class="input-group-prepend"><span class="input-group-text">{{ i + 1 }}</span></div>
-                    <input type="text" class="form-control" v-model="form.columns[i]" placeholder="Tên cột..." maxlength="255">
+                    <input type="text" class="form-control" v-model="form.columns[i]" placeholder="Ví dụ: Backend, QA, Vận hành..." maxlength="255">
                     <div class="input-group-append">
                         <button type="button" class="btn btn-outline-danger btn--icon-only" @click="removeColumn(i)"
                             :disabled="form.columns.length <= 1">&times;</button>
                     </div>
                 </div>
-                <button type="button" class="btn btn-sm btn-light" @click="addColumn"><i class="fas fa-plus mr-1"></i>Thêm cột</button>
+                <button type="button" class="btn btn-sm btn-light" @click="addColumn"><i class="fas fa-plus mr-1"></i>Thêm nhóm</button>
                 <div v-if="form.errors.columns" class="text-danger small">{{ form.errors.columns }}</div>
             </div>
 
             <!-- Trạng thái áp dụng (tập con global) -->
             <div class="form-group">
-                <label class="small font-weight-bold">Trạng thái áp dụng</label>
+                <label class="small font-weight-bold">2. Trạng thái task</label>
+                <p class="small text-muted">Đây là vòng đời của task, độc lập với nhóm công việc. Chọn các trạng thái được phép dùng trong board tạo từ template này.</p>
                 <div class="d-flex flex-wrap" style="gap:6px;">
                     <button v-for="s in statuses" :key="s.id" type="button"
                         class="status-pick" :class="{ active: form.status_ids.includes(s.id) }"
@@ -90,6 +99,23 @@ const submit = () => {
                     <span v-if="!statuses.length" class="text-muted small">Chưa có trạng thái global nào.</span>
                 </div>
             </div>
+
+            <section class="template-preview mb-4">
+                <div class="small font-weight-bold mb-2"><i class="fas fa-eye mr-1"></i>Xem trước board</div>
+                <div class="template-preview__columns">
+                    <div v-for="(column, index) in form.columns.filter(Boolean)" :key="`${column}-${index}`" class="template-preview__column">
+                        <i class="fas fa-layer-group mr-1"></i>{{ column }}
+                    </div>
+                </div>
+                <div class="template-preview__statuses mt-2">
+                    <span class="small text-muted mr-2">Task dùng trạng thái:</span>
+                    <span v-for="status in statuses.filter((s) => form.status_ids.includes(s.id))" :key="status.id"
+                        class="badge badge-light border mr-1" :style="{ borderColor: status.color, color: status.color }">
+                        {{ status.name }}
+                    </span>
+                    <span v-if="!form.status_ids.length" class="small text-muted">chưa chọn</span>
+                </div>
+            </section>
 
             <!-- Nhãn -->
             <div class="form-group">
@@ -119,6 +145,54 @@ const submit = () => {
 </template>
 
 <style scoped>
+.template-guide,
+.template-preview {
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    background: var(--app-surface);
+}
+
+.template-guide {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 16px;
+}
+
+.template-guide__icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    color: var(--app-primary);
+    background: color-mix(in srgb, var(--app-primary) 12%, transparent);
+    border-radius: 9px;
+}
+
+.template-preview {
+    padding: 14px;
+}
+
+.template-preview__columns {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.template-preview__column {
+    flex: 0 0 130px;
+    min-height: 54px;
+    padding: 10px;
+    color: var(--app-text);
+    background: var(--app-page-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
 .status-pick {
     background: var(--app-surface);
     border: 1px solid var(--app-border);

@@ -11,7 +11,7 @@ defineProps({
 
 const columns = [
     { key: 'name', label: 'Mẫu', width: '220px' },
-    { key: 'columns', label: 'Cột (quy trình)' },
+    { key: 'columns', label: 'Nhóm công việc' },
     { key: 'status_ids', label: 'Trạng thái', align: 'center', width: '90px' },
     { key: 'labels', label: 'Nhãn', align: 'center', width: '90px' },
 ];
