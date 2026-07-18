@@ -45,15 +45,19 @@ class ColumnController extends Controller
         ]);
 
         try {
-            // Determine the next position
-            $maxPosition = $board->columns()->max('position');
-            $nextPosition = ($maxPosition === null) ? 0 : $maxPosition + 1;
+            $column = DB::transaction(function () use ($board, $validated) {
+                $lockedBoard = Board::query()->lockForUpdate()->findOrFail($board->id);
+                $maxPosition = $lockedBoard->columns()->max('position');
+                $column = Column::create([
+                    'name' => $validated['name'],
+                    'board_id' => $lockedBoard->id,
+                    'position' => $maxPosition === null ? 0 : $maxPosition + 1,
+                ]);
+                $lockedBoard->increment('layout_revision');
+                $lockedBoard->increment('revision');
 
-            $column = Column::create([
-                'name' => $validated['name'],
-                'board_id' => $board->id,
-                'position' => $nextPosition,
-            ]);
+                return $column;
+            });
 
             // Prepare data for frontend (you might want to return rendered HTML later)
             return response()->json([
@@ -63,6 +67,7 @@ class ColumnController extends Controller
                     'id' => $column->id,
                     'name' => $column->name,
                     'position' => $column->position,
+                    'revision' => $column->revision,
                     'url_update' => route('columns.update', ['board' => $board->id, 'column' => $column->id]),
                     'url_destroy' => route('columns.destroy', ['board' => $board->id, 'column' => $column->id]),
                 ],
@@ -88,6 +93,7 @@ class ColumnController extends Controller
         }
 
         $validated = $request->validate([
+            'revision' => ['required', 'integer', 'min:1'],
             'name' => [
                 'required',
                 'string',
@@ -100,12 +106,31 @@ class ColumnController extends Controller
         ]);
 
         try {
-            $column->update(['name' => $validated['name']]);
+            $updated = DB::transaction(function () use ($column, $validated) {
+                $lockedBoard = Board::query()->lockForUpdate()->findOrFail($column->board_id);
+                $locked = Column::query()->lockForUpdate()->findOrFail($column->id);
+                if ((int) $locked->revision !== (int) $validated['revision']) {
+                    return false;
+                }
+                $locked->update(['name' => $validated['name']]);
+                $locked->increment('revision');
+                $lockedBoard->increment('revision');
+
+                return $locked->fresh();
+            });
+            if (! $updated) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'STALE_VERSION',
+                    'message' => 'Cột đã được người khác cập nhật. Vui lòng tải lại.',
+                ], 409);
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Tên cột đã được cập nhật.',
-                'new_name' => $column->name,
+                'new_name' => $updated->name,
+                'revision' => $updated->revision,
             ]);
         } catch (\Exception $e) {
             \Log::error("Error updating column {$column->id}: " . $e->getMessage());
@@ -120,13 +145,14 @@ class ColumnController extends Controller
     /**
      * Remove the specified column from storage.
      */
-    public function destroy(Board $board, Column $column)
+    public function destroy(Request $request, Board $board, Column $column)
     {
         $this->authorizeBoardAccess($board, ['board_member_manager']);
 
         if ($column->board_id !== $board->id) {
             abort(404);
         }
+        $request->validate(['revision' => ['required', 'integer', 'min:1']]);
 
         // Tránh xoá nhầm: không cho xoá cột đang chứa công việc.
         if ($column->tasks()->exists()) {
@@ -137,21 +163,32 @@ class ColumnController extends Controller
         }
 
         try {
-            DB::beginTransaction();
+            $deleted = DB::transaction(function () use ($request, $column, $board) {
+                $lockedBoard = Board::query()->lockForUpdate()->findOrFail($board->id);
+                $locked = Column::query()->lockForUpdate()->findOrFail($column->id);
+                if ((int) $locked->revision !== (int) $request->integer('revision')) {
+                    return false;
+                }
+                $deletedPosition = $locked->position;
+                $locked->delete();
+                Column::where('board_id', $board->id)
+                    ->where('position', '>', $deletedPosition)
+                    ->decrement('position');
+                $lockedBoard->increment('layout_revision');
+                $lockedBoard->increment('revision');
 
-            $deletedPosition = $column->position;
-            $column->delete();
-
-            Column::where('board_id', $board->id)
-                ->where('position', '>', $deletedPosition)
-                ->decrement('position');
-
-            DB::commit();
+                return true;
+            });
+            if (! $deleted) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'STALE_VERSION',
+                    'message' => 'Cột đã được người khác cập nhật. Vui lòng tải lại.',
+                ], 409);
+            }
 
             return response()->json(['success' => true, 'message' => 'Cột đã được xoá thành công.']);
         } catch (\Exception $e) {
-            DB::rollBack();
-
             return response()->json(['success' => false, 'message' => 'Không thể xoá cột. Đã xảy ra lỗi.'], 500);
         }
     }
@@ -163,6 +200,7 @@ class ColumnController extends Controller
         $request->validate([
             'order' => 'required|array',
             'order.*' => 'integer|exists:columns,id',
+            'layout_revision' => 'required|integer|min:1',
         ]);
 
         $orderedIds = array_map('intval', $request->input('order'));
@@ -181,23 +219,34 @@ class ColumnController extends Controller
         }
 
         try {
-            DB::beginTransaction();
-
-            foreach ($orderedIds as $index => $columnId) {
-                $column = Column::where('id', $columnId)->where('board_id', $board->id)->first();
-                if ($column) {
-                    $column->position = $index;
-                    $column->save();
-                } else {
-                    throw new \Exception("Invalid column ID {$columnId} for board {$board->id}");
+            $updated = DB::transaction(function () use ($board, $request, $orderedIds) {
+                $lockedBoard = Board::query()->lockForUpdate()->findOrFail($board->id);
+                if ((int) $lockedBoard->layout_revision !== (int) $request->integer('layout_revision')) {
+                    return false;
                 }
+                $columns = Column::query()->where('board_id', $board->id)->lockForUpdate()->get()->keyBy('id');
+                foreach ($orderedIds as $index => $columnId) {
+                    $columns[$columnId]->update(['position' => $index]);
+                }
+                $lockedBoard->increment('layout_revision');
+                $lockedBoard->increment('revision');
+
+                return true;
+            });
+            if (! $updated) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'STALE_LAYOUT',
+                    'message' => 'Thứ tự cột đã được người khác thay đổi. Vui lòng tải lại.',
+                ], 409);
             }
 
-            DB::commit();
-
-            return response()->json(['success' => true, 'message' => 'Thứ tự cột đã được cập nhật.']);
+            return response()->json([
+                'success' => true,
+                'message' => 'Thứ tự cột đã được cập nhật.',
+                'layout_revision' => $board->fresh()->layout_revision,
+            ]);
         } catch (\Exception $e) {
-            DB::rollBack();
             \Log::error("Error reordering columns for board {$board->id}: " . $e->getMessage());
 
             return response()->json([

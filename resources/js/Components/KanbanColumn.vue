@@ -1,4 +1,5 @@
 <script setup>
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import draggable from 'vuedraggable';
 import KanbanCard from '@/Components/KanbanCard.vue';
 import Btn from '@/Components/Btn.vue';
@@ -19,6 +20,26 @@ const emit = defineEmits([
     'add-task',
     'open-task',
 ]);
+
+// Trên điện thoại, cử chỉ vuốt ngang được dành cho việc chuyển giữa các cột.
+// Kéo thả vẫn khả dụng trên iPad/desktop, nơi không cần cuộn ngang bằng chính
+// vùng chạm của card.
+const isMobileViewport = ref(false);
+let mobileViewportQuery;
+
+const updateMobileViewport = () => {
+    isMobileViewport.value = mobileViewportQuery?.matches ?? false;
+};
+
+onMounted(() => {
+    mobileViewportQuery = window.matchMedia('(max-width: 767.98px)');
+    updateMobileViewport();
+    mobileViewportQuery.addEventListener('change', updateMobileViewport);
+});
+
+onBeforeUnmount(() => {
+    mobileViewportQuery?.removeEventListener('change', updateMobileViewport);
+});
 
 const openAddTask = async () => {
     const title = await showAppPrompt(
@@ -47,8 +68,21 @@ const openAddTask = async () => {
             </div>
         </div>
 
-        <draggable v-model="col.tasks" :group="'tasks'" item-key="id" :disabled="!canEdit"
-            class="column-content" @change="(e) => emit('task-change', e)">
+        <draggable
+            v-model="col.tasks"
+            :group="'tasks'"
+            item-key="id"
+            :disabled="!canEdit || isMobileViewport"
+            :animation="150"
+            :force-fallback="true"
+            :fallback-on-body="true"
+            :fallback-tolerance="3"
+            ghost-class="kanban-card--ghost"
+            chosen-class="kanban-card--chosen"
+            drag-class="kanban-card--dragging"
+            class="column-content"
+            @change="(e) => emit('task-change', e)"
+        >
             <template #item="{ element: task }">
                 <KanbanCard
                     v-show="!match || match(task)"
@@ -126,6 +160,8 @@ const openAddTask = async () => {
     background-image: none;
     width: 100%;
     margin: 0;
+    /* Cho phép trang tiếp tục cuộn dọc khi chạm vào danh sách trên iPad. */
+    touch-action: pan-y;
 }
 
 /* Nút "Thêm công việc": dạng ghost gạch đứt, dịu; hover mới nổi màu accent.
@@ -155,6 +191,13 @@ const openAddTask = async () => {
     .kanban-column {
         width: 86vw;
         padding: 10px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .column-content {
+        /* Không chặn cử chỉ vuốt ngang của .kanban-board trên điện thoại. */
+        touch-action: auto;
     }
 }
 </style>

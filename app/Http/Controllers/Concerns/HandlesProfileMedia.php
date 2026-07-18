@@ -28,7 +28,7 @@ trait HandlesProfileMedia
         return '/storage/' . $path;
     }
 
-    /** Xoá file avatar cũ nếu là ảnh nội bộ (bỏ qua URL ngoài / pravatar). */
+    /** Xoá file avatar cũ nếu là ảnh nội bộ. */
     protected function deleteLocalAvatar(?string $url): void
     {
         if ($url && str_starts_with($url, '/storage/avatars/')) {

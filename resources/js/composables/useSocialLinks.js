@@ -12,6 +12,6 @@ export const SOCIAL_PLATFORMS = [
 export const makeSocialForm = (existing = {}) =>
     Object.fromEntries(SOCIAL_PLATFORMS.map((p) => [p.key, existing?.[p.key] || '']));
 
-// Ảnh đại diện hiển thị: dùng avatar_url nếu có, ngược lại fallback pravatar theo seed.
-export const avatarSrc = (url, seed = 'x', size = 80) =>
-    url || `https://i.pravatar.cc/${size}?u=${encodeURIComponent(seed || 'x')}`;
+// Ảnh đại diện luôn lấy từ profile. Khi người dùng chưa tải ảnh, dùng placeholder
+// nội bộ thay vì ảnh ngẫu nhiên từ dịch vụ bên ngoài.
+export const avatarSrc = (url) => url || '/images/default-avatar.svg';

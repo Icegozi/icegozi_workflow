@@ -14,7 +14,7 @@ return new class () extends Migration {
             $table->string('name');
             $table->string('icon')->default('fa-columns');
             $table->string('description')->nullable();
-            $table->json('columns');      // ["Việc cần làm", ...] = quy trình
+            $table->json('columns');      // ["Backend", "QA", ...] = nhóm công việc
             $table->json('status_ids');   // [1,2,4] = tập con status global áp dụng
             $table->json('labels');       // [{"name":"Lỗi","color":"#e5484d"}, ...]
             $table->unsignedInteger('position')->default(0);

@@ -47,7 +47,13 @@ const submitCreate = () => {
 // --- Nhân bản bảng ---
 const duplicate = async (board) => {
     if (!await showAppConfirm(`Nhân bản bảng "${board.name}" (kèm toàn bộ công việc)?`, 'success')) return;
-    router.post(route('boards.duplicate', board.id), { with_tasks: true }, { preserveScroll: true });
+    try {
+        await axios.post(route('boards.duplicate', board.id), { with_tasks: true, revision: board.revision });
+        router.reload({ preserveScroll: true });
+    } catch (error) {
+        showAppAlert(error.response?.data?.message || 'Không thể nhân bản bảng.');
+        if (error.response?.status === 409) router.reload({ preserveScroll: true });
+    }
 };
 
 // --- Đổi tên bảng ---
@@ -56,20 +62,25 @@ const openRename = async (board) => {
     const name = await showAppPrompt('Tên bảng mới:', board.name, 'warning');
     if (!name?.trim() || name.trim() === board.name) return;
 
-    renameForm.name = name.trim();
-    renameForm.clearErrors();
-    renameForm.put(route('boards.update', board.id), {
-        preserveScroll: true,
-        onError: () => {
-            showAppAlert(renameForm.errors.name || 'Không thể đổi tên bảng.');
-        },
-    });
+    try {
+        await axios.put(route('boards.update', board.id), { name: name.trim(), revision: board.revision });
+        router.reload({ preserveScroll: true });
+    } catch (error) {
+        showAppAlert(error.response?.data?.message || 'Không thể đổi tên bảng.');
+        if (error.response?.status === 409) router.reload({ preserveScroll: true });
+    }
 };
 
 // --- Xóa bảng ---
 const destroy = async (board) => {
     if (await showAppConfirm(`Xoá bảng "${board.name}"? Hành động này không thể hoàn tác.`, 'danger')) {
-        router.delete(route('boards.destroy', board.id), { preserveScroll: true });
+        try {
+            await axios.delete(route('boards.destroy', board.id), { data: { revision: board.revision } });
+            router.reload({ preserveScroll: true });
+        } catch (error) {
+            showAppAlert(error.response?.data?.message || 'Không thể xoá bảng.');
+            if (error.response?.status === 409) router.reload({ preserveScroll: true });
+        }
     }
 };
 
@@ -113,15 +124,23 @@ const openLeave = async (board) => {
                         class="col-sm-6 col-md-4 col-lg-3 mb-3 board-card">
                         <div class="board-tile">
                             <!-- Vùng thông tin: bấm để mở bảng -->
-                            <a :href="board.show_url" class="board-tile__body">
-                                <h6 class="board-tile__name text-truncate">{{ board.name }}</h6>
-                                <div class="board-tile__meta">
+                            <div class="board-tile__body">
+                                <div class="board-tile__title-row">
+                                    <a :href="board.show_url" class="board-tile__name text-truncate" :title="board.name">
+                                        {{ board.name }}
+                                    </a>
+                                    <button v-if="canLeaveBoard(board)" type="button" class="board-tile__leave"
+                                        title="Rời bảng" :aria-label="`Rời bảng ${board.name}`" @click="openLeave(board)">
+                                        <i class="fas fa-times" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <a :href="board.show_url" class="board-tile__meta">
                                     <span class="board-tile__time">
                                         <i class="far fa-clock mr-1"></i>{{ board.updated_at }}
                                     </span>
                                     <span class="board-tile__role">{{ roleLabel(board.currentUserRole) }}</span>
-                                </div>
-                            </a>
+                                </a>
+                            </div>
 
                             <!-- Thanh hành động ngay trên card -->
                             <div class="board-tile__actions">
@@ -138,9 +157,6 @@ const openLeave = async (board) => {
                                     :title="canManageBoard(board) ? 'Xoá bảng' : 'Bạn không có quyền xoá bảng'"
                                     aria-label="Xoá bảng"
                                     @click="destroy(board)" />
-                                <Btn v-if="canLeaveBoard(board)" type="button" variant="secondary" outline icon="fas fa-times"
-                                    class="btn-sm flex-fill" title="Rời bảng" aria-label="Rời bảng"
-                                    @click="openLeave(board)" />
                             </div>
                         </div>
                     </div>
@@ -171,7 +187,7 @@ const openLeave = async (board) => {
                             <span class="template-name">{{ tpl.name }}</span>
                         </div>
                         <div class="template-desc">{{ tpl.description }}</div>
-                        <div class="template-cols">
+                        <div class="template-cols" aria-label="Nhóm công việc">
                             <span v-for="c in tpl.columns" :key="c" class="template-col">{{ c }}</span>
                         </div>
                     </button>
@@ -209,23 +225,57 @@ const openLeave = async (board) => {
 
 /* Vùng thông tin có thể bấm để mở bảng */
 .board-tile__body {
-    display: block;
     flex: 1 1 auto;
     padding: 16px 16px 12px;
-    text-decoration: none;
-    color: inherit;
 }
 
-.board-tile__body:hover {
-    text-decoration: none;
-    color: inherit;
+.board-tile__title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 14px;
 }
 
 .board-tile__name {
-    margin: 0 0 14px;
+    display: block;
+    min-width: 0;
+    flex: 1 1 auto;
+    margin: 0;
     font-weight: 700;
     font-size: 1rem;
     color: var(--app-text);
+    text-decoration: none;
+}
+
+.board-tile__name:hover,
+.board-tile__meta:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+.board-tile__leave {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--app-text-muted);
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.board-tile__leave:hover,
+.board-tile__leave:focus-visible {
+    background: rgba(220, 53, 69, 0.1);
+    color: #c82333;
+    font-weight: 800;
+    transform: scale(1.08);
+    outline: none;
 }
 
 .board-tile__meta {
@@ -235,6 +285,7 @@ const openLeave = async (board) => {
     gap: 8px;
     font-size: 0.75rem;
     color: var(--app-text-muted);
+    text-decoration: none;
 }
 
 .board-tile__time {

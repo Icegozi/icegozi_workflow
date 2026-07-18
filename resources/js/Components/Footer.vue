@@ -7,7 +7,7 @@
         <div class="container">
             <div class="hm-footer-copyright">
                 <div class="row">
-                    <div class="col-sm-5"><p>© 2025 MyApp - Hà Xuân Phúc</p></div>
+                    <div class="col-sm-5"><p>© 2025 Ic_go-wf - Hà Xuân Phúc</p></div>
                     <div class="col-sm-7">
                         <div class="footer-social">
                             <span><i class="fa fa-envelope"></i> support@myapp.com</span>

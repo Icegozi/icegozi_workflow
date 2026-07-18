@@ -14,7 +14,7 @@ const props = defineProps({
     // Khi có taskId: bật upload tệp/ảnh (nút đính kèm + dán clipboard + kéo-thả).
     taskId: { type: Number, default: null },
 });
-const emit = defineEmits(['update:modelValue', 'submit']);
+const emit = defineEmits(['update:modelValue', 'submit', 'keydown', 'cursor']);
 
 const ta = ref(null);
 const tab = ref('write'); // 'write' | 'preview'
@@ -59,6 +59,7 @@ const linePrefix = (prefix) => {
 const fileInput = ref(null);
 const uploading = ref(0);   // số tệp đang tải
 let uploadSeq = 0;
+let uploadQueue = Promise.resolve();
 
 // Chèn văn bản tại vị trí con trỏ (hoặc cuối nội dung nếu chưa focus).
 const insertAtCursor = (text) => {
@@ -97,7 +98,20 @@ const uploadFile = async (file) => {
     }
 };
 
-const uploadFiles = (files) => Array.from(files || []).forEach(uploadFile);
+// Các lần emit v-model được parent áp dụng ở tick kế tiếp. Chạy song song khiến
+// mỗi upload có thể đọc cùng nội dung cũ và ghi đè placeholder của nhau.
+const uploadFiles = (files) => {
+    for (const file of Array.from(files || [])) {
+        uploadQueue = uploadQueue
+            .catch(() => {})
+            .then(async () => {
+                await nextTick();
+                await uploadFile(file);
+            });
+    }
+
+    return uploadQueue;
+};
 
 const onPickFiles = (e) => {
     uploadFiles(e.target.files);
@@ -151,11 +165,18 @@ const onInput = (e) => {
 
 // Ctrl/Cmd + Enter -> gửi
 const onKeydown = (e) => {
+    emit('keydown', e);
+    if (e.defaultPrevented) return;
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         emit('submit');
     }
 };
+
+const emitCursor = (source) => emit('cursor', {
+    position: ta.value?.selectionStart ?? 0,
+    source,
+});
 
 const autoGrow = () => {
     const el = ta.value;
@@ -165,13 +186,59 @@ const autoGrow = () => {
     el.style.height = Math.max(el.scrollHeight, min) + 'px';
 };
 
+// Trả tọa độ viewport của một vị trí caret trong textarea. Component cha dùng
+// để đặt danh sách @mention ngay dưới ký tự "@" thay vì phủ cả ô soạn thảo.
+const getCaretCoordinates = (position = ta.value?.selectionStart ?? 0) => {
+    const el = ta.value;
+    if (!el) return null;
+
+    const style = window.getComputedStyle(el);
+    const mirror = document.createElement('div');
+    const copied = [
+        'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+        'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+        'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+        'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
+        'fontFamily', 'lineHeight', 'letterSpacing', 'textTransform',
+        'textIndent', 'textDecoration', 'wordSpacing', 'tabSize',
+    ];
+    copied.forEach((property) => { mirror.style[property] = style[property]; });
+    mirror.style.position = 'absolute';
+    mirror.style.visibility = 'hidden';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordWrap = 'break-word';
+    mirror.style.overflowWrap = 'break-word';
+    mirror.style.top = '0';
+    mirror.style.left = '-9999px';
+
+    mirror.textContent = (el.value || '').slice(0, position);
+    const marker = document.createElement('span');
+    marker.textContent = (el.value || '').charAt(position) || '.';
+    mirror.append(marker);
+    document.body.append(mirror);
+
+    const rect = el.getBoundingClientRect();
+    const coordinates = {
+        left: rect.left + marker.offsetLeft - el.scrollLeft,
+        top: rect.top + marker.offsetTop - el.scrollTop + marker.offsetHeight,
+    };
+    mirror.remove();
+
+    return coordinates;
+};
+
 watch(() => props.modelValue, () => nextTick(autoGrow));
 onMounted(() => {
     autoGrow();
     if (props.autofocus) ta.value?.focus();
 });
 
-defineExpose({ focus: () => ta.value?.focus() });
+defineExpose({
+    focus: () => ta.value?.focus(),
+    isUploading: computed(() => uploading.value > 0),
+    getCaretCoordinates,
+    getSelectionStart: () => ta.value?.selectionStart ?? 0,
+});
 </script>
 
 <template>
@@ -204,7 +271,8 @@ defineExpose({ focus: () => ta.value?.focus() });
 
         <textarea v-show="tab === 'write'" ref="ta" class="md-textarea" :class="{ 'is-dragover': dragOver }"
             :value="modelValue" :placeholder="placeholder" @input="onInput" @keydown="onKeydown"
-            @paste="onPaste" @drop="onDrop"
+            @paste="onPaste" @drop="onDrop" @click="emitCursor('click')" @select="emitCursor('select')"
+            @keyup="emitCursor('keyup')"
             @dragover.prevent="taskId && (dragOver = true)" @dragleave="dragOver = false"></textarea>
 
         <div v-show="tab === 'preview'" class="md-preview md-body">

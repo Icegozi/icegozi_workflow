@@ -1,6 +1,6 @@
 <script setup>
-import { ref, reactive, computed } from 'vue';
-import { Head, usePage } from '@inertiajs/vue3';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import KanbanColumn from '@/Components/KanbanColumn.vue';
@@ -10,6 +10,7 @@ import TaskModal from '@/Components/TaskModal.vue';
 import Modal from '@/Components/Modal.vue';
 import Btn from '@/Components/Btn.vue';
 import ResponsiveSelect from '@/Components/ResponsiveSelect.vue';
+import { avatarSrc } from '@/composables/useSocialLinks';
 import {
     showAppAlert,
     showAppConfirm,
@@ -25,6 +26,57 @@ const props = defineProps({
 // State cục bộ (reactive) cho columns/tasks
 const columns = reactive(props.board.columns.map((c) => ({ ...c, tasks: [...c.tasks] })));
 
+watch(
+    () => props.board.columns,
+    (freshColumns) => {
+        columns.splice(0, columns.length, ...freshColumns.map((column) => ({
+            ...column,
+            tasks: [...column.tasks],
+        })));
+    }
+);
+
+// Sau 409, state cục bộ không còn đáng tin cậy. Tải lại board là cách an toàn nhất
+// để không vô tình ghi đè thao tác của thành viên khác.
+const reloadOnConflict = async (error) => {
+    if (error.response?.status !== 409) return false;
+    await showAppAlert(error.response.data?.message || 'Dữ liệu đã thay đổi. Bảng sẽ được tải lại.');
+    router.visit(route('boards.show', props.board.id));
+    return true;
+};
+
+// Fallback nhẹ khi broadcasting chưa được cấu hình: khi quay lại tab, đồng bộ lại
+// board để người dùng không tiếp tục thao tác trên state đã cũ.
+let boardRefreshTimer = null;
+let refreshDelay = 20000;
+const refreshBoardInBackground = async () => {
+    if (document.visibilityState !== 'visible' || isPositionSaving.value) return;
+
+    try {
+        const { data } = await axios.get(route('boards.revision', props.board.id));
+        refreshDelay = 20000;
+        if (data.revision !== props.board.revision || data.layout_revision !== props.board.layout_revision) {
+            router.reload({ preserveScroll: true });
+        }
+    } catch {
+        refreshDelay = Math.min(refreshDelay * 2, 120000);
+    } finally {
+        window.clearInterval(boardRefreshTimer);
+        boardRefreshTimer = window.setInterval(refreshBoardInBackground, refreshDelay);
+    }
+};
+
+const refreshWhenFocused = () => refreshBoardInBackground();
+
+onMounted(() => {
+    window.addEventListener('focus', refreshWhenFocused);
+    boardRefreshTimer = window.setInterval(refreshBoardInBackground, 20000);
+});
+onUnmounted(() => {
+    window.removeEventListener('focus', refreshWhenFocused);
+    window.clearInterval(boardRefreshTimer);
+});
+
 // ---- Thêm cột (hiển thị form trong modal) ----
 const openAddColumn = async () => {
     const name = await showAppPrompt('Tên cột mới:', '', 'warning');
@@ -34,7 +86,7 @@ const openAddColumn = async () => {
         const { data } = await axios.post(route('columns.store', props.board.id), {
             name: name.trim(),
         });
-        columns.push({ id: data.column.id, name: data.column.name, position: data.column.position, tasks: [] });
+        columns.push({ id: data.column.id, name: data.column.name, position: data.column.position, revision: data.column.revision || 1, tasks: [] });
     } catch (e) {
         showAppAlert(e.response?.data?.message || 'Không thể tạo cột.');
     }
@@ -49,19 +101,25 @@ const renameColumn = async (col) => {
     );
     if (!name || name.trim() === col.name) return;
     try {
-        await axios.put(route('columns.update', [props.board.id, col.id]), { name: name.trim() });
+        const { data } = await axios.put(route('columns.update', [props.board.id, col.id]), {
+            name: name.trim(),
+            revision: col.revision,
+        });
         col.name = name.trim();
+        col.revision = data.revision;
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể đổi tên cột.');
     }
 };
 const deleteColumn = async (col) => {
     if (!await showAppConfirm(`Xoá cột "${col.name}"?`, 'danger')) return;
     try {
-        await axios.delete(route('columns.destroy', [props.board.id, col.id]));
+        await axios.delete(route('columns.destroy', [props.board.id, col.id]), { data: { revision: col.revision } });
         const idx = columns.findIndex((c) => c.id === col.id);
         if (idx !== -1) columns.splice(idx, 1);
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể xoá cột.');
     }
 };
@@ -77,7 +135,7 @@ const deleteTask = async (task) => {
     }
 
     try {
-        await axios.delete(route('tasks.destroy', task.id));
+        await axios.delete(route('tasks.destroy', task.id), { data: { revision: task.revision } });
 
         const column = columns.find((item) =>
             item.tasks.some((itemTask) => itemTask.id === task.id)
@@ -89,6 +147,7 @@ const deleteTask = async (task) => {
             );
         }
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(
             e.response?.data?.message || 'Không thể xoá công việc.'
         );
@@ -102,20 +161,24 @@ const saveTask = async (col, title) => {
     try {
         const { data } = await axios.post(route('tasks.store', col.id), { title: t });
         col.tasks.push({
-            id: data.task.id, title: data.task.title, column_id: col.id,
+            id: data.task.id, title: data.task.title, description: data.task.description || null, column_id: col.id,
             position: data.task.position, due_date: data.task.due_date,
             formatted_due_date: data.task.formatted_due_date, assignees: data.task.assignees || [],
             priority: data.task.priority || 'normal', status: data.task.status || null,
+            revision: data.task.revision || 1,
             has_description: false,
             comments_count: 0, attachments_count: 0, checklist_total: 0, checklist_done: 0,
         });
+        col.revision = data.task.column_revision || col.revision;
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể thêm công việc.');
     }
 };
 
 // ---- Kéo thả công việc ----
 let positionSeq = 0;
+const isPositionSaving = ref(false);
 
 // Khôi phục thứ tự task của mọi cột về trạng thái đã chụp (khi lưu vị trí thất bại).
 const restoreOrder = (snapshot) => {
@@ -131,21 +194,33 @@ const onTaskChange = async (col, evt) => {
     const moved = evt.added || evt.moved;
     if (!moved) return;
     const taskId = moved.element.id;
+    const sourceColumn = columns.find((item) => item.id === moved.element.column_id) || col;
     // Chụp thứ tự hiện tại của MỌI cột trước khi gọi API (kéo có thể vắt qua 2 cột).
     const snapshot = columns.map((c) => ({ col: c, ids: c.tasks.map((t) => t.id) }));
     const seq = ++positionSeq;
+    isPositionSaving.value = true;
     try {
-        await axios.post(route('tasks.updatePosition'), {
+        const { data } = await axios.post(route('tasks.updatePosition'), {
             task_id: taskId,
             new_column_id: col.id,
             order: col.tasks.map((t) => t.id),
+            source_column_revision: sourceColumn.revision,
+            target_column_revision: col.revision,
+            task_revision: moved.element.revision,
         });
+        sourceColumn.revision = data.source_column_revision;
+        col.revision = data.target_column_revision;
+        moved.element.column_id = col.id;
+        moved.element.revision = data.task_revision;
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         // Chỉ hoàn tác nếu chưa có thao tác kéo-thả mới hơn (tránh giật ngược trạng thái).
         if (seq === positionSeq) {
             restoreOrder(snapshot);
         }
         showAppAlert(e.response?.data?.message || 'Không thể cập nhật vị trí.');
+    } finally {
+        isPositionSaving.value = false;
     }
 };
 
@@ -170,19 +245,29 @@ const moveTaskToColumn = async ({ taskId, columnId }) => {
     targetColumn.tasks.push(task);
 
     const seq = ++positionSeq;
+    isPositionSaving.value = true;
 
     try {
-        await axios.post(route('tasks.updatePosition'), {
+        const { data } = await axios.post(route('tasks.updatePosition'), {
             task_id: task.id,
             new_column_id: targetColumn.id,
             order: targetColumn.tasks.map((item) => item.id),
+            source_column_revision: sourceColumn.revision,
+            target_column_revision: targetColumn.revision,
+            task_revision: task.revision,
         });
+        sourceColumn.revision = data.source_column_revision;
+        targetColumn.revision = data.target_column_revision;
+        task.revision = data.task_revision;
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         if (seq === positionSeq) {
             restoreOrder(snapshot);
         }
 
         showAppAlert(e.response?.data?.message || 'Không thể di chuyển công việc.');
+    } finally {
+        isPositionSaving.value = false;
     }
 };
 
@@ -196,19 +281,39 @@ const fmtDMY = (isoDate) => {
     return `${d}/${m}/${y}`;
 };
 
-// Đổi hạn từ lịch (kéo-thả). Cập nhật lạc quan rồi gọi API.
-const rescheduleTask = async ({ task, dueDate }) => {
+const rescheduleQueues = new Map();
+
+// Không gửi hai revision của cùng task cùng lúc khi người dùng thả liên tiếp.
+const persistReschedule = async (task, dueDate) => {
     const prevDate = task.due_date;
     const prevFmt = task.formatted_due_date;
     task.due_date = dueDate;
     task.formatted_due_date = fmtDMY(dueDate);
     try {
-        await axios.put(route('tasks.update', task.id), { title: task.title, due_date: dueDate });
+        const { data } = await axios.put(route('tasks.update', task.id), {
+            title: task.title,
+            due_date: dueDate,
+            revision: task.revision,
+        });
+        task.revision = data.task.revision;
     } catch (e) {
         task.due_date = prevDate;
         task.formatted_due_date = prevFmt;
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể đổi hạn công việc.');
     }
+};
+
+const rescheduleTask = ({ task, dueDate }) => {
+    const previous = rescheduleQueues.get(task.id) || Promise.resolve();
+    const next = previous.catch(() => {}).then(() => persistReschedule(task, dueDate));
+
+    rescheduleQueues.set(task.id, next);
+    return next.finally(() => {
+        if (rescheduleQueues.get(task.id) === next) {
+            rescheduleQueues.delete(task.id);
+        }
+    });
 };
 
 // ---- Tìm kiếm & lọc (client-side) ----
@@ -456,7 +561,7 @@ const openActivity = async () => {
             <div v-if="loadingActivity" class="text-center p-4"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
             <div v-else>
                 <div v-for="a in activities" :key="a.id" class="d-flex mb-3">
-                    <img :src="a.user_avatar" class="rounded-circle mr-2" width="32" height="32" style="height:32px;">
+                    <img :src="avatarSrc(a.user_avatar)" class="rounded-circle mr-2" width="32" height="32" style="height:32px;">
                     <div class="flex-grow-1">
                         <div v-html="a.note" style="font-size:.85rem;"></div>
                         <div class="text-muted" style="font-size:.72rem;">{{ a.time }}</div>

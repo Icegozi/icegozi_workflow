@@ -23,9 +23,9 @@ class RedirectIfAuthenticated
 
             if ($user->is_admin) {
                 return redirect()->route('admin.dashboard');
-            } else {
-                return redirect()->route('user.dashboard');
             }
+
+            return redirect()->route('my-tasks.index');
         }
 
         return $next($request);

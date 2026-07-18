@@ -168,6 +168,10 @@ test: ## Chạy PHPUnit an toàn trên SQLite tạm (dùng c="--filter=TenTest" 
 		QUEUE_CONNECTION=sync \
 		php artisan test $(c)
 
+.PHONY: test-e2e
+test-e2e: ## Chạy Playwright trong app container
+	$(EXEC_T) env PLAYWRIGHT_BASE_URL=http://127.0.0.1 npm run test:e2e
+
 # =============================================================================
 #  Chất lượng mã / Git hooks
 # =============================================================================

@@ -17,6 +17,7 @@ class Label extends Model
         'board_id',
         'name',
         'color',
+        'revision',
     ];
 
     public function board(): BelongsTo

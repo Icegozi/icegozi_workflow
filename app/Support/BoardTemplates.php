@@ -7,7 +7,7 @@ namespace App\Support;
  * Sau khi seed, ứng dụng đọc/ghi qua model App\Models\BoardTemplate (admin quản lý).
  *
  * Mỗi mẫu gồm:
- *  - columns: các cột = quy trình triển khai (KHÔNG phải tên trạng thái)
+ *  - columns: các nhóm/luồng công việc (KHÔNG phải trạng thái task)
  *  - statuses: khoá (key) các trạng thái global mà mẫu áp dụng (tập con)
  *  - labels: nhãn kèm màu
  */
@@ -17,18 +17,18 @@ class BoardTemplates
     {
         return [
             [
-                'name' => 'Cơ bản',
+                'name' => 'Dự án liên phòng ban',
                 'icon' => 'fa-columns',
-                'description' => 'Quy trình ba bước đơn giản để bắt đầu nhanh.',
-                'columns' => ['Việc cần làm', 'Đang làm', 'Hoàn thành'],
+                'description' => 'Phân nhóm công việc theo chuyên môn; theo dõi tiến độ bằng trạng thái task.',
+                'columns' => ['Chưa phân loại', 'Sản phẩm', 'Kỹ thuật', 'Thiết kế', 'Vận hành'],
                 'statuses' => ['new', 'in_progress', 'done'],
                 'labels' => [],
             ],
             [
-                'name' => 'Sprint',
+                'name' => 'Sản phẩm phần mềm',
                 'icon' => 'fa-bolt',
-                'description' => 'Quy trình scrum: Backlog → Review → Hoàn thành.',
-                'columns' => ['Backlog', 'Cần làm', 'Đang làm', 'Review', 'Hoàn thành'],
+                'description' => 'Tổ chức backlog theo luồng phát triển, kiểm thử và phát hành.',
+                'columns' => ['Product', 'Backend', 'Frontend', 'QA', 'DevOps'],
                 'statuses' => ['new', 'in_progress', 'check', 'done'],
                 'labels' => [
                     ['name' => 'Tính năng', 'color' => '#006adc'],
@@ -39,8 +39,8 @@ class BoardTemplates
             [
                 'name' => 'Bug Tracker',
                 'icon' => 'fa-bug',
-                'description' => 'Theo dõi lỗi từ khi báo cáo đến khi đóng.',
-                'columns' => ['Tiếp nhận', 'Đang xử lý', 'Kiểm thử', 'Đã đóng'],
+                'description' => 'Phân lỗi theo nơi xử lý; trạng thái cho biết mức độ xử lý hiện tại.',
+                'columns' => ['Chưa phân loại', 'Frontend', 'Backend', 'Mobile', 'QA'],
                 'statuses' => ['new', 'in_progress', 'check', 'done', 'pending'],
                 'labels' => [
                     ['name' => 'Nghiêm trọng', 'color' => '#e5484d'],
@@ -51,8 +51,8 @@ class BoardTemplates
             [
                 'name' => 'Lịch nội dung',
                 'icon' => 'fa-pen-nib',
-                'description' => 'Sản xuất nội dung: ý tưởng → xuất bản.',
-                'columns' => ['Ý tưởng', 'Đang viết', 'Chờ duyệt', 'Đã đăng'],
+                'description' => 'Phân nội dung theo kênh và đội phụ trách thay vì theo trạng thái.',
+                'columns' => ['Blog', 'Mạng xã hội', 'Email', 'Thiết kế', 'Phân phối'],
                 'statuses' => ['new', 'in_progress', 'done'],
                 'labels' => [
                     ['name' => 'Blog', 'color' => '#006adc'],

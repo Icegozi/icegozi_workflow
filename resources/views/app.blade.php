@@ -7,13 +7,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title inertia>{{ config('app.name', 'MyApp') }}</title>
+    <title inertia>{{ config('app.name', 'Ic_go-wf') }}</title>
 
-    {{-- Áp theme (dark/light) sớm để tránh nháy màu khi tải trang --}}
+    {{-- Áp theme theo tài khoản sớm để tránh nháy màu khi tải trang --}}
     <script>
         (function () {
             try {
-                var t = localStorage.getItem('app-theme');
+                var t = @json(auth()->user()?->theme);
                 if (t !== 'dark' && t !== 'light') {
                     t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                 }

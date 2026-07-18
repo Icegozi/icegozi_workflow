@@ -14,6 +14,7 @@ import TextInput from '@/Components/TextInput.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import DataTable from '@/Components/DataTable.vue';
 import { showAppConfirm } from '@/composables/useAppAlert';
+import { avatarSrc } from '@/composables/useSocialLinks';
 
 const props = defineProps({
     board: {
@@ -76,12 +77,6 @@ const errors = computed(() => {
 const memberCount = computed(() => {
     return props.members.length + 1;
 });
-
-const avatar = (email) => {
-    return `https://i.pravatar.cc/40?u=${encodeURIComponent(
-        email || 'x'
-    )}`;
-};
 
 /* =========================================================
    MỜI THÀNH VIÊN
@@ -550,9 +545,7 @@ const cancelInvite = async (
                                             >
                                                 <img
                                                     :src="
-                                                        avatar(
-                                                            owner.email
-                                                        )
+                                                        avatarSrc(owner.avatar_url)
                                                     "
                                                     class="member-avatar"
                                                     alt=""
@@ -609,9 +602,7 @@ const cancelInvite = async (
                                     >
                                         <img
                                             :src="
-                                                avatar(
-                                                    row.email
-                                                )
+                                                avatarSrc(row.avatar_url)
                                             "
                                             class="member-avatar"
                                             alt=""

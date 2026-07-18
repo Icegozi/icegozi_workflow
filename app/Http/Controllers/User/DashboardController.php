@@ -27,6 +27,7 @@ class DashboardController extends Controller
             return [
                 'id' => $board->id,
                 'name' => $board->name,
+                'revision' => $board->revision,
                 'currentUserRole' => $user->getRoleForBoard($board),
                 'updated_at' => optional($board->updated_at)->format('d/m/Y'),
                 'show_url' => route('boards.show', $board->id),

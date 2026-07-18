@@ -25,6 +25,30 @@ class ProfileTest extends TestCase
         $this->get(route('profile.edit'))->assertRedirect(route('login.form'));
     }
 
+    public function test_giao_dien_duoc_luu_rieng_theo_tung_tai_khoan(): void
+    {
+        $firstUser = User::factory()->create(['theme' => 'light']);
+        $secondUser = User::factory()->create(['theme' => 'light']);
+
+        $this->actingAs($firstUser)
+            ->putJson(route('profile.theme.update'), ['theme' => 'dark'])
+            ->assertOk()
+            ->assertJsonPath('theme', 'dark');
+
+        $this->assertDatabaseHas('users', ['id' => $firstUser->id, 'theme' => 'dark']);
+        $this->assertDatabaseHas('users', ['id' => $secondUser->id, 'theme' => 'light']);
+    }
+
+    public function test_chi_nhan_giao_dien_sang_hoac_toi(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->putJson(route('profile.theme.update'), ['theme' => 'blue'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('theme');
+    }
+
     public function test_cap_nhat_thong_tin_co_ban_va_mang_xa_hoi(): void
     {
         $user = User::factory()->create();

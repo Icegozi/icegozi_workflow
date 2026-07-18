@@ -10,7 +10,8 @@ import Btn from '@/Components/Btn.vue';
 import MarkdownEditor from '@/Components/MarkdownEditor.vue';
 import TaskComments from '@/Components/TaskComments.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
-import { showAppAlert, showAppConfirm } from '@/composables/useAppAlert';
+import { avatarSrc } from '@/composables/useSocialLinks';
+import { showAppAlert, showAppChoice, showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
     taskId: { type: Number, required: true },
@@ -148,6 +149,30 @@ const fetchTask = async (resetForm = false) => {
     loading.value = false;
 };
 
+const reloadOnConflict = async (error) => {
+    if (error.response?.status !== 409) return false;
+    await showAppAlert(error.response.data?.message || 'Công việc đã thay đổi. Đang tải lại bản mới nhất.');
+    await fetchTask(true);
+    return true;
+};
+
+const handleTaskConflict = async (error) => {
+    if (error.response?.status !== 409) return false;
+    const current = error.response.data?.current;
+    const message = `${error.response.data?.message || 'Công việc đã thay đổi trên một phiên khác.'} Bản mới nhất có tiêu đề “${current?.title || 'Công việc'}”. Bản nháp của bạn vẫn được giữ nguyên.`;
+    const choice = await showAppChoice(message, {
+        primaryLabel: 'Ghi đè bằng bản nháp',
+        secondaryLabel: 'Dùng bản mới',
+    });
+    if (choice === 'primary' && current?.revision) {
+        task.value.revision = current.revision;
+        await saveTask();
+    } else if (choice === 'secondary') {
+        await fetchTask(true);
+    }
+    return true;
+};
+
 const loadMembers = async () => {
     try {
         const { data } = await axios.get(route('boards.assignedUsers', props.boardId));
@@ -164,6 +189,19 @@ onMounted(async () => {
     await fetchTask(true);
     loadMembers();   // cần cho cả gợi ý @mention, không chỉ khi canManage
 });
+
+const refreshWhenFocused = () => {
+    if (document.visibilityState === 'visible' && !saving.value) {
+        fetchTask(false).catch(() => {});
+    }
+};
+
+let taskRefreshTimer = null;
+const refreshTaskInBackground = () => {
+    if (document.visibilityState === 'visible' && !saving.value) {
+        fetchTask(false).catch(() => {});
+    }
+};
 
 
 const returnTo = () => new URLSearchParams(window.location.search).get('return');
@@ -197,9 +235,11 @@ const saveTask = async () => {
             due_date: dueDate.value || null,
             priority: priority.value,
             status_id: statusId.value,
+            revision: task.value.revision,
         });
         await fetchTask(false);
     } catch (e) {
+        if (await handleTaskConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể lưu thay đổi.');
     } finally {
         saving.value = false;
@@ -209,9 +249,10 @@ const saveTask = async () => {
 const deleteTask = async () => {
     if (!await showAppConfirm('Xoá công việc này?', 'danger')) return;
     try {
-        await axios.delete(route('tasks.destroy', props.taskId));
+        await axios.delete(route('tasks.destroy', props.taskId), { data: { revision: task.value.revision } });
         backAfterDelete();
     } catch (e) {
+        if (await reloadOnConflict(e)) return;
         showAppAlert(e.response?.data?.message || 'Không thể xoá công việc.');
     }
 };
@@ -228,13 +269,16 @@ const addChecklist = async () => {
 };
 const toggleChecklist = async (item) => {
     try {
-        await axios.put(route('checklists.update', item.id), { is_done: !item.is_done });
+        await axios.put(route('checklists.update', item.id), {
+            is_done: !item.is_done,
+            revision: item.revision,
+        });
         await fetchTask(false);
     } catch (e) { showAppAlert('Không thể cập nhật.'); }
 };
 const deleteChecklist = async (item) => {
     try {
-        await axios.delete(route('checklists.destroy', item.id));
+        await axios.delete(route('checklists.destroy', item.id), { data: { revision: item.revision } });
         await fetchTask(false);
     } catch (e) { showAppAlert('Không thể xoá mục.'); }
 };
@@ -303,15 +347,16 @@ const createLabel = async () => {
 const deleteLabel = async (label) => {
     if (!await showAppConfirm(`Xoá nhãn "${label.name || 'Nhãn'}" khỏi bảng? Nhãn sẽ bị gỡ khỏi mọi công việc.`, 'danger')) return;
     try {
-        await axios.delete(route('labels.destroy', label.id));
+        await axios.delete(route('labels.destroy', label.id), { data: { revision: label.revision } });
         labels.value = labels.value.filter((l) => l.id !== label.id);
         if (task.value?.labels) {
             task.value.labels = task.value.labels.filter((l) => l.id !== label.id);
         }
-    } catch (e) { showAppAlert(e.response?.data?.message || 'Không thể xoá nhãn.'); }
+    } catch (e) {
+        if (await reloadOnConflict(e)) return;
+        showAppAlert(e.response?.data?.message || 'Không thể xoá nhãn.');
+    }
 };
-
-const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(email || 'x')}`;
 
 // ---- Đóng popover khi click ra ngoài ----
 const labelWrap = ref(null);
@@ -338,12 +383,16 @@ onMounted(() => {
     document.addEventListener('mousedown', onDocClick);
     window.addEventListener('keydown', onKeydown);
     window.addEventListener('resize', syncMobileSheetScroll);
+    window.addEventListener('focus', refreshWhenFocused);
+    taskRefreshTimer = window.setInterval(refreshTaskInBackground, 20000);
 });
 
 onUnmounted(() => {
     document.removeEventListener('mousedown', onDocClick);
     window.removeEventListener('keydown', onKeydown);
     window.removeEventListener('resize', syncMobileSheetScroll);
+    window.removeEventListener('focus', refreshWhenFocused);
+    window.clearInterval(taskRefreshTimer);
 
     if (bodyScrollLocked) {
         document.body.style.overflow = bodyOverflowBeforeSheet;
@@ -390,7 +439,7 @@ onUnmounted(() => {
                         <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
                         <div class="entity-list assignee-list mb-4">
                             <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
-                                <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle assignee-pill__avatar"
+                                <img :src="avatarSrc(a.avatar_url)" class="rounded-circle assignee-pill__avatar"
                                     width="24" height="24" :title="a.name" :alt="a.name">
                                 <span class="assignee-pill__name" :title="a.name">{{ a.name }}</span>
                                 <button v-if="canManage" type="button" class="pill-x"
@@ -414,7 +463,7 @@ onUnmounted(() => {
                                         <a v-for="u in assignableMembers" :key="u.id" href="#"
                                             class="list-group-item list-group-item-action assignee-option py-2"
                                             @click.prevent="addAssignee(u)">
-                                            <img :src="u.avatar_url || avatar(u.email, 24)"
+                                            <img :src="avatarSrc(u.avatar_url)"
                                                 class="rounded-circle assignee-option__avatar" width="22" height="22"
                                                 :alt="u.name">
                                             <span class="assignee-option__name">{{ u.name }}</span>
@@ -431,7 +480,7 @@ onUnmounted(() => {
                         </div>
                         <article v-for="handover in task.incoming_handover_requests" :key="handover.id"
                             class="handover-request-card mb-4">
-                            <img :src="avatar(handover.from_email, 40)" class="rounded-circle handover-request-card__avatar"
+                            <img :src="avatarSrc(handover.from_avatar_url)" class="rounded-circle handover-request-card__avatar"
                                 width="40" height="40" :alt="handover.from_name">
                             <div class="handover-request-card__body">
                                 <span class="handover-request-card__eyebrow"><i class="fas fa-share"></i> Yêu cầu bàn giao</span>
@@ -594,7 +643,7 @@ onUnmounted(() => {
                             <h6 class="side-title">Lịch sử</h6>
                             <div class="history-scroll">
                                 <div v-for="h in task.task_histories" :key="h.id" class="history-item">
-                                    <img :src="h.user_avatar" class="rounded-circle" width="24" height="24">
+                                    <img :src="avatarSrc(h.user_avatar)" class="rounded-circle" width="24" height="24">
                                     <div class="history-item__text">
                                         <!-- note là HTML dựng sẵn (dữ liệu người dùng đã escape ở server) -->
                                         <div v-if="h.note" class="history-note" v-html="h.note"></div>
@@ -639,7 +688,7 @@ onUnmounted(() => {
                                         class="mobile-person-row is-selected"
                                         :disabled="!canManage"
                                         @click="canManage && removeAssignee(a)">
-                                        <img :src="a.avatar_url || avatar(a.email, 40)" class="rounded-circle"
+                                        <img :src="avatarSrc(a.avatar_url)" class="rounded-circle"
                                             width="40" height="40" :alt="a.name">
                                         <span class="mobile-person-row__content">
                                             <strong>{{ a.name }}</strong>
@@ -656,7 +705,7 @@ onUnmounted(() => {
                                 <div v-if="assignableMembers.length" class="mobile-person-list">
                                     <button v-for="u in assignableMembers" :key="`available-${u.id}`" type="button"
                                         class="mobile-person-row" @click="addAssignee(u)">
-                                        <img :src="u.avatar_url || avatar(u.email, 40)" class="rounded-circle"
+                                        <img :src="avatarSrc(u.avatar_url)" class="rounded-circle"
                                             width="40" height="40" :alt="u.name">
                                         <span class="mobile-person-row__content">
                                             <strong>{{ u.name }}</strong>
@@ -747,6 +796,7 @@ onUnmounted(() => {
     max-width: 1160px;
     margin: 0 auto;
 }
+
 
 /* ---------------- Header ---------------- */
 .te-header {
@@ -1483,9 +1533,10 @@ onUnmounted(() => {
         flex: 0 0 auto;
         width: 36px;
         height: 36px;
-        border: 0;
+        padding: 0;
+        border: 1px solid var(--app-border, #d0d7de);
         border-radius: 50%;
-        background: rgba(127, 127, 127, 0.12);
+        background: transparent;
         color: var(--app-text-muted, #6c757d);
         font-size: 1rem;
         cursor: pointer;
