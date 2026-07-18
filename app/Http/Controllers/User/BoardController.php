@@ -217,6 +217,16 @@ class BoardController extends Controller
         ]);
     }
 
+    public function revision(Board $board)
+    {
+        $this->authorizeBoardAccess($board, ['board_viewer', 'board_editor', 'board_member_manager']);
+
+        return response()->json([
+            'revision' => $board->revision,
+            'layout_revision' => $board->layout_revision,
+        ]);
+    }
+
     /** Nhật ký hoạt động cấp board: gom TaskHistory của mọi task trong bảng. */
     public function activity(Board $board)
     {

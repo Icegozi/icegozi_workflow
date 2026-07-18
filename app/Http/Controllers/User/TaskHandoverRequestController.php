@@ -47,15 +47,17 @@ class TaskHandoverRequestController extends Controller
 
             if ($handover->wasRecentlyCreated) {
                 $lockedTask->bumpRevision();
-                Notification::notifyUser(
-                    $to->id,
-                    '<strong>' . e($from->name) . '</strong> muốn bàn giao task '
-                    . '<strong>' . e($task->title) . '</strong> cho bạn.',
-                    route('tasks.edit', ['taskCode' => $task->code(), 'handover_request' => $handover->id]),
-                    $task->id
-                );
+                DB::afterCommit(function () use ($to, $from, $task, $handover) {
+                    Notification::notifyUser(
+                        $to->id,
+                        '<strong>' . e($from->name) . '</strong> muốn bàn giao task '
+                        . '<strong>' . e($task->title) . '</strong> cho bạn.',
+                        route('tasks.edit', ['taskCode' => $task->code(), 'handover_request' => $handover->id]),
+                        $task->id
+                    );
+                });
             }
-        });
+        }, 3);
 
         return response()->json(['success' => true, 'message' => 'Đã gửi yêu cầu bàn giao.']);
     }
@@ -63,8 +65,12 @@ class TaskHandoverRequestController extends Controller
     public function accept(TaskHandoverRequest $handoverRequest)
     {
         $to = Auth::user();
+        $taskId = TaskHandoverRequest::whereKey($handoverRequest->id)->value('task_id');
+        $boardId = Task::whereKey($taskId)->value('board_id');
 
-        DB::transaction(function () use ($handoverRequest, $to) {
+        DB::transaction(function () use ($handoverRequest, $to, $taskId, $boardId) {
+            $board = Board::query()->lockForUpdate()->findOrFail($boardId);
+            $task = Task::query()->lockForUpdate()->findOrFail($taskId);
             $request = TaskHandoverRequest::query()->lockForUpdate()->findOrFail($handoverRequest->id);
             abort_unless(
                 $request->status === 'pending' && $request->to_user_id === $to->id,
@@ -72,9 +78,6 @@ class TaskHandoverRequestController extends Controller
                 'Yêu cầu bàn giao không còn hiệu lực.'
             );
 
-            $task = Task::query()->lockForUpdate()->findOrFail($request->task_id);
-            $board = $task->column?->board;
-            $board = $board ? Board::query()->lockForUpdate()->findOrFail($board->id) : null;
             abort_unless(
                 $board
                 && $to->getRoleForBoard($board)
@@ -97,7 +100,7 @@ class TaskHandoverRequestController extends Controller
                 'note' => e($to->name) . ' đã nhận bàn giao công việc.',
             ]);
             $task->bumpRevision();
-        });
+        }, 3);
 
         return response()->json(['success' => true, 'message' => 'Bạn đã nhận bàn giao công việc.']);
     }

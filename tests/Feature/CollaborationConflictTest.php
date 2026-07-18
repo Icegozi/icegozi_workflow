@@ -225,4 +225,18 @@ class CollaborationConflictTest extends TestCase
 
         $this->assertSame('Bảng mới', $board->fresh()->name);
     }
+
+    public function test_duplicate_rejects_a_board_snapshot_changed_by_column_mutation(): void
+    {
+        [$owner, $board] = $this->makeBoard();
+
+        $this->actingAs($owner)
+            ->postJson(route('columns.store', $board), ['name' => 'Đã thêm'])
+            ->assertCreated();
+
+        $this->actingAs($owner)
+            ->postJson(route('boards.duplicate', $board), ['revision' => 1])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'STALE_VERSION');
+    }
 }

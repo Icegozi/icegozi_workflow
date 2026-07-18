@@ -46,18 +46,26 @@ const reloadOnConflict = async (error) => {
 
 // Fallback nhẹ khi broadcasting chưa được cấu hình: khi quay lại tab, đồng bộ lại
 // board để người dùng không tiếp tục thao tác trên state đã cũ.
-const refreshWhenFocused = () => {
-    if (document.visibilityState === 'visible') {
-        router.reload({ preserveScroll: true });
+let boardRefreshTimer = null;
+let refreshDelay = 20000;
+const refreshBoardInBackground = async () => {
+    if (document.visibilityState !== 'visible' || isPositionSaving.value) return;
+
+    try {
+        const { data } = await axios.get(route('boards.revision', props.board.id));
+        refreshDelay = 20000;
+        if (data.revision !== props.board.revision || data.layout_revision !== props.board.layout_revision) {
+            router.reload({ preserveScroll: true });
+        }
+    } catch {
+        refreshDelay = Math.min(refreshDelay * 2, 120000);
+    } finally {
+        window.clearInterval(boardRefreshTimer);
+        boardRefreshTimer = window.setInterval(refreshBoardInBackground, refreshDelay);
     }
 };
 
-let boardRefreshTimer = null;
-const refreshBoardInBackground = () => {
-    if (document.visibilityState === 'visible' && !isPositionSaving.value) {
-        router.reload({ preserveScroll: true });
-    }
-};
+const refreshWhenFocused = () => refreshBoardInBackground();
 
 onMounted(() => {
     window.addEventListener('focus', refreshWhenFocused);

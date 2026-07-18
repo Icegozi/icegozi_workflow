@@ -54,6 +54,7 @@ class ColumnController extends Controller
                     'position' => $maxPosition === null ? 0 : $maxPosition + 1,
                 ]);
                 $lockedBoard->increment('layout_revision');
+                $lockedBoard->increment('revision');
 
                 return $column;
             });
@@ -106,12 +107,14 @@ class ColumnController extends Controller
 
         try {
             $updated = DB::transaction(function () use ($column, $validated) {
+                $lockedBoard = Board::query()->lockForUpdate()->findOrFail($column->board_id);
                 $locked = Column::query()->lockForUpdate()->findOrFail($column->id);
                 if ((int) $locked->revision !== (int) $validated['revision']) {
                     return false;
                 }
                 $locked->update(['name' => $validated['name']]);
                 $locked->increment('revision');
+                $lockedBoard->increment('revision');
 
                 return $locked->fresh();
             });
@@ -172,6 +175,7 @@ class ColumnController extends Controller
                     ->where('position', '>', $deletedPosition)
                     ->decrement('position');
                 $lockedBoard->increment('layout_revision');
+                $lockedBoard->increment('revision');
 
                 return true;
             });
@@ -225,6 +229,7 @@ class ColumnController extends Controller
                     $columns[$columnId]->update(['position' => $index]);
                 }
                 $lockedBoard->increment('layout_revision');
+                $lockedBoard->increment('revision');
 
                 return true;
             });

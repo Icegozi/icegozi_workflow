@@ -58,7 +58,13 @@ class LabelController extends Controller
             'color' => 'required|string|max:20',
         ]);
 
-        $label = $board->labels()->create($data);
+        $label = \DB::transaction(function () use ($board, $data) {
+            $lockedBoard = Board::query()->lockForUpdate()->findOrFail($board->id);
+            $label = $lockedBoard->labels()->create($data);
+            $lockedBoard->increment('revision');
+
+            return $label;
+        });
 
         return response()->json([
             'success' => true,
@@ -72,6 +78,7 @@ class LabelController extends Controller
         $this->authorizeBoardAccess($label->board, ['board_editor', 'board_member_manager']);
         $request->validate(['revision' => ['required', 'integer', 'min:1']]);
         $deleted = \DB::transaction(function () use ($request, $label) {
+            $lockedBoard = Board::query()->lockForUpdate()->findOrFail($label->board_id);
             $locked = Label::query()->lockForUpdate()->findOrFail($label->id);
             if ((int) $locked->revision !== (int) $request->integer('revision')) {
                 return false;
@@ -79,6 +86,7 @@ class LabelController extends Controller
             // Xoá nhãn sẽ làm thay đổi mọi task đang gắn nhãn; invalidates revision của chúng.
             $locked->tasks()->select('tasks.id')->lockForUpdate()->get()->each->bumpRevision();
             $locked->delete();
+            $lockedBoard->increment('revision');
 
             return true;
         });
@@ -102,9 +110,11 @@ class LabelController extends Controller
         $label = Label::findOrFail($data['label_id']);
         abort_if($label->board_id !== $board->id, 403, 'Nhãn không thuộc bảng này.');
 
-        \DB::transaction(function () use ($task, $label) {
+        \DB::transaction(function () use ($task, $label, $board) {
+            Board::query()->lockForUpdate()->findOrFail($board->id);
+            $lockedLabel = Label::query()->lockForUpdate()->findOrFail($label->id);
             $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
-            $lockedTask->labels()->syncWithoutDetaching([$label->id]);
+            $lockedTask->labels()->syncWithoutDetaching([$lockedLabel->id]);
             $lockedTask->bumpRevision();
         });
 
@@ -114,10 +124,13 @@ class LabelController extends Controller
     /** Gỡ nhãn khỏi task. */
     public function detach(Task $task, Label $label)
     {
-        $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
-        \DB::transaction(function () use ($task, $label) {
+        $board = $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
+        abort_if($label->board_id !== $board->id, 403, 'Nhãn không thuộc bảng này.');
+        \DB::transaction(function () use ($task, $label, $board) {
+            Board::query()->lockForUpdate()->findOrFail($board->id);
+            $lockedLabel = Label::query()->lockForUpdate()->findOrFail($label->id);
             $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
-            $lockedTask->labels()->detach($label->id);
+            $lockedTask->labels()->detach($lockedLabel->id);
             $lockedTask->bumpRevision();
         });
 

@@ -71,6 +71,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::post('/boards', [BoardController::class, 'store'])->name('boards.store');
     Route::post('/boards/{board}/duplicate', [BoardController::class, 'duplicate'])->name('boards.duplicate');
+    Route::get('/boards/{board}/revision', [BoardController::class, 'revision'])->name('boards.revision');
 
     // Column Routes
     Route::post('/boards/{board}/columns', [ColumnController::class, 'store'])->name('columns.store');

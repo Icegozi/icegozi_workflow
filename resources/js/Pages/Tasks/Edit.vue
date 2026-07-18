@@ -166,7 +166,7 @@ const handleTaskConflict = async (error) => {
     if (choice === 'primary' && current?.revision) {
         task.value.revision = current.revision;
         await saveTask();
-    } else {
+    } else if (choice === 'secondary') {
         await fetchTask(true);
     }
     return true;
@@ -191,14 +191,14 @@ onMounted(async () => {
 
 const refreshWhenFocused = () => {
     if (document.visibilityState === 'visible' && !saving.value) {
-        fetchTask(false);
+        fetchTask(false).catch(() => {});
     }
 };
 
 let taskRefreshTimer = null;
 const refreshTaskInBackground = () => {
     if (document.visibilityState === 'visible' && !saving.value) {
-        fetchTask(false);
+        fetchTask(false).catch(() => {});
     }
 };
 

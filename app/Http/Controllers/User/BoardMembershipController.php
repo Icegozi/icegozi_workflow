@@ -151,8 +151,15 @@ class BoardMembershipController extends Controller
 
         try {
             DB::transaction(function () use ($board, $emailToInvite, $permissionNameToGrant, $invitedUser) {
-                $invitation = $this->createBoardInvitation($board, $emailToInvite, $permissionNameToGrant);
-                $this->sendInAppInvitation($invitation, $invitedUser);
+                $lockedBoard = Board::query()->lockForUpdate()->findOrFail($board->id);
+                abort_unless(
+                    Auth::id() === $lockedBoard->user_id
+                    || Auth::user()->hasBoardPermission($lockedBoard, 'board_member_manager'),
+                    403,
+                    'Bạn không còn quyền mời thành viên.'
+                );
+                $invitation = $this->createBoardInvitation($lockedBoard, $emailToInvite, $permissionNameToGrant);
+                DB::afterCommit(fn () => $this->sendInAppInvitation($invitation, $invitedUser));
             });
         } catch (\Throwable $e) {
             \Log::error('Failed to create board invitation notification: ' . $e->getMessage());
@@ -234,15 +241,17 @@ class BoardMembershipController extends Controller
 
         // Người mời phải còn quyền quản lý tại thời điểm chấp nhận, tránh tình huống
         // một quản trị viên đã bị gỡ/giáng cấp nhưng lời mời cũ vẫn cấp quyền cao.
-        $board = $invitation->board;
-        $this->ensureInviterStillAuthorized($invitation, $board);
+        DB::transaction(function () use ($invitation, $user) {
+            $freshInvitation = BoardInvitation::query()->lockForUpdate()->findOrFail($invitation->id);
+            $board = Board::query()->lockForUpdate()->findOrFail($freshInvitation->board_id);
+            abort_if($freshInvitation->accepted_at, 409, 'Lời mời đã được sử dụng.');
+            $this->ensureInviterStillAuthorized($freshInvitation, $board);
 
-        DB::transaction(function () use ($invitation, $board, $user) {
-            if (! $this->grantBoardPermission($board, $user, $invitation->role_permission_name)) {
+            if (! $this->grantBoardPermission($board, $user, $freshInvitation->role_permission_name)) {
                 // This scenario should be rare if permission exists, but good to handle
                 throw new \Exception("Không thể cấp quyền '{$invitation->role_permission_name}'.");
             }
-            $invitation->update(['accepted_at' => now()]);
+            $freshInvitation->update(['accepted_at' => now()]);
         });
 
         return redirect()->route('boards.show', $invitation->board_id)
@@ -320,7 +329,7 @@ class BoardMembershipController extends Controller
             if (! $this->grantBoardPermission($board, $member, $newPermissionName)) {
                 throw new \Exception("Failed to grant new permission {$newPermissionName}.");
             }
-        });
+        }, 3);
 
         return redirect()->back()->with('success', 'Vai trò của thành viên đã được cập nhật.');
     }
@@ -349,7 +358,7 @@ class BoardMembershipController extends Controller
             BoardInvitation::where('board_id', $board->id)
                 ->where('email', $member->email)
                 ->delete();
-        });
+        }, 3);
 
         return redirect()->back()->with('success', 'Thành viên đã được xóa khỏi bảng.');
     }

@@ -101,7 +101,7 @@ export const showAppChoice = (message, options = {}) => {
 
 export const closeAppAlert = () => {
     if (appAlert.mode === 'choice') {
-        closeCurrentAlert('secondary');
+        closeCurrentAlert('dismissed');
         return;
     }
     closeCurrentAlert(appAlert.mode === 'prompt' ? null : false);
