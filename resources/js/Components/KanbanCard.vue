@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { avatarSrc } from '@/composables/useSocialLinks';
 
 const props = defineProps({
     task: { type: Object, required: true },
@@ -97,7 +98,7 @@ const hasMeta = computed(() => {
 
             <div v-if="visibleAssignees.length" class="card-assignees">
                 <img v-for="a in visibleAssignees" :key="a.id"
-                    :src="`https://i.pravatar.cc/32?u=${encodeURIComponent(a.email)}`"
+                    :src="avatarSrc(a.avatar_url)"
                     :title="a.name" :alt="a.name" class="assignee-avatar" width="28" height="28">
                 <span v-if="extraAssignees" class="assignee-more" :title="`Thêm ${extraAssignees} người`">
                     +{{ extraAssignees }}

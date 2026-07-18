@@ -58,9 +58,7 @@ class CommentController extends Controller
                 Log::warning("notifyMentions failed for task {$task->id}: " . $e->getMessage());
             }
 
-            $comment->user_avatar = $comment->user
-                ? ('https://i.pravatar.cc/40?u=' . $comment->user->id)
-                : 'https://i.pravatar.cc/40?u=unknown';
+            $comment->user_avatar = $comment->user?->avatar_url;
 
             return response()->json([
                 'success' => true, 'message' => 'Bình luận đã được thêm.',

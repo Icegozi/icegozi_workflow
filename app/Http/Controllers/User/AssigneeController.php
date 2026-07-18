@@ -145,7 +145,7 @@ class AssigneeController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u=' . $user->id,
+            'avatar_url' => $user->avatar_url,
         ]);
 
         $task->column_name = $task->column->name ?? '';
@@ -163,7 +163,7 @@ class AssigneeController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/100?u=' . $user->id,
+                'avatar_url' => $user->avatar_url,
             ];
         });
 

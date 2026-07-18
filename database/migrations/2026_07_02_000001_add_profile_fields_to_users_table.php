@@ -11,7 +11,7 @@ return new class () extends Migration {
             // username: định danh đăng nhập thay email. Nullable để tương thích user cũ
             // (chưa có username); đăng ký mới sẽ bắt buộc. Unique để dùng làm khoá đăng nhập.
             $table->string('username', 50)->nullable()->unique()->after('name');
-            // Ảnh đại diện: đường dẫn nội bộ dạng "/storage/avatars/..." (upload) — null -> fallback pravatar.
+            // Ảnh đại diện: đường dẫn nội bộ dạng "/storage/avatars/..." (upload).
             $table->string('avatar_url')->nullable()->after('email');
             // Mạng xã hội: {facebook, twitter, linkedin, github, website} -> URL.
             $table->json('social')->nullable()->after('avatar_url');

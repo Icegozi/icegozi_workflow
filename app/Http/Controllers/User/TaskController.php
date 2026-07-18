@@ -116,7 +116,7 @@ class TaskController extends Controller
                             'id' => $user->id,
                             'name' => $user->name,
                             'email' => $user->email,
-                            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u=' . $user->id,
+                            'avatar_url' => $user->avatar_url,
                         ];
                     }),
                 ],
@@ -173,12 +173,13 @@ class TaskController extends Controller
             ->where('task_id', $task->id)
             ->where('to_user_id', Auth::id())
             ->where('status', 'pending')
-            ->with('fromUser:id,name,email')
+            ->with('fromUser:id,name,email,avatar_url')
             ->get()
             ->map(fn ($handover) => [
                 'id' => $handover->id,
                 'from_name' => $handover->fromUser?->name,
                 'from_email' => $handover->fromUser?->email,
+                'from_avatar_url' => $handover->fromUser?->avatar_url,
             ]);
 
         return response()->json([
@@ -230,8 +231,7 @@ class TaskController extends Controller
             'id' => $history->id,
             'user_id' => $user?->id,
             'user_name' => $user?->name ?? 'Người dùng không xác định',
-            'user_avatar' => $user?->avatar_url
-                ?: ('https://i.pravatar.cc/40?u=' . ($user?->id ?? 'unknown')),
+            'user_avatar' => $user?->avatar_url,
             'action' => $history->action,
             'note' => $history->note,
             'created_at' => $history->created_at->format('Y-m-d H:i:s'),
@@ -250,9 +250,7 @@ class TaskController extends Controller
 
         $task->comments->transform(function ($comment) {
             $comment->user_name = $comment->user ? $comment->user->name : 'Người dùng không xác định';
-            // Ưu tiên avatar profile của user; không có thì fallback pravatar.
-            $comment->user_avatar = $comment->user?->avatar_url
-                ?: ('https://i.pravatar.cc/40?u=' . ($comment->user?->id ?? 'unknown'));
+            $comment->user_avatar = $comment->user?->avatar_url;
             $comment->time_ago = $comment->created_at
                 ? $comment->created_at->diffForHumans()
                 : 'Không rõ thời gian';

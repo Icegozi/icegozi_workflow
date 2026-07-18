@@ -10,6 +10,7 @@ import TaskModal from '@/Components/TaskModal.vue';
 import Modal from '@/Components/Modal.vue';
 import Btn from '@/Components/Btn.vue';
 import ResponsiveSelect from '@/Components/ResponsiveSelect.vue';
+import { avatarSrc } from '@/composables/useSocialLinks';
 import {
     showAppAlert,
     showAppConfirm,
@@ -546,7 +547,7 @@ const openActivity = async () => {
             <div v-if="loadingActivity" class="text-center p-4"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
             <div v-else>
                 <div v-for="a in activities" :key="a.id" class="d-flex mb-3">
-                    <img :src="a.user_avatar" class="rounded-circle mr-2" width="32" height="32" style="height:32px;">
+                    <img :src="avatarSrc(a.user_avatar)" class="rounded-circle mr-2" width="32" height="32" style="height:32px;">
                     <div class="flex-grow-1">
                         <div v-html="a.note" style="font-size:.85rem;"></div>
                         <div class="text-muted" style="font-size:.72rem;">{{ a.time }}</div>

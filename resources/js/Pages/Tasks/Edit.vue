@@ -10,6 +10,7 @@ import Btn from '@/Components/Btn.vue';
 import MarkdownEditor from '@/Components/MarkdownEditor.vue';
 import TaskComments from '@/Components/TaskComments.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { avatarSrc } from '@/composables/useSocialLinks';
 import { showAppAlert, showAppChoice, showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
@@ -357,8 +358,6 @@ const deleteLabel = async (label) => {
     }
 };
 
-const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(email || 'x')}`;
-
 // ---- Đóng popover khi click ra ngoài ----
 const labelWrap = ref(null);
 const assigneeWrap = ref(null);
@@ -440,7 +439,7 @@ onUnmounted(() => {
                         <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
                         <div class="entity-list assignee-list mb-4">
                             <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
-                                <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle assignee-pill__avatar"
+                                <img :src="avatarSrc(a.avatar_url)" class="rounded-circle assignee-pill__avatar"
                                     width="24" height="24" :title="a.name" :alt="a.name">
                                 <span class="assignee-pill__name" :title="a.name">{{ a.name }}</span>
                                 <button v-if="canManage" type="button" class="pill-x"
@@ -464,7 +463,7 @@ onUnmounted(() => {
                                         <a v-for="u in assignableMembers" :key="u.id" href="#"
                                             class="list-group-item list-group-item-action assignee-option py-2"
                                             @click.prevent="addAssignee(u)">
-                                            <img :src="u.avatar_url || avatar(u.email, 24)"
+                                            <img :src="avatarSrc(u.avatar_url)"
                                                 class="rounded-circle assignee-option__avatar" width="22" height="22"
                                                 :alt="u.name">
                                             <span class="assignee-option__name">{{ u.name }}</span>
@@ -481,7 +480,7 @@ onUnmounted(() => {
                         </div>
                         <article v-for="handover in task.incoming_handover_requests" :key="handover.id"
                             class="handover-request-card mb-4">
-                            <img :src="avatar(handover.from_email, 40)" class="rounded-circle handover-request-card__avatar"
+                            <img :src="avatarSrc(handover.from_avatar_url)" class="rounded-circle handover-request-card__avatar"
                                 width="40" height="40" :alt="handover.from_name">
                             <div class="handover-request-card__body">
                                 <span class="handover-request-card__eyebrow"><i class="fas fa-share"></i> Yêu cầu bàn giao</span>
@@ -644,7 +643,7 @@ onUnmounted(() => {
                             <h6 class="side-title">Lịch sử</h6>
                             <div class="history-scroll">
                                 <div v-for="h in task.task_histories" :key="h.id" class="history-item">
-                                    <img :src="h.user_avatar" class="rounded-circle" width="24" height="24">
+                                    <img :src="avatarSrc(h.user_avatar)" class="rounded-circle" width="24" height="24">
                                     <div class="history-item__text">
                                         <!-- note là HTML dựng sẵn (dữ liệu người dùng đã escape ở server) -->
                                         <div v-if="h.note" class="history-note" v-html="h.note"></div>
@@ -689,7 +688,7 @@ onUnmounted(() => {
                                         class="mobile-person-row is-selected"
                                         :disabled="!canManage"
                                         @click="canManage && removeAssignee(a)">
-                                        <img :src="a.avatar_url || avatar(a.email, 40)" class="rounded-circle"
+                                        <img :src="avatarSrc(a.avatar_url)" class="rounded-circle"
                                             width="40" height="40" :alt="a.name">
                                         <span class="mobile-person-row__content">
                                             <strong>{{ a.name }}</strong>
@@ -706,7 +705,7 @@ onUnmounted(() => {
                                 <div v-if="assignableMembers.length" class="mobile-person-list">
                                     <button v-for="u in assignableMembers" :key="`available-${u.id}`" type="button"
                                         class="mobile-person-row" @click="addAssignee(u)">
-                                        <img :src="u.avatar_url || avatar(u.email, 40)" class="rounded-circle"
+                                        <img :src="avatarSrc(u.avatar_url)" class="rounded-circle"
                                             width="40" height="40" :alt="u.name">
                                         <span class="mobile-person-row__content">
                                             <strong>{{ u.name }}</strong>

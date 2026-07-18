@@ -4,6 +4,7 @@ import axios from 'axios';
 import Btn from '@/Components/Btn.vue';
 import MarkdownEditor from '@/Components/MarkdownEditor.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { avatarSrc } from '@/composables/useSocialLinks';
 import { showAppAlert, showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
@@ -14,8 +15,6 @@ const props = defineProps({
 
 // Trang cha nghe sự kiện này để tải lại task sau khi thêm/xoá bình luận.
 const emit = defineEmits(['updated']);
-
-const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(email || 'x')}`;
 
 // ---- Thành viên bảng (dùng cho gợi ý @mention) ----
 const boardMembers = ref([]);
@@ -124,14 +123,14 @@ const deleteComment = async (c) => {
                 <a v-for="m in mentionMatches" :key="m.id" href="#"
                     class="list-group-item list-group-item-action py-2 d-flex align-items-center"
                     @click.prevent="pickMention(m)">
-                    <img :src="m.avatar_url || avatar(m.email, 24)" class="rounded-circle mr-2" width="22" height="22">{{ m.name }}
+                    <img :src="avatarSrc(m.avatar_url)" class="rounded-circle mr-2" width="22" height="22">{{ m.name }}
                 </a>
             </div>
         </div>
 
         <div class="comment-list">
             <div v-for="c in comments" :key="c.id" class="comment">
-                <img :src="c.user_avatar || avatar(c.user_name, 40)" class="rounded-circle comment__avatar"
+                <img :src="avatarSrc(c.user_avatar)" class="rounded-circle comment__avatar"
                     width="34" height="34">
                 <div class="comment__body">
                     <div class="comment__head">

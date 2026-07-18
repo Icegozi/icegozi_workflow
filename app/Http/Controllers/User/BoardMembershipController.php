@@ -91,7 +91,13 @@ class BoardMembershipController extends Controller
                 }
             }
 
-            return ['id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'role' => $highest];
+            return [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'avatar_url' => $u->avatar_url,
+                'role' => $highest,
+            ];
         })->values();
 
         $invitations = $pendingInvitations->map(fn ($inv) => [
@@ -107,7 +113,11 @@ class BoardMembershipController extends Controller
 
         return Inertia::render('Boards/Settings', [
             'board' => ['id' => $board->id, 'name' => $board->name],
-            'owner' => ['name' => $board->owner->name, 'email' => $board->owner->email],
+            'owner' => [
+                'name' => $board->owner->name,
+                'email' => $board->owner->email,
+                'avatar_url' => $board->owner->avatar_url,
+            ],
             'members' => $members,
             'invitations' => $invitations,
             'potentialRoles' => $potentialRoles,

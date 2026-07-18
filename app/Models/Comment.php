@@ -36,10 +36,10 @@ class Comment extends Model
     public function getUserAvatarUrlAttribute()
     {
         if ($this->user) {
-            return 'https://i.pravatar.cc/32?u=' . urlencode($this->user->email);
+            return $this->user->avatar_url;
         }
 
-        return 'https://via.placeholder.com/32';
+        return '/images/default-avatar.svg';
     }
 
     public function getUserDisplayNameAttribute()

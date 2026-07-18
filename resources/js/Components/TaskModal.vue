@@ -5,6 +5,7 @@ import axios from 'axios';
 import Modal from '@/Components/Modal.vue';
 import Btn from '@/Components/Btn.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { avatarSrc } from '@/composables/useSocialLinks';
 import { showAppAlert, showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
@@ -56,8 +57,6 @@ const checklistTotal = computed(() => (task.value?.checklists || []).length);
 const checklistPct = computed(() =>
     checklistTotal.value ? Math.round((checklistDone.value / checklistTotal.value) * 100) : 0
 );
-
-const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(email || 'x')}`;
 
 // Mở trang chỉnh sửa riêng theo mã task (URL kiểu ICE-0042)
 const goEdit = () => {
@@ -216,7 +215,7 @@ const acceptHandover = async (request) => {
                 <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
                 <div ref="handoverWrap" class="assignee-view mb-4">
                     <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
-                        <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
+                        <img :src="avatarSrc(a.avatar_url)" class="rounded-circle" width="24" height="24" :title="a.name">
                         <span>{{ a.name }}</span>
                         <button v-if="canRequestHandover && a.id === currentUserId" type="button" class="assignee-handover"
                             title="Yêu cầu bàn giao" aria-label="Yêu cầu bàn giao task" @click="toggleHandoverPicker">
@@ -231,7 +230,7 @@ const acceptHandover = async (request) => {
                         </div>
                         <button v-for="member in handoverMembers" :key="member.id" type="button" class="handover-option"
                             @click="requestHandover(member)">
-                            <img :src="member.avatar_url || avatar(member.email)" class="rounded-circle" width="28" height="28" :alt="member.name">
+                            <img :src="avatarSrc(member.avatar_url)" class="rounded-circle" width="28" height="28" :alt="member.name">
                             <span><strong>{{ member.name }}</strong><small>{{ member.email }}</small></span>
                             <i class="fas fa-arrow-right"></i>
                         </button>
@@ -239,7 +238,7 @@ const acceptHandover = async (request) => {
                     </div>
                 </div>
                 <article v-for="request in task.incoming_handover_requests" :key="request.id" class="handover-request-card">
-                    <img :src="avatar(request.from_email)" class="rounded-circle handover-request-card__avatar" width="40" height="40" :alt="request.from_name">
+                    <img :src="avatarSrc(request.from_avatar_url)" class="rounded-circle handover-request-card__avatar" width="40" height="40" :alt="request.from_name">
                     <div class="handover-request-card__body">
                         <span class="handover-request-card__eyebrow"><i class="fas fa-share"></i> Yêu cầu bàn giao</span>
                         <strong>{{ request.from_name }} muốn bàn giao task này cho bạn</strong>
@@ -278,7 +277,7 @@ const acceptHandover = async (request) => {
                 <h6 class="sect"><i class="fas fa-comments"></i>Bình luận</h6>
                 <div class="comment-list">
                     <div v-for="c in task.comments" :key="c.id" class="comment">
-                        <img :src="c.user_avatar || avatar(c.user_name, 40)" class="rounded-circle comment__avatar"
+                    <img :src="avatarSrc(c.user_avatar)" class="rounded-circle comment__avatar"
                             width="34" height="34">
                         <div class="comment__body">
                             <div class="comment__head">
@@ -364,7 +363,7 @@ const acceptHandover = async (request) => {
                     <h6 class="side-title">Lịch sử</h6>
                     <div class="history-scroll">
                         <div v-for="h in task.task_histories" :key="h.id" class="history-item">
-                            <img :src="h.user_avatar" class="rounded-circle" width="24" height="24">
+                            <img :src="avatarSrc(h.user_avatar)" class="rounded-circle" width="24" height="24">
                             <div class="history-item__text">
                                 <!-- note là HTML dựng sẵn (dữ liệu người dùng đã escape ở server) -->
                                 <div v-if="h.note" class="history-note" v-html="h.note"></div>
