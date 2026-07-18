@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BoardTemplate;
 use App\Models\Status;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class TemplateController extends Controller
@@ -93,9 +94,14 @@ class TemplateController extends Controller
     /** Chuẩn hoá dữ liệu đầu vào trước khi lưu. */
     private function normalize(array $data): array
     {
-        $data['icon'] = $data['icon'] ?: 'fa-columns';
+        $data['icon'] = ($data['icon'] ?? null) ?: 'fa-columns';
         $data['position'] = $data['position'] ?? 0;
         $data['columns'] = array_values(array_filter(array_map('trim', $data['columns'])));
+        if (count($data['columns']) !== count(array_unique(array_map('mb_strtolower', $data['columns'])))) {
+            throw ValidationException::withMessages([
+                'columns' => 'Mỗi nhóm công việc chỉ được xuất hiện một lần trong template.',
+            ]);
+        }
         $data['status_ids'] = array_values($data['status_ids'] ?? []);
         $data['labels'] = array_values(array_filter(
             $data['labels'] ?? [],

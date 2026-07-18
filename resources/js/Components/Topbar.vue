@@ -4,13 +4,21 @@ import { usePage, router, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useTheme } from '@/composables/useTheme';
 import { avatarSrc } from '@/composables/useSocialLinks';
-import { showAppConfirm } from '@/composables/useAppAlert';
+import { showAppAlert, showAppConfirm } from '@/composables/useAppAlert';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user || null);
 const userAvatar = computed(() => avatarSrc(user.value?.avatar_url, user.value?.email, 40));
 
 const { theme, toggle: toggleTheme } = useTheme();
+
+const toggleAccountTheme = async () => {
+    try {
+        await toggleTheme();
+    } catch (error) {
+        showAppAlert('Không thể lưu giao diện. Vui lòng thử lại.');
+    }
+};
 
 // ---- Thông báo ----
 const notifications = ref([]);
@@ -91,7 +99,7 @@ const logout = async () => {
 
 <template>
     <nav class="app-topbar navbar navbar-expand border-bottom">
-        <a class="topbar-brand ml-5" href="/" aria-label="MyApp - Trang chủ">My<span>App</span></a>
+        <a class="topbar-brand ml-5" href="/" aria-label="Ic_go-wf - Trang chủ">Ic_go-<span>wf</span></a>
         <!-- Điều hướng bên trái (tuỳ layout) -->
         <ul class="navbar-nav">
             <slot />
@@ -100,7 +108,7 @@ const logout = async () => {
         <!-- Người dùng + đăng xuất (dùng chung) -->
         <ul class="navbar-nav ml-auto">
             <li class="nav-item">
-                <a class="nav-link d-flex align-items-center" href="#" @click.prevent="toggleTheme"
+                <a class="nav-link d-flex align-items-center" href="#" @click.prevent="toggleAccountTheme"
                     :title="theme === 'dark' ? 'Chuyển sáng' : 'Chuyển tối'">
                     <i :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>
                 </a>

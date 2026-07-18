@@ -44,6 +44,7 @@ class AttachmentController extends Controller
         try {
             if ($request->hasfile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
+                    $path = null;
                     try {
                         $originalName = $file->getClientOriginalName();
                         $filename = Str::slug(pathinfo($originalName, PATHINFO_FILENAME))
@@ -64,32 +65,31 @@ class AttachmentController extends Controller
                         }
 
                         $attachment = \DB::transaction(function () use ($task, $originalName, $path, $file) {
+                            $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
                             $attachment = Attachment::create([
                                 'file_name' => $originalName,
                                 'file_path' => $path,
                                 'file_size' => $file->getSize(),
                                 'mime_type' => $file->getMimeType(),
-                                'task_id' => $task->id,
+                                'task_id' => $lockedTask->id,
                                 'user_id' => Auth::id(),
                             ]);
 
-                            $task->taskHistories()->create([
+                            $lockedTask->taskHistories()->create([
                                 'user_id' => Auth::id(),
                                 'action' => 'attachment_added',
                                 'note' => 'Đã thêm đính kèm: ' . e($originalName),
                             ]);
+                            $lockedTask->bumpRevision();
 
                             return $attachment;
                         });
-
-                        // Kích hoạt các accessor để trả về client
-                        $attachment->url = $attachment->url;
-                        $attachment->uploaded_at_formatted = $attachment->uploaded_at_formatted;
 
                         $uploadedAttachmentsData[] = $attachment;
 
                         $successMessages[] = "File '{$originalName}' đã được tải lên.";
                     } catch (Exception $e) {
+                        $this->deleteFailedUpload($path);
                         Log::error(
                             "Attachment upload failed for file: {$originalName} "
                             . "on task {$task->id}. Error: " . $e->getMessage(),
@@ -128,6 +128,13 @@ class AttachmentController extends Controller
         }
     }
 
+    private function deleteFailedUpload(?string $path): void
+    {
+        if ($path && Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
+    }
+
     // ... các phương thức khác (index, destroy) cũng cần được kiểm tra xem có bị revert về phiên bản cũ không ...
 
     public function index(Task $task)
@@ -160,12 +167,15 @@ class AttachmentController extends Controller
             $originalName = $attachment->file_name;
 
             \DB::transaction(function () use ($attachment, $task, $originalName) {
-                $attachment->delete();
-                $task->taskHistories()->create([
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                $lockedAttachment = Attachment::query()->lockForUpdate()->findOrFail($attachment->id);
+                $lockedAttachment->delete();
+                $lockedTask->taskHistories()->create([
                     'user_id' => Auth::id(),
                     'action' => 'attachment_deleted',
                     'note' => 'Đã xoá đính kèm: ' . e($originalName),
                 ]);
+                $lockedTask->bumpRevision();
             });
 
             return response()->json([

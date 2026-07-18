@@ -26,7 +26,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
                     <h6 class="modal-card__title">{{ title }}</h6>
                 </slot>
                 <button type="button" class="modal-card__close" @click="close" aria-label="Đóng">
-                    <span>&times;</span>
+                    <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -96,20 +96,12 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
     padding: 0;
 
     color: var(--app-text-muted);
-    font-size: 1.25rem;
-    line-height: 1;
 
     border: 1px solid var(--app-border);
     border-radius: 50%;
 
-    background: var(--app-surface);
+    background: transparent;
     cursor: pointer;
-}
-
-.modal-card__close:hover {
-    color: var(--app-accent);
-    border-color: var(--app-accent);
-    background: rgba(102, 51, 0, 0.07);
 }
 
 .modal-card__body {

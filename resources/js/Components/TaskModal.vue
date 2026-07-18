@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import Modal from '@/Components/Modal.vue';
 import Btn from '@/Components/Btn.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { avatarSrc } from '@/composables/useSocialLinks';
 import { showAppAlert, showAppConfirm } from '@/composables/useAppAlert';
 
 const props = defineProps({
@@ -20,6 +21,8 @@ const emit = defineEmits(['close', 'move-task']);
 const loading = ref(true);
 const task = ref(null);
 const showMoveSheet = ref(false);
+const moveSearch = ref('');
+const moveSearchInput = ref(null);
 const showHandoverPicker = ref(false);
 const handoverMembers = ref([]);
 const handoverWrap = ref(null);
@@ -55,8 +58,6 @@ const checklistPct = computed(() =>
     checklistTotal.value ? Math.round((checklistDone.value / checklistTotal.value) * 100) : 0
 );
 
-const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(email || 'x')}`;
-
 // Mở trang chỉnh sửa riêng theo mã task (URL kiểu ICE-0042)
 const goEdit = () => {
     router.visit(route('tasks.edit', { taskCode: task.value.code, ...(props.editQuery || {}) }));
@@ -88,19 +89,76 @@ const moveTargets = computed(() => {
     });
 });
 
+const normalized = (value) => String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/đ/g, 'd');
+
+const recentMoveStorageKey = computed(() => `board:${props.boardId}:recent-move-columns`);
+const recentMoveIds = ref([]);
+
+const readRecentMoveColumns = () => {
+    try {
+        const saved = JSON.parse(window.localStorage.getItem(recentMoveStorageKey.value) || '[]');
+        recentMoveIds.value = Array.isArray(saved) ? saved.map(Number) : [];
+    } catch {
+        recentMoveIds.value = [];
+    }
+};
+
+const recentMoveTargets = computed(() => recentMoveIds.value
+    .map((id) => moveTargets.value.find((column) => column.id === id))
+    .filter(Boolean));
+
+const filteredMoveTargets = computed(() => {
+    const query = normalized(moveSearch.value.trim());
+    if (!query) return moveTargets.value;
+    return moveTargets.value.filter((column) => normalized(column.name).includes(query));
+});
+
+const remainingMoveTargets = computed(() => {
+    const recentIds = new Set(recentMoveTargets.value.map((column) => column.id));
+    return moveTargets.value.filter((column) => !recentIds.has(column.id));
+});
+
+const openMoveSheet = async () => {
+    moveSearch.value = '';
+    readRecentMoveColumns();
+    showMoveSheet.value = true;
+    await nextTick();
+    moveSearchInput.value?.focus();
+};
+
+const closeMoveSheet = () => {
+    showMoveSheet.value = false;
+    moveSearch.value = '';
+};
+
+const rememberMoveColumn = (columnId) => {
+    const ids = [columnId, ...recentMoveIds.value.filter((id) => id !== columnId)].slice(0, 5);
+    recentMoveIds.value = ids;
+    try {
+        window.localStorage.setItem(recentMoveStorageKey.value, JSON.stringify(ids));
+    } catch {
+        // Không ảnh hưởng đến thao tác chuyển task nếu trình duyệt chặn localStorage.
+    }
+};
+
 const moveTask = (column) => {
     if (!task.value || !column) {
         return;
     }
 
-    showMoveSheet.value = false;
+    rememberMoveColumn(column.id);
+    closeMoveSheet();
     emit('move-task', {
         taskId: task.value.id,
         columnId: column.id,
     });
     emit('close');
 };
-const canRequestHandover = computed(() => !props.canEdit && task.value?.assignees?.some((user) => user.id === currentUserId.value));
+const canRequestHandover = computed(() => !props.canManage && task.value?.assignees?.some((user) => user.id === currentUserId.value));
 const toggleHandoverPicker = async () => {
     showHandoverPicker.value = !showHandoverPicker.value;
     if (!showHandoverPicker.value || handoverMembers.value.length) return;
@@ -157,7 +215,7 @@ const acceptHandover = async (request) => {
                 <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
                 <div ref="handoverWrap" class="assignee-view mb-4">
                     <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
-                        <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
+                        <img :src="avatarSrc(a.avatar_url)" class="rounded-circle" width="24" height="24" :title="a.name">
                         <span>{{ a.name }}</span>
                         <button v-if="canRequestHandover && a.id === currentUserId" type="button" class="assignee-handover"
                             title="Yêu cầu bàn giao" aria-label="Yêu cầu bàn giao task" @click="toggleHandoverPicker">
@@ -172,7 +230,7 @@ const acceptHandover = async (request) => {
                         </div>
                         <button v-for="member in handoverMembers" :key="member.id" type="button" class="handover-option"
                             @click="requestHandover(member)">
-                            <img :src="member.avatar_url || avatar(member.email)" class="rounded-circle" width="28" height="28" :alt="member.name">
+                            <img :src="avatarSrc(member.avatar_url)" class="rounded-circle" width="28" height="28" :alt="member.name">
                             <span><strong>{{ member.name }}</strong><small>{{ member.email }}</small></span>
                             <i class="fas fa-arrow-right"></i>
                         </button>
@@ -180,7 +238,7 @@ const acceptHandover = async (request) => {
                     </div>
                 </div>
                 <article v-for="request in task.incoming_handover_requests" :key="request.id" class="handover-request-card">
-                    <img :src="avatar(request.from_email)" class="rounded-circle handover-request-card__avatar" width="40" height="40" :alt="request.from_name">
+                    <img :src="avatarSrc(request.from_avatar_url)" class="rounded-circle handover-request-card__avatar" width="40" height="40" :alt="request.from_name">
                     <div class="handover-request-card__body">
                         <span class="handover-request-card__eyebrow"><i class="fas fa-share"></i> Yêu cầu bàn giao</span>
                         <strong>{{ request.from_name }} muốn bàn giao task này cho bạn</strong>
@@ -219,7 +277,7 @@ const acceptHandover = async (request) => {
                 <h6 class="sect"><i class="fas fa-comments"></i>Bình luận</h6>
                 <div class="comment-list">
                     <div v-for="c in task.comments" :key="c.id" class="comment">
-                        <img :src="c.user_avatar || avatar(c.user_name, 40)" class="rounded-circle comment__avatar"
+                    <img :src="avatarSrc(c.user_avatar)" class="rounded-circle comment__avatar"
                             width="34" height="34">
                         <div class="comment__body">
                             <div class="comment__head">
@@ -296,7 +354,7 @@ const acceptHandover = async (request) => {
 
                     <Btn v-if="moveTargets.length" type="button" variant="secondary" outline
                         icon="fas fa-right-left" class="btn-block tm-move-trigger"
-                        @click="showMoveSheet = true">
+                        @click="openMoveSheet">
                         Di chuyển
                     </Btn>
                 </div>
@@ -305,7 +363,7 @@ const acceptHandover = async (request) => {
                     <h6 class="side-title">Lịch sử</h6>
                     <div class="history-scroll">
                         <div v-for="h in task.task_histories" :key="h.id" class="history-item">
-                            <img :src="h.user_avatar" class="rounded-circle" width="24" height="24">
+                            <img :src="avatarSrc(h.user_avatar)" class="rounded-circle" width="24" height="24">
                             <div class="history-item__text">
                                 <!-- note là HTML dựng sẵn (dữ liệu người dùng đã escape ở server) -->
                                 <div v-if="h.note" class="history-note" v-html="h.note"></div>
@@ -322,8 +380,8 @@ const acceptHandover = async (request) => {
     </Modal>
 
     <Teleport to="body">
-        <div v-if="showMoveSheet" class="tm-move-sheet-backdrop" @click.self="showMoveSheet = false">
-            <section class="tm-move-sheet" role="dialog" aria-modal="true" aria-labelledby="move-task-title">
+        <div v-if="showMoveSheet" class="tm-move-sheet-backdrop" @click.self="closeMoveSheet">
+            <section class="tm-move-sheet" role="dialog" aria-modal="true" aria-labelledby="move-task-title" @keydown.esc="closeMoveSheet">
                 <div class="tm-move-sheet__handle"></div>
                 <header class="tm-move-sheet__header">
                     <div>
@@ -331,18 +389,54 @@ const acceptHandover = async (request) => {
                         <p>Chọn cột đích. Công việc sẽ được thêm vào cuối cột.</p>
                     </div>
                     <button type="button" class="tm-move-sheet__close" aria-label="Đóng"
-                        @click="showMoveSheet = false">
+                        @click="closeMoveSheet">
                         <i class="fas fa-times"></i>
                     </button>
                 </header>
 
-                <div class="tm-move-sheet__options">
-                    <button v-for="column in moveTargets" :key="column.id" type="button"
-                        class="tm-move-sheet__option" @click="moveTask(column)">
-                        <span class="tm-move-sheet__column">{{ column.name }}</span>
-                        <span class="tm-move-sheet__count">{{ column.tasks?.length || 0 }} công việc</span>
-                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                <label class="tm-move-sheet__search">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    <input ref="moveSearchInput" v-model="moveSearch" type="search"
+                        placeholder="Tìm tên cột..." autocomplete="off" aria-label="Tìm cột đích">
+                    <button v-if="moveSearch" type="button" aria-label="Xoá tìm kiếm" @click="moveSearch = ''">
+                        <i class="fas fa-times" aria-hidden="true"></i>
                     </button>
+                </label>
+
+                <div class="tm-move-sheet__options">
+                    <template v-if="moveSearch">
+                        <button v-for="column in filteredMoveTargets" :key="column.id" type="button"
+                            class="tm-move-sheet__option" @click="moveTask(column)">
+                            <span class="tm-move-sheet__column">{{ column.name }}</span>
+                            <span class="tm-move-sheet__count">{{ column.tasks?.length || 0 }} công việc</span>
+                            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                        </button>
+                        <p v-if="!filteredMoveTargets.length" class="tm-move-sheet__empty">
+                            Không tìm thấy cột phù hợp.
+                        </p>
+                    </template>
+
+                    <template v-else>
+                        <div v-if="recentMoveTargets.length" class="tm-move-sheet__section-title">
+                            <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Gần đây
+                        </div>
+                        <button v-for="column in recentMoveTargets" :key="`recent-${column.id}`" type="button"
+                            class="tm-move-sheet__option tm-move-sheet__option--recent" @click="moveTask(column)">
+                            <span class="tm-move-sheet__column">{{ column.name }}</span>
+                            <span class="tm-move-sheet__count">{{ column.tasks?.length || 0 }} công việc</span>
+                            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                        </button>
+
+                        <div v-if="recentMoveTargets.length && remainingMoveTargets.length" class="tm-move-sheet__section-title">
+                            Tất cả cột
+                        </div>
+                        <button v-for="column in remainingMoveTargets" :key="column.id" type="button"
+                            class="tm-move-sheet__option" @click="moveTask(column)">
+                            <span class="tm-move-sheet__column">{{ column.name }}</span>
+                            <span class="tm-move-sheet__count">{{ column.tasks?.length || 0 }} công việc</span>
+                            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                        </button>
+                    </template>
                 </div>
             </section>
         </div>
@@ -745,6 +839,29 @@ const acceptHandover = async (request) => {
     display: none;
 }
 
+/* Hành động chính dùng màu nhận diện của ứng dụng; thao tác phụ chỉ nhấn bằng
+   viền để không cạnh tranh thị giác với nút Chỉnh sửa. */
+.tm-edit-trigger {
+    color: #fff !important;
+    border-color: var(--app-accent, #663300) !important;
+    background: var(--app-accent, #663300) !important;
+}
+
+.tm-edit-trigger:hover,
+.tm-edit-trigger:focus {
+    color: #fff !important;
+    border-color: var(--app-accent-dark, #4a2600) !important;
+    background: var(--app-accent-dark, #4a2600) !important;
+}
+
+.tm-move-trigger:hover,
+.tm-move-trigger:focus {
+    color: var(--app-text) !important;
+    border-color: var(--app-accent, #663300) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
 /* ---------------- Nội dung markdown đã render ---------------- */
 .md-content { word-break: break-word; }
 .md-content :deep(p) { margin: 0 0 0.5rem; }
@@ -873,9 +990,9 @@ const acceptHandover = async (request) => {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
         padding: 0;
 
         color: var(--app-text-muted);
@@ -886,11 +1003,77 @@ const acceptHandover = async (request) => {
         background: transparent;
     }
 
+    .tm-move-sheet__search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 44px;
+        margin-bottom: 12px;
+        padding: 0 11px;
+
+        color: var(--app-text-muted);
+
+        border: 1px solid var(--app-border);
+        border-radius: 10px;
+
+        background: var(--app-bg);
+    }
+
+    .tm-move-sheet__search:focus-within {
+        border-color: var(--app-accent);
+        box-shadow: 0 0 0 3px rgba(102, 51, 0, 0.12);
+    }
+
+    .tm-move-sheet__search input {
+        width: 100%;
+        min-width: 0;
+        height: 100%;
+        padding: 0;
+
+        color: var(--app-text);
+
+        border: 0;
+        outline: 0;
+        background: transparent;
+    }
+
+    .tm-move-sheet__search button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+
+        color: var(--app-text-muted);
+
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+    }
+
     .tm-move-sheet__options {
         display: flex;
         flex-direction: column;
 
         gap: 8px;
+    }
+
+    .tm-move-sheet__section-title {
+        margin-top: 4px;
+        padding: 5px 2px 1px;
+
+        color: var(--app-text-muted);
+
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .tm-move-sheet__option--recent {
+        border-color: color-mix(in srgb, var(--app-accent) 35%, var(--app-border));
+        background: color-mix(in srgb, var(--app-accent) 7%, var(--app-surface));
     }
 
     .tm-move-sheet__option {
@@ -927,6 +1110,17 @@ const acceptHandover = async (request) => {
         color: var(--app-text-muted);
 
         font-size: 0.75rem;
+    }
+
+    .tm-move-sheet__empty {
+        margin: 8px 0;
+        padding: 18px 12px;
+
+        color: var(--app-text-muted);
+        text-align: center;
+
+        border: 1px dashed var(--app-border);
+        border-radius: 10px;
     }
 
     .tm-body {
@@ -972,6 +1166,191 @@ const acceptHandover = async (request) => {
         align-items: flex-start;
         flex-direction: column;
         gap: 0;
+    }
+}
+
+/* Desktop không thể dựa vào kéo qua hàng chục cột. Dùng cùng bộ chọn cột như
+   mobile, nhưng hiển thị ở giữa màn hình để không che mất toàn bộ task modal. */
+@media (min-width: 768px) {
+    .tm-mobile-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .tm-mobile-actions :deep(.btn) {
+        flex: 1 1 150px;
+    }
+
+    .tm-move-trigger {
+        display: inline-flex;
+    }
+
+    .tm-move-sheet-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1070;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 24px;
+        background: rgba(9, 30, 66, 0.48);
+    }
+
+    .tm-move-sheet {
+        width: min(560px, 100%);
+        max-height: min(72dvh, 620px);
+        padding: 20px;
+        overflow-y: auto;
+
+        color: var(--app-text);
+        border-radius: 16px;
+        background: var(--app-surface);
+        box-shadow: 0 18px 48px rgba(9, 30, 66, 0.28);
+    }
+
+    .tm-move-sheet__handle { display: none; }
+
+    .tm-move-sheet__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .tm-move-sheet__header h6 {
+        margin: 0 0 3px;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .tm-move-sheet__header p {
+        margin: 0;
+        color: var(--app-text-muted);
+        font-size: 0.8rem;
+        line-height: 1.45;
+    }
+
+    .tm-move-sheet__close,
+    .tm-move-sheet__search button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        color: var(--app-text-muted);
+        background: transparent;
+    }
+
+    .tm-move-sheet__close {
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
+        border: 1px solid var(--app-border);
+        border-radius: 50%;
+    }
+
+    .tm-move-sheet__search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 44px;
+        margin-bottom: 12px;
+        padding: 0 11px;
+        color: var(--app-text-muted);
+        border: 1px solid var(--app-border);
+        border-radius: 10px;
+        background: var(--app-bg);
+    }
+
+    .tm-move-sheet__search:focus-within {
+        border-color: var(--app-accent);
+        box-shadow: 0 0 0 3px rgba(102, 51, 0, 0.12);
+    }
+
+    .tm-move-sheet__search input {
+        width: 100%;
+        min-width: 0;
+        height: 100%;
+        padding: 0;
+        color: var(--app-text);
+        border: 0;
+        outline: 0;
+        background: transparent;
+    }
+
+    .tm-move-sheet__search button {
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 50%;
+    }
+
+    .tm-move-sheet__options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .tm-move-sheet__section-title {
+        margin-top: 4px;
+        padding: 5px 2px 1px;
+        color: var(--app-text-muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .tm-move-sheet__option {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 52px;
+        padding: 10px 12px;
+        color: var(--app-text);
+        text-align: left;
+        border: 1px solid var(--app-border);
+        border-radius: 12px;
+        background: rgba(127, 127, 127, 0.05);
+    }
+
+    .tm-move-sheet__option:hover {
+        border-color: var(--app-accent);
+        background: rgba(102, 51, 0, 0.06);
+    }
+
+    .tm-move-sheet__option--recent {
+        border-color: color-mix(in srgb, var(--app-accent) 35%, var(--app-border));
+        background: color-mix(in srgb, var(--app-accent) 7%, var(--app-surface));
+    }
+
+    .tm-move-sheet__column {
+        overflow: hidden;
+        font-size: 0.9rem;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .tm-move-sheet__count,
+    .tm-move-sheet__option > i {
+        color: var(--app-text-muted);
+        font-size: 0.75rem;
+    }
+
+    .tm-move-sheet__empty {
+        margin: 8px 0;
+        padding: 18px 12px;
+        color: var(--app-text-muted);
+        text-align: center;
+        border: 1px dashed var(--app-border);
+        border-radius: 10px;
     }
 }
 </style>

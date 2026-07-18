@@ -28,9 +28,9 @@ class TaskHandoverRequestTest extends TestCase
         $this->seed(PermissionSeeder::class);
     }
 
-    private function grant(Board $board, User $user): void
+    private function grant(Board $board, User $user, string $role = 'board_viewer'): void
     {
-        $permission = Permission::firstWhere('name', 'board_viewer');
+        $permission = Permission::firstWhere('name', $role);
         $permissionUser = PermissionUser::firstOrCreate([
             'user_id' => $user->id,
             'permission_id' => $permission->id,
@@ -41,14 +41,14 @@ class TaskHandoverRequestTest extends TestCase
         ]);
     }
 
-    private function fixture(): array
+    private function fixture(string $role = 'board_viewer'): array
     {
         $owner = User::factory()->create();
         $viewer = User::factory()->create();
         $board = Board::create(['name' => 'Bàn giao', 'user_id' => $owner->id]);
         $column = Column::create(['name' => 'Cần làm', 'position' => 0, 'board_id' => $board->id]);
         $task = Task::create(['title' => 'Task', 'column_id' => $column->id]);
-        $this->grant($board, $viewer);
+        $this->grant($board, $viewer, $role);
         Assignee::create(['task_id' => $task->id, 'user_id' => $viewer->id]);
 
         return [$owner, $viewer, $board, $task];
@@ -78,6 +78,31 @@ class TaskHandoverRequestTest extends TestCase
         $this->actingAs($owner)
             ->postJson(route('task-handover-requests.accept', $requestId))
             ->assertConflict();
+    }
+
+    public function test_editor_can_request_handover_for_an_assigned_task(): void
+    {
+        [$owner, $editor, $board, $task] = $this->fixture('board_editor');
+
+        $this->actingAs($editor)
+            ->postJson(route('tasks.handover-requests.store', $task), ['to_user_id' => $owner->id])
+            ->assertOk();
+
+        $this->assertDatabaseHas('task_handover_requests', [
+            'task_id' => $task->id,
+            'from_user_id' => $editor->id,
+            'to_user_id' => $owner->id,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_member_manager_cannot_use_member_handover_flow(): void
+    {
+        [$owner, $memberManager, $board, $task] = $this->fixture('board_member_manager');
+
+        $this->actingAs($memberManager)
+            ->postJson(route('tasks.handover-requests.store', $task), ['to_user_id' => $owner->id])
+            ->assertForbidden();
     }
 
     public function test_accept_rejects_stale_request_when_sender_is_no_longer_assigned(): void

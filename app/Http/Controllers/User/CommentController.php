@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\Notification;
+use App\Jobs\NotifyTaskMentions;
 use App\Models\Task;
 use App\Models\TaskHistory;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -30,71 +31,58 @@ class CommentController extends Controller
     public function store(Request $request, Task $task)
     {
         $board = $this->authorizeTaskAccess($task, ['board_viewer', 'board_editor', 'board_member_manager']);
+        // Chỉ chuẩn hoá chuỗi. Ép mảng/object sang string trước validate sẽ khiến
+        // payload sai kiểu trở thành "Array" thay vì nhận lỗi 422.
+        if (is_string($request->input('content'))) {
+            $request->merge(['content' => trim($request->input('content'))]);
+        }
         $request->validate([
             'content' => 'required|string|max:5000',
-            'mentions' => 'nullable|array',
-            'mentions.*' => 'integer',
+            'mentions' => 'nullable|array|max:50',
+            'mentions.*' => 'integer|distinct',
         ]);
 
         try {
             $comment = DB::transaction(function () use ($task, $request) {
-                $newComment = $task->comments()->create([
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                $newComment = $lockedTask->comments()->create([
                     'user_id' => Auth::id(),
                     'content' => $request->content,
                 ]);
 
-                (new TaskHistory())->logTaskHistory($task, 'thêm bình luận');
+                (new TaskHistory())->logTaskHistory($lockedTask, 'thêm bình luận');
+                $lockedTask->bumpRevision();
 
                 return $newComment;
             });
             $comment->load('user');
 
-            // Thông báo mention không được làm hỏng việc thêm bình luận (đã commit).
-            try {
-                $this->notifyMentions($task, $board, (array) $request->input('mentions', []));
-            } catch (\Throwable $e) {
-                Log::warning("notifyMentions failed for task {$task->id}: " . $e->getMessage());
-            }
+            // Chạy sau commit để lỗi/retry notification không làm mất bình luận.
+            NotifyTaskMentions::dispatch(
+                $comment->id,
+                $task->id,
+                $board->id,
+                Auth::id(),
+                $request->input('content'),
+                (array) $request->input('mentions', [])
+            );
 
-            $comment->user_avatar = $comment->user
-                ? ('https://i.pravatar.cc/40?u=' . $comment->user->id)
-                : 'https://i.pravatar.cc/40?u=unknown';
+            $comment->user_avatar = $comment->user_avatar_url;
+            $comment->can_delete = true;
 
             return response()->json([
                 'success' => true, 'message' => 'Bình luận đã được thêm.',
                 'comment' => $comment,
-            ]);
+            ], 201);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Công việc không tồn tại hoặc đã bị xóa.',
+            ], 404);
         } catch (\Exception $e) {
             Log::error("Error adding comment to task {$task->id}: " . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể thêm bình luận.'], 500);
-        }
-    }
-
-    /** Tạo thông báo cho những thành viên được nhắc (@) trong bình luận. */
-    private function notifyMentions(Task $task, $board, array $mentionIds): void
-    {
-        $mentionIds = array_filter(array_map('intval', $mentionIds));
-        if (empty($mentionIds)) {
-            return;
-        }
-
-        $me = Auth::id();
-        $meName = e(Auth::user()->name);
-
-        // Chỉ nhắc thành viên hợp lệ của bảng (đã gồm chủ bảng), bỏ chính mình.
-        $memberIds = collect((new \App\Models\Board())->getAssignedUsersByBoardId($board->id))
-            ->pluck('id')->all();
-
-        $code = Task::buildCode($board->name, $task->id);
-        $url = route('tasks.edit', $code, false);
-        // Escape tiêu đề (message render bằng v-html ở chuông thông báo).
-        $msg = "<strong>{$meName}</strong> đã nhắc bạn trong <strong>{$code}</strong> — " . e($task->title) . '.';
-
-        foreach (array_unique($mentionIds) as $uid) {
-            if ($uid !== $me && in_array($uid, $memberIds, true)) {
-                Notification::notifyUser($uid, $msg, $url, $task->id);
-            }
         }
     }
 
@@ -116,14 +104,22 @@ class CommentController extends Controller
             }
 
             DB::transaction(function () use ($comment, $task) {
-                $comment->delete();
-                (new TaskHistory())->logTaskHistory($task, 'xóa bình luận');
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                $lockedComment = $lockedTask->comments()->lockForUpdate()->findOrFail($comment->id);
+                $lockedComment->delete();
+                (new TaskHistory())->logTaskHistory($lockedTask, 'xóa bình luận');
+                $lockedTask->bumpRevision();
             });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Bình luận đã được xóa.',
             ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bình luận không tồn tại hoặc đã bị xóa.',
+            ], 404);
         } catch (\Exception $e) {
             Log::error("Error deleting comment for task {$task->id}: " . $e->getMessage());
 

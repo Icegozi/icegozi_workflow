@@ -200,15 +200,13 @@
     }
 
     .modal-backdrop-custom .modal-card__close {
-        width: 42px;
-        height: 42px;
+        width: 36px;
+        height: 36px;
         padding: 0;
     }
 
     .board-calendar {
-        overflow-x: auto;
-        overscroll-behavior-x: contain;
-        scroll-snap-type: x proximity;
+        overflow: visible;
     }
 
     .board-calendar .cal-grid {

@@ -13,6 +13,7 @@ use App\Models\TaskHandoverRequest;
 use Auth;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Log;
 
 class TaskController extends Controller
@@ -85,11 +86,14 @@ class TaskController extends Controller
             $data = $request->validated();
             $data['priority'] = $request->input('priority', 'normal');
             $createdTask = DB::transaction(function () use ($column, $data) {
-                $task = (new Task())->createForColumn($column, $data);
-                (new TaskHistory())->logTaskHistory($task, 'tạo', null, $column->name);
+                $lockedColumn = Column::query()->lockForUpdate()->findOrFail($column->id);
+                $task = (new Task())->createForColumn($lockedColumn, $data);
+                $lockedColumn->increment('revision');
+                (new TaskHistory())->logTaskHistory($task, 'tạo', null, $lockedColumn->name);
 
-                return $task;
+                return [$task, $lockedColumn->fresh()->revision];
             });
+            [$createdTask, $columnRevision] = $createdTask;
             $createdTask->load('assignees', 'status');
 
             return response()->json([
@@ -104,13 +108,15 @@ class TaskController extends Controller
                     'due_date' => $createdTask->due_date ? $createdTask->due_date->toDateString() : null,
                     'formatted_due_date' => $createdTask->due_date ? $createdTask->due_date->format('d M') : null,
                     'position' => $createdTask->position,
+                    'revision' => $createdTask->revision,
                     'column_id' => $createdTask->column_id,
+                    'column_revision' => $columnRevision,
                     'assignees' => $createdTask->assignees->map(function ($user) {
                         return [
                             'id' => $user->id,
                             'name' => $user->name,
                             'email' => $user->email,
-                            'avatar_url' => $user->avatar_url ?? 'https://i.pravatar.cc/30?u=' . $user->id,
+                            'avatar_url' => $user->avatar_url,
                         ];
                     }),
                 ],
@@ -167,12 +173,13 @@ class TaskController extends Controller
             ->where('task_id', $task->id)
             ->where('to_user_id', Auth::id())
             ->where('status', 'pending')
-            ->with('fromUser:id,name,email')
+            ->with('fromUser:id,name,email,avatar_url')
             ->get()
             ->map(fn ($handover) => [
                 'id' => $handover->id,
                 'from_name' => $handover->fromUser?->name,
                 'from_email' => $handover->fromUser?->email,
+                'from_avatar_url' => $handover->fromUser?->avatar_url,
             ]);
 
         return response()->json([
@@ -224,8 +231,7 @@ class TaskController extends Controller
             'id' => $history->id,
             'user_id' => $user?->id,
             'user_name' => $user?->name ?? 'Người dùng không xác định',
-            'user_avatar' => $user?->avatar_url
-                ?: ('https://i.pravatar.cc/40?u=' . ($user?->id ?? 'unknown')),
+            'user_avatar' => $user?->avatar_url,
             'action' => $history->action,
             'note' => $history->note,
             'created_at' => $history->created_at->format('Y-m-d H:i:s'),
@@ -242,11 +248,11 @@ class TaskController extends Controller
             return;
         }
 
-        $task->comments->transform(function ($comment) {
+        $canManageMembers = Auth::user()->hasBoardPermission($task->column->board, 'board_member_manager');
+        $task->comments->transform(function ($comment) use ($canManageMembers) {
             $comment->user_name = $comment->user ? $comment->user->name : 'Người dùng không xác định';
-            // Ưu tiên avatar profile của user; không có thì fallback pravatar.
-            $comment->user_avatar = $comment->user?->avatar_url
-                ?: ('https://i.pravatar.cc/40?u=' . ($comment->user?->id ?? 'unknown'));
+            $comment->user_avatar = $comment->user_avatar_url;
+            $comment->can_delete = $comment->user_id === Auth::id() || $canManageMembers;
             $comment->time_ago = $comment->created_at
                 ? $comment->created_at->diffForHumans()
                 : 'Không rõ thời gian';
@@ -367,7 +373,7 @@ class TaskController extends Controller
             'canEdit' => $canEdit,
             'canManage' => Auth::user()->hasBoardPermission($board, 'board_member_manager'),
             'statuses' => $statuses,
-            'boardLabels' => $board->labels()->orderBy('name')->get(['id', 'name', 'color']),
+            'boardLabels' => $board->labels()->orderBy('name')->get(['id', 'name', 'color', 'revision']),
         ]);
     }
 
@@ -380,7 +386,23 @@ class TaskController extends Controller
         $this->assertStatusAllowed($board, $request->input('status_id'));
 
         try {
-            $task->updateDetails($request->validated());
+            $result = DB::transaction(function () use ($request, $task) {
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                if ((int) $request->integer('revision') !== (int) $lockedTask->revision) {
+                    return null;
+                }
+
+                $lockedTask->updateDetails(Arr::except($request->validated(), ['revision']));
+                $lockedTask->increment('revision');
+
+                return $lockedTask->fresh(['assignees', 'status']);
+            });
+
+            if (! $result) {
+                return $this->staleTaskResponse($task->id);
+            }
+
+            $task = $result;
 
             return response()->json([
                 'success' => true,
@@ -395,6 +417,7 @@ class TaskController extends Controller
                     'formatted_due_date' => $task->due_date ? $task->due_date->format('M d') : null,
                     'position' => $task->position,
                     'column_id' => $task->column_id,
+                    'revision' => $task->revision,
                     'assignees' => $task->assignees->map(function ($assignee) {
                         return ['id' => $assignee->id, 'name' => $assignee->name, 'email' => $assignee->email];
                     }),
@@ -413,12 +436,24 @@ class TaskController extends Controller
     /**
      * Remove the specified task from storage.
      */
-    public function destroy(Task $task)
+    public function destroy(Request $request, Task $task)
     {
         $this->authorizeTaskAccess($task, ['board_member_manager']);
+        $request->validate(['revision' => ['required', 'integer', 'min:1']]);
 
         try {
-            $task->deleteWithHistory();
+            $deleted = DB::transaction(function () use ($request, $task) {
+                $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+                if ((int) $request->integer('revision') !== (int) $lockedTask->revision) {
+                    return false;
+                }
+                $lockedTask->deleteWithHistory();
+
+                return true;
+            });
+            if (! $deleted) {
+                return $this->staleTaskResponse($task->id);
+            }
 
             return response()->json(['success' => true, 'message' => 'Xóa nhiệm vụ thành công']);
         } catch (\Exception $e) {
@@ -435,7 +470,6 @@ class TaskController extends Controller
     {
         $task = Task::findOrFail($request->task_id);
         $board = $this->authorizeTaskAccess($task, ['board_editor', 'board_member_manager']);
-        $taskHistory = new TaskHistory();
         $oldColumn = Column::find($task->column_id);
         $newColumn = Column::findOrFail($request->new_column_id);
         if ($newColumn->board_id !== $board->id) {
@@ -443,37 +477,137 @@ class TaskController extends Controller
         }
 
         try {
-            DB::beginTransaction();
+            $revisions = $this->moveTaskWithRevision($request, $task, $oldColumn, $newColumn);
 
-            // Cập nhật column_id (chỉ khi khác)
-            if ($task->column_id !== $request->new_column_id) {
-                $task->column_id = $request->new_column_id;
-                $task->save();
-            }
-            $action = 'di chuyển';
-            $taskHistory->logTaskHistory($task, $action, $oldColumn->name ?? null, $newColumn->name ?? null);
-
-            $boardTaskIds = Task::whereHas('column', function ($q) use ($board) {
-                $q->where('board_id', $board->id);
-            })->pluck('id')->all();
-
-            foreach ($request->order as $index => $taskId) {
-                if (! in_array((int) $taskId, $boardTaskIds, true)) {
-                    abort(403, 'Nhiệm vụ không thuộc bảng này.');
-                }
-                Task::where('id', $taskId)->update(['position' => $index]);
+            if (($revisions['conflict'] ?? null) === 'task') {
+                return $this->staleTaskResponse($task->id);
             }
 
-            $action = 'Di chuyển';
+            if (! $revisions) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'STALE_LAYOUT',
+                    'message' => 'Thứ tự bảng đã được người khác thay đổi. Vui lòng tải lại.',
+                ], 409);
+            }
 
-            DB::commit();
-
-            return response()->json(['success' => true, 'message' => 'Vị trí nhiệm vụ đã cập nhật.']);
+            return response()->json(['success' => true, 'message' => 'Vị trí nhiệm vụ đã cập nhật.'] + $revisions);
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Lỗi khi cập nhật vị trí: ' . $e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Không thể cập nhật vị trí nhiệm vụ.'], 500);
         }
+    }
+
+    private function moveTaskWithRevision(
+        UpdateTaskPositionRequest $request,
+        Task $task,
+        Column $oldColumn,
+        Column $newColumn
+    ): ?array {
+        return DB::transaction(function () use ($request, $task, $oldColumn, $newColumn) {
+            [$source, $target] = $this->lockColumnsForMove($oldColumn, $newColumn);
+            if (! $this->hasCurrentColumnRevisions($request, $source, $target)) {
+                return null;
+            }
+
+            $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+            if ((int) $lockedTask->revision !== (int) $request->integer('task_revision')) {
+                return ['conflict' => 'task'];
+            }
+            $orderedTaskIds = $this->validatedTargetOrder($request, $lockedTask, $source, $target);
+            $this->persistTaskMove($lockedTask, $orderedTaskIds, $source, $target, $oldColumn, $newColumn);
+
+            return [
+                'source_column_revision' => $source->fresh()->revision,
+                'target_column_revision' => $target->fresh()->revision,
+                'task_revision' => $lockedTask->fresh()->revision,
+            ];
+        });
+    }
+
+    private function lockColumnsForMove(Column $oldColumn, Column $newColumn): array
+    {
+        // Khoá theo ID tăng dần để tránh deadlock khi hai người kéo ngược chiều nhau.
+        $ids = collect([$oldColumn->id, $newColumn->id])->unique()->sort()->values();
+        $columns = Column::query()->whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
+
+        return [$columns[$oldColumn->id], $columns[$newColumn->id]];
+    }
+
+    private function hasCurrentColumnRevisions(
+        UpdateTaskPositionRequest $request,
+        Column $source,
+        Column $target
+    ): bool {
+        return (int) $source->revision === (int) $request->integer('source_column_revision')
+            && (int) $target->revision === (int) $request->integer('target_column_revision');
+    }
+
+    private function validatedTargetOrder(
+        UpdateTaskPositionRequest $request,
+        Task $task,
+        Column $source,
+        Column $target
+    ): array {
+        $targetIds = Task::query()->where('column_id', $target->id)->lockForUpdate()
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $expectedIds = $source->id === $target->id
+            ? $targetIds
+            : [...array_values(array_diff($targetIds, [(int) $task->id])), (int) $task->id];
+        $submittedIds = array_map('intval', $request->order);
+        $sortedExpected = $expectedIds;
+        $sortedSubmitted = $submittedIds;
+        sort($sortedExpected);
+        sort($sortedSubmitted);
+        abort_if(
+            $sortedSubmitted !== $sortedExpected,
+            422,
+            'Thứ tự công việc không chứa đúng các công việc của cột đích.'
+        );
+
+        return $submittedIds;
+    }
+
+    private function persistTaskMove(
+        Task $task,
+        array $orderedTaskIds,
+        Column $source,
+        Column $target,
+        Column $oldColumn,
+        Column $newColumn
+    ): void {
+        if ($task->column_id !== $target->id) {
+            $task->update(['column_id' => $target->id]);
+        }
+        foreach ($orderedTaskIds as $index => $taskId) {
+            Task::whereKey($taskId)->update(['position' => $index]);
+        }
+        $source->increment('revision');
+        if ($target->id !== $source->id) {
+            $target->increment('revision');
+        }
+        $task->bumpRevision();
+        (new TaskHistory())->logTaskHistory($task, 'di chuyển', $oldColumn->name ?? null, $newColumn->name ?? null);
+    }
+
+    private function staleTaskResponse(int $taskId)
+    {
+        $current = Task::query()->with('status')->find($taskId);
+
+        return response()->json([
+            'success' => false,
+            'code' => 'STALE_VERSION',
+            'message' => 'Công việc đã được người khác cập nhật. Vui lòng tải lại trước khi tiếp tục.',
+            'current' => $current ? [
+                'id' => $current->id,
+                'title' => $current->title,
+                'description' => $current->description,
+                'due_date' => $current->due_date?->toDateString(),
+                'priority' => $current->priority,
+                'status_id' => $current->status_id,
+                'revision' => $current->revision,
+            ] : null,
+        ], 409);
     }
 }

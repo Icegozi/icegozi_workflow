@@ -53,13 +53,14 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/dashboard', function () {
         return auth()->user()->is_admin
             ? redirect()->route('admin.dashboard')
-            : redirect()->route('user.dashboard');
+            : redirect()->route('my-tasks.index');
     })->name('dashboard');
 
     // --- Hồ sơ cá nhân (user & admin tự chỉnh) ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     // POST (không PUT) để upload avatar multipart đơn giản, không cần method spoofing.
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme.update');
 
     // Dashboard riêng cho user thường
     Route::get('/user/dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard');
@@ -71,6 +72,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::post('/boards', [BoardController::class, 'store'])->name('boards.store');
     Route::post('/boards/{board}/duplicate', [BoardController::class, 'duplicate'])->name('boards.duplicate');
+    Route::get('/boards/{board}/revision', [BoardController::class, 'revision'])->name('boards.revision');
 
     // Column Routes
     Route::post('/boards/{board}/columns', [ColumnController::class, 'store'])->name('columns.store');
@@ -128,7 +130,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('/chart-settings/{scope}', [ChartSettingController::class, 'update'])->name('chart-settings.update');
 
     // comment
-    Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
+    Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('comments.store');
     // Route::put('/tasks/{task}/comments/{commentId}', [CommentController::class, 'update'])->name('comments.update');
     Route::delete('/tasks/{task}/comments/{commentId}', [CommentController::class, 'destroy'])
         ->name('comments.destroy');

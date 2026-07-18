@@ -115,6 +115,12 @@ class Task extends Model
         return self::create($data);
     }
 
+    /** Tăng revision sau mọi thay đổi làm task hiển thị khác đi. */
+    public function bumpRevision(): void
+    {
+        $this->increment('revision');
+    }
+
     public function loadDetails(): self
     {
         return $this->load([

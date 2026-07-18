@@ -7,6 +7,8 @@ Thumbs.db
 
 /node_modules
 /vendor
+/playwright-report
+/test-results
 
 /storage/*.key
 

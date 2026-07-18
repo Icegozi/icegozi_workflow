@@ -16,7 +16,7 @@ class Column extends Model
     use SoftDeletes;
 
     // Add fillable properties
-    protected $fillable = ['name', 'position', 'board_id'];
+    protected $fillable = ['name', 'position', 'board_id', 'revision'];
 
     protected static function booted(): void
     {

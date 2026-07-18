@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { avatarSrc } from '@/composables/useSocialLinks';
 
 const props = defineProps({
     task: { type: Object, required: true },
@@ -97,7 +98,7 @@ const hasMeta = computed(() => {
 
             <div v-if="visibleAssignees.length" class="card-assignees">
                 <img v-for="a in visibleAssignees" :key="a.id"
-                    :src="`https://i.pravatar.cc/32?u=${encodeURIComponent(a.email)}`"
+                    :src="avatarSrc(a.avatar_url)"
                     :title="a.name" :alt="a.name" class="assignee-avatar" width="28" height="28">
                 <span v-if="extraAssignees" class="assignee-more" :title="`Thêm ${extraAssignees} người`">
                     +{{ extraAssignees }}
@@ -152,7 +153,11 @@ const hasMeta = computed(() => {
     margin-bottom: 12px;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(9, 30, 66, 0.04);
-    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    /* Không animate các thuộc tính layout trong lúc SortableJS đổi vị trí.
+       Safari trên iPad dễ bị giật khi dùng `transition: all` cho nhiều card. */
+    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1),
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -196,6 +201,26 @@ const hasMeta = computed(() => {
     box-shadow: 0 8px 16px rgba(9, 30, 66, 0.08);
     transform: translateY(-3px);
     border-color: var(--app-border);
+}
+
+/* Các class này được SortableJS thêm trong lúc kéo. Fallback clone được gắn vào
+   body để không bị cắt bởi vùng cuộn và chỉ dùng transform (GPU-friendly). */
+.kanban-card--chosen {
+    opacity: 0.82;
+}
+
+.kanban-card--ghost {
+    opacity: 0.28;
+    background: var(--app-bg);
+    box-shadow: none;
+}
+
+.kanban-card--dragging {
+    opacity: 1;
+    cursor: grabbing;
+    box-shadow: 0 14px 30px rgba(9, 30, 66, 0.2);
+    transition: none;
+    will-change: transform;
 }
 
 /* Mã công việc */

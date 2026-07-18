@@ -29,7 +29,7 @@ class LoginTest extends TestCase
         $user = $this->makeUser(['email' => 'a@example.com']);
 
         $this->post(route('login'), ['login' => 'a@example.com', 'password' => 'password'])
-            ->assertRedirect(route('user.dashboard'));
+            ->assertRedirect(route('my-tasks.index'));
 
         $this->assertAuthenticatedAs($user);
     }
@@ -39,7 +39,7 @@ class LoginTest extends TestCase
         $user = $this->makeUser(['username' => 'johndoe']);
 
         $this->post(route('login'), ['login' => 'johndoe', 'password' => 'password'])
-            ->assertRedirect(route('user.dashboard'));
+            ->assertRedirect(route('my-tasks.index'));
 
         $this->assertAuthenticatedAs($user);
     }
@@ -50,7 +50,7 @@ class LoginTest extends TestCase
         $this->makeUser(['email' => 'legacy@example.com']);
 
         $this->post(route('login'), ['email' => 'legacy@example.com', 'password' => 'password'])
-            ->assertRedirect(route('user.dashboard'));
+            ->assertRedirect(route('my-tasks.index'));
 
         $this->assertAuthenticated();
     }
@@ -61,6 +61,18 @@ class LoginTest extends TestCase
 
         $this->post(route('login'), ['login' => 'boss', 'password' => 'password'])
             ->assertRedirect(route('admin.dashboard'));
+    }
+
+    public function test_nguoi_dung_da_dang_nhap_vao_lai_login_va_dashboard_deu_ve_task_cua_toi(): void
+    {
+        $user = $this->makeUser();
+
+        $this->actingAs($user)
+            ->get(route('login.form'))
+            ->assertRedirect(route('my-tasks.index'));
+
+        $this->get(route('dashboard'))
+            ->assertRedirect(route('my-tasks.index'));
     }
 
     public function test_tai_khoan_khong_active_bi_chan(): void
@@ -95,7 +107,7 @@ class LoginTest extends TestCase
         $user = $this->makeUser(['username' => 'johndoe']);
 
         $this->post(route('login'), ['login' => 'JohnDoe', 'password' => 'password'])
-            ->assertRedirect(route('user.dashboard'));
+            ->assertRedirect(route('my-tasks.index'));
 
         $this->assertAuthenticatedAs($user);
     }

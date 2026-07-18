@@ -1,6 +1,6 @@
-# Icegozi Workflow
+# Ic_go-wf
 
-Icegozi Workflow là ứng dụng quản lý công việc theo phương pháp Kanban, phù hợp cho nhóm nhỏ và dự án nội bộ. Mỗi dự án được tổ chức thành một bảng, các công việc được đặt trong cột và có thể kéo-thả để phản ánh tiến độ thực tế.
+Ic_go-wf là ứng dụng quản lý công việc theo phương pháp Kanban, phù hợp cho nhóm nhỏ và dự án nội bộ. Mỗi dự án được tổ chức thành một bảng, các công việc được đặt trong cột và có thể kéo-thả để phản ánh tiến độ thực tế.
 
 ## Giới thiệu
 

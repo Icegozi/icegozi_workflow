@@ -6,6 +6,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import TaskComments from '@/Components/TaskComments.vue';
 import { renderMarkdown } from '@/composables/useMarkdown';
+import { avatarSrc } from '@/composables/useSocialLinks';
 import { showAppAlert } from '@/composables/useAppAlert';
 
 const props = defineProps({
@@ -69,8 +70,6 @@ const checklistTotal = computed(() => (task.value?.checklists || []).length);
 const checklistPct = computed(() =>
     checklistTotal.value ? Math.round((checklistDone.value / checklistTotal.value) * 100) : 0
 );
-
-const avatar = (email, size = 30) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(email || 'x')}`;
 
 // ---- Permalink + copy ---- (URL đẹp /b-{board_code}/tasks/{task_code})
 const taskUrl = computed(() => route('tasks.permalink', { boardCode: props.boardCode, taskCode: props.taskCode }));
@@ -137,7 +136,7 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
                     <h6 class="sect"><i class="fas fa-user-friends"></i>Người phụ trách</h6>
                     <div class="d-flex align-items-center flex-wrap mb-4" style="gap:8px;">
                         <span v-for="a in task.assignees" :key="a.id" class="assignee-pill">
-                            <img :src="a.avatar_url || avatar(a.email)" class="rounded-circle" width="24" height="24" :title="a.name">
+                            <img :src="avatarSrc(a.avatar_url)" class="rounded-circle" width="24" height="24" :title="a.name">
                             <span>{{ a.name }}</span>
                         </span>
                         <span v-if="!task.assignees || !task.assignees.length" class="text-muted small">Chưa có ai.</span>
@@ -224,7 +223,7 @@ const goEdit = () => router.visit(route('tasks.edit', { taskCode: props.code, re
                         <h6 class="side-title">Lịch sử</h6>
                         <div class="history-scroll">
                             <div v-for="h in task.task_histories" :key="h.id" class="history-item">
-                                <img :src="h.user_avatar" class="rounded-circle" width="24" height="24">
+                                <img :src="avatarSrc(h.user_avatar)" class="rounded-circle" width="24" height="24">
                                 <div class="history-item__text">
                                     <!-- note là HTML dựng sẵn (đã escape ở server) -->
                                     <div v-if="h.note" class="history-note" v-html="h.note"></div>

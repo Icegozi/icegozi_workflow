@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import draggable from 'vuedraggable';
+import Modal from '@/Components/Modal.vue';
 
 const props = defineProps({
     tasks: { type: Array, default: () => [] },   // danh sách task phẳng (tham chiếu chung với board)
@@ -23,6 +24,10 @@ const monthLabel = computed(() =>
 );
 
 const todayKey = keyOf(new Date());
+const MAX_VISIBLE_TASKS = 1;
+const selectedDay = ref(null);
+const calendarGridWrap = ref(null);
+const dragJustEnded = ref(false);
 
 // 42 ô (6 tuần), bắt đầu từ Thứ 2 của tuần chứa ngày 1
 const cells = computed(() => {
@@ -54,6 +59,42 @@ const prevMonth = () => { viewDate.value = new Date(viewDate.value.getFullYear()
 const nextMonth = () => { viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() + 1, 1); };
 const goToday = () => { viewDate.value = startOfMonth(new Date()); };
 
+const selectedTasks = computed(() => selectedDay.value ? (buckets.value[selectedDay.value.key] || []) : []);
+const selectedDayLabel = computed(() => {
+    if (!selectedDay.value) return '';
+    const [year, month, day] = selectedDay.value.key.split('-');
+    return `Công việc ngày ${day}/${month}/${year}`;
+});
+const descriptionPreview = (description) => {
+    const plainText = (description || '')
+        .replace(/[#*_`>[\]()!-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    return plainText.length > 240 ? `${plainText.slice(0, 240)}…` : plainText;
+};
+const openDayTasks = (cell) => { selectedDay.value = cell; };
+const openTask = (task) => {
+    if (dragJustEnded.value) return;
+    selectedDay.value = null;
+    emit('open', task);
+};
+const onDragEnd = () => {
+    dragJustEnded.value = true;
+    window.setTimeout(() => { dragJustEnded.value = false; }, 0);
+};
+
+// Sortable gọi hàm này liên tục khi task được giữ sát mép vùng cuộn.
+// Cuộn ngang trực tiếp vào lưới để thao tác kéo trên màn hình cảm ứng không bị khựng.
+const scrollCalendar = (offsetX, offsetY) => {
+    if (calendarGridWrap.value && offsetX) {
+        calendarGridWrap.value.scrollLeft += offsetX;
+    }
+
+    // Đã tự cuộn vùng chứa, không để Sortable cuộn lặp lại lần nữa.
+    return undefined;
+};
+
 // Khi task được thả vào một ô -> đổi hạn (key = 'YYYY-MM-DD' hoặc 'none' để xoá hạn)
 const onDrop = (key, evt) => {
     const moved = evt.added;
@@ -74,26 +115,35 @@ const onDrop = (key, evt) => {
                 <button class="btn btn-sm btn-light btn--icon-only" @click="nextMonth"><i class="fas fa-chevron-right"></i></button>
                 <button class="btn btn-sm btn-outline-secondary ml-2" @click="goToday">Hôm nay</button>
             </div>
-            <span class="text-muted small">Kéo thẻ sang ngày khác để đổi hạn</span>
         </div>
 
-        <div class="cal-grid cal-head">
-            <div v-for="w in WEEKDAYS" :key="w" class="cal-weekday">{{ w }}</div>
-        </div>
+        <div ref="calendarGridWrap" class="cal-grid-wrap">
+            <div class="cal-grid cal-head">
+                <div v-for="w in WEEKDAYS" :key="w" class="cal-weekday">{{ w }}</div>
+            </div>
 
-        <div class="cal-grid">
-            <div v-for="c in cells" :key="c.key" class="cal-cell" :class="{ 'out-month': !c.inMonth, 'is-today': c.isToday }">
-                <div class="cal-daynum">{{ c.day }}</div>
-                <draggable :list="buckets[c.key]" :group="'cal-tasks'" item-key="id" :disabled="!canEdit"
-                    class="cal-drop" @change="(e) => onDrop(c.key, e)">
-                    <template #item="{ element: t }">
-                        <div class="cal-task" :style="{ borderLeftColor: PRIORITY_COLOR[t.priority] || '#c1c7d0' }"
-                            :class="{ done: t.status?.is_completed }" @click="emit('open', t)">
-                            <span class="cal-task-code">{{ t.code }}</span>
-                            <span class="cal-task-title">{{ t.title }}</span>
-                        </div>
-                    </template>
-                </draggable>
+            <div class="cal-grid">
+                <div v-for="c in cells" :key="c.key" class="cal-cell" :class="{ 'out-month': !c.inMonth, 'is-today': c.isToday }">
+                    <div class="cal-daynum">{{ c.day }}</div>
+                    <draggable :list="buckets[c.key]" :group="'cal-tasks'" item-key="id" :disabled="!canEdit"
+                        :animation="120" :force-fallback="true" :fallback-on-body="true" :fallback-tolerance="4"
+                        :scroll="calendarGridWrap" :scroll-sensitivity="72" :scroll-speed="14" :bubble-scroll="true"
+                        ghost-class="cal-task--ghost" chosen-class="cal-task--chosen" fallback-class="cal-task--fallback"
+                        :scroll-fn="scrollCalendar" class="cal-drop" @change="(e) => onDrop(c.key, e)" @end="onDragEnd">
+                        <template #item="{ element: t, index }">
+                            <div class="cal-task" :style="{ borderLeftColor: PRIORITY_COLOR[t.priority] || '#c1c7d0' }"
+                                :class="{ done: t.status?.is_completed, 'cal-task--hidden': index >= MAX_VISIBLE_TASKS }"
+                                :title="`${t.code ? `${t.code} · ` : ''}${t.title}`" @click="openTask(t)">
+                                <span class="cal-task-code">{{ t.code }}</span>
+                                <span class="cal-task-title">{{ t.title }}</span>
+                            </div>
+                        </template>
+                    </draggable>
+                    <button v-if="(buckets[c.key] || []).length > MAX_VISIBLE_TASKS" type="button" class="cal-more"
+                        @click="openDayTasks(c)">
+                        +{{ buckets[c.key].length - MAX_VISIBLE_TASKS }} công việc
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -106,7 +156,7 @@ const onDrop = (key, evt) => {
                 class="cal-unscheduled-list" @change="(e) => onDrop('none', e)">
                 <template #item="{ element: t }">
                     <div class="cal-task" :style="{ borderLeftColor: PRIORITY_COLOR[t.priority] || '#c1c7d0' }"
-                        :class="{ done: t.status?.is_completed }" @click="emit('open', t)">
+                        :class="{ done: t.status?.is_completed }" :title="`${t.code ? `${t.code} · ` : ''}${t.title}`" @click="openTask(t)">
                         <span class="cal-task-code">{{ t.code }}</span>
                         <span class="cal-task-title">{{ t.title }}</span>
                     </div>
@@ -114,11 +164,26 @@ const onDrop = (key, evt) => {
             </draggable>
             <span v-if="!(buckets.none || []).length" class="text-muted small">Không có.</span>
         </div>
+
+        <Modal v-if="selectedDay" :title="selectedDayLabel" max-width="620px" @close="selectedDay = null">
+            <div class="cal-day-tasks">
+                <button v-for="task in selectedTasks" :key="task.id" type="button" class="cal-day-task"
+                    :style="{ borderLeftColor: PRIORITY_COLOR[task.priority] || '#c1c7d0' }" @click="openTask(task)">
+                    <span v-if="task.code" class="cal-task-code">{{ task.code }}</span>
+                    <strong class="cal-day-task-title">{{ task.title }}</strong>
+                    <span v-if="descriptionPreview(task.description)" class="cal-day-task-description">
+                        {{ descriptionPreview(task.description) }}
+                    </span>
+                    <span v-else-if="task.has_description" class="cal-day-task-description">Có mô tả — bấm để xem chi tiết.</span>
+                </button>
+            </div>
+        </Modal>
     </div>
 </template>
 
 <style scoped>
 .board-calendar {
+    width: 100%;
     background: var(--app-surface);
     border: 1px solid var(--app-border);
     border-radius: 12px;
@@ -147,8 +212,17 @@ const onDrop = (key, evt) => {
 
 .cal-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 6px;
+    width: 100%;
+}
+
+.cal-grid-wrap {
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
 }
 
 .cal-head {
@@ -164,13 +238,18 @@ const onDrop = (key, evt) => {
 }
 
 .cal-cell {
-    min-height: 110px;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    min-width: 0;
+    min-height: 0;
     background: var(--app-bg);
     border: 1px solid var(--app-border);
     border-radius: 8px;
     padding: 4px;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .cal-cell.out-month {
@@ -198,9 +277,11 @@ const onDrop = (key, evt) => {
     flex-direction: column;
     gap: 4px;
     margin-top: 2px;
+    overflow: hidden;
 }
 
 .cal-task {
+    min-width: 0;
     background: var(--app-surface);
     border: 1px solid var(--app-border);
     border-left: 3px solid #c1c7d0;
@@ -217,6 +298,25 @@ const onDrop = (key, evt) => {
     transform: translateY(-1px);
 }
 
+.cal-task--chosen {
+    opacity: 0.75;
+}
+
+.cal-task--ghost {
+    opacity: 0.35;
+}
+
+/* Fallback clone được đưa vào body khi kéo trên mobile. Không cho transition
+   transform của thẻ gốc làm clone chậm hơn vị trí ngón tay. */
+:global(.cal-task--fallback) {
+    opacity: 1 !important;
+    pointer-events: none !important;
+    transition: none !important;
+    will-change: transform;
+    z-index: 2000 !important;
+    box-shadow: 0 8px 20px rgba(9, 30, 66, 0.22) !important;
+}
+
 .cal-task.done {
     opacity: 0.6;
 }
@@ -231,14 +331,68 @@ const onDrop = (key, evt) => {
     font-size: 0.6rem;
     font-weight: 700;
     color: var(--app-text-muted);
+    overflow-wrap: anywhere;
 }
 
 .cal-task-title {
     display: block;
     color: var(--app-text);
+    min-width: 0;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    display: -webkit-box;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+}
+
+.cal-task--hidden {
+    display: none;
+}
+
+.cal-more {
+    align-self: flex-start;
+    margin-top: 4px;
+    padding: 0;
+    color: var(--app-accent, #663300);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.cal-more:hover { text-decoration: underline; }
+
+.cal-day-tasks { display: grid; gap: 8px; }
+
+.cal-day-task {
+    min-width: 0;
+    padding: 10px 12px;
+    color: var(--app-text);
+    text-align: left;
+    border: 1px solid var(--app-border);
+    border-left: 4px solid #c1c7d0;
+    border-radius: 8px;
+    background: var(--app-bg);
+    cursor: pointer;
+}
+
+.cal-day-task:hover { border-color: var(--app-accent, #663300); }
+
+.cal-day-task-title,
+.cal-day-task-description {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.cal-day-task-description {
+    margin-top: 4px;
+    color: var(--app-text-muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
 }
 
 .cal-unscheduled {
@@ -260,10 +414,9 @@ const onDrop = (key, evt) => {
 
 @media (max-width: 575.98px) {
     .board-calendar { padding: 8px; }
-    .cal-toolbar { position: sticky; left: 0; width: calc(100vw - 64px); }
+    .cal-toolbar { width: 100%; }
     .cal-nav { width: 100%; justify-content: space-between; }
     .cal-month { min-width: 0; }
-    .cal-cell { min-height: 92px; }
     .cal-task-code { display: none; }
 }
 </style>
